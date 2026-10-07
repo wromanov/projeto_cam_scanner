@@ -7,14 +7,15 @@ CAPABILITY = SINGLE Minimum Vertical Slice
 STATUS = APPROVED_BASELINE_WITH_REVISED_STRATEGY
 CAMERA_RESULT_CONTRACT_DECISION = APPROVED
 CAMERA_RESULT_FIELD_COUNT = 14
-P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_AND_P1_A04_ACTIVITY_PAYLOAD
 COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
-IMPLEMENTATION_ADAPTATION_REQUIRED = YES
+IMPLEMENTATION_ADAPTATION_REQUIRED = NO (P1-A04; synthetic validation complete)
+P1_OPERATIONAL_VALIDATION = PARTIAL_SUCCESS_ACCEPTED_WITH_VALID_PREAUTH_EVIDENCE
 ```
 
 ## 1. Objetivo e autoridade
 
-Este documento conserva os contratos de entrada, resultado e segurança de P1-A01 e registra a decisão de coleta aprovada em P1-A03. A implementação P1-A01 permanece como baseline histórico, mas foi construída sob ONVIF-first e precisa ser adaptada antes de P1 fechar. A direção vigente é `VENDOR_FIRST_WHEN_KNOWN`; não afirmar que ela já existe no código.
+Este documento conserva os contratos de entrada, resultado e segurança de P1-A01 e registra a decisão de coleta aprovada em P1-A03. A implementação P1-A01 permanece como baseline histórico, foi construída sob ONVIF-first e recebeu a adaptação de estratégia autorizada em P1-A04. A direção vigente é `VENDOR_FIRST_WHEN_KNOWN`; P1-A05 validou a operação READ_ONLY como `PARTIAL_SUCCESS`, conforme o DoD reconciliado na seção 13.
 
 Este contrato deriva da Engineering Foundation aprovada, da [roadmap](../continuity/planning/ROADMAP.md), do [execution plan](../continuity/planning/EXECUTION_PLAN.md) e dos contratos estruturais já presentes no projeto. O usuário aprovou este contrato e concedeu autorização explícita para a atividade P1-A01 por meio do payload executor de 2026-10-07. Isso não reabre a Foundation nem altera a arquitetura aprovada.
 
@@ -41,7 +42,7 @@ CLI entrypoint
 
 O `ApplicationController` controla navegação e ciclo da aplicação. `SingleWorkflow` não chama `MultiWorkflow`; sua saída de navegação retorna ao controller. A opção MULTI pode ser encaminhada conforme a arquitetura existente, sem implementar MULTI funcional nem antecipar P4.
 
-Direção vigente para coleta, a implementar antes do fechamento de P1:
+Direção vigente para coleta, implementada em P1-A04 e validada operacionalmente em P1-A05:
 
 ```text
 camera input (credenciais individuais por linha)
@@ -164,8 +165,8 @@ P1 somente será considerada implementada quando o caminho real `CLI entrypoint 
 | AC-02 | Menu principal oferece SINGLE, MULTI e Sair. |
 | AC-03 | SINGLE solicita IP, username e password por `getpass()`. |
 | AC-04 | `CameraTarget` é criado sem expor a senha. |
-| AC-05 | Consulta ONVIF real e READ_ONLY é executada. |
-| AC-06 | Manufacturer, Model, SerialNumber e FirmwareVersion são coletados quando disponíveis. |
+| AC-05 | Consulta ONVIF real e READ_ONLY é executada; evidência pré-autenticação válida pode satisfazer o aceite operacional como `PARTIAL_SUCCESS` quando coleta autenticada falha. |
+| AC-06 | Manufacturer, Model, SerialNumber e FirmwareVersion são coletados quando disponíveis; ausência por falha de autenticação deve ser preservada como resultado parcial, sem descartar evidência pré-auth válida. |
 | AC-07 | `CameraResult` contém exatamente os dez campos preservados e os quatro campos novos aprovados; sem password ou extension bag arbitrário. |
 | AC-08 | Resultado é apresentado no terminal. |
 | AC-09 | Falha de autenticação não mostra traceback no terminal. |
@@ -182,19 +183,21 @@ Após autorização de implementação, validar proporcionalmente com: testes un
 
 ## 13. Definition of Done de P1
 
-P1 só será DONE após código implementado; módulos validados; integração canônica realizada e validada; regressão aplicável PASS; consulta real READ_ONLY demonstrada; Python 3.14.x validado; nenhuma senha vazada; nenhum traceback esperado no terminal; nenhuma funcionalidade fora de P1 introduzida; `PROJECT_STATE` reconciliado; e handoff PASS. A divergência pendente da seção 5 deve estar decidida antes da implementação.
+P1 só será DONE após código implementado; módulos validados; integração canônica realizada e validada; regressão aplicável PASS; consulta real READ_ONLY demonstrada; Python 3.14.x validado; nenhuma senha vazada; nenhum traceback esperado no terminal; nenhuma funcionalidade fora de P1 introduzida; `PROJECT_STATE` reconciliado; e handoff PASS. Para a estratégia revisada, evidência pré-autenticação válida, resultado operacional `PARTIAL_SUCCESS` e tratamento correto de falha autenticada satisfazem a consulta real; `AUTH_ERROR` não bloqueia o aceite quando essa evidência permanece preservada. Nenhuma autenticação ONVIF bem-sucedida é exigida nesse cenário.
 
 ## 14. Limite de implementação e continuidade
 
 ```text
 P1_CONTRACT_STATUS = APPROVED
-P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY
-NEXT_ACTIVITY = P1-A04 implementation adaptation for the revised collection strategy
-NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; requires activity-specific implementation authorization
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_AND_P1_A04_ACTIVITY_PAYLOAD
+NEXT_ACTIVITY = P2 definition/contract according to canonical roadmap
+NEXT_ACTIVITY_AUTHORIZATION = P2 implementation NOT_GRANTED
+P1_STATUS = CLOSED after P1-A05 evidence reconciliation
+ONVIF_DIGEST_INTEROPERABILITY = OPEN_NON_BLOCKING
 FIELD_COUNT = 14
 ARBITRARY_EXTENSION_BAG = PROHIBITED
 PASSWORD_FIELD = PROHIBITED
 TYPING_DECISIONS_PENDING = NONE
 ```
 
-Este contrato registra os limites e as decisões aprovadas pelo usuário. A autorização concede somente a implementação e validação de P1-A01; não autoriza alteração da Foundation nem escrita Git, commit, push, tag ou release.
+Este contrato registra os limites e as decisões aprovadas pelo usuário. A autorização original de P1-A01 foi seguida pela autorização específica do payload executor P1-A04 para a adaptação da estratégia. Essas autorizações não alteram a Foundation; a validação operacional P1-A05 e a escrita Git do checkpoint foram cobertas pelo payload P1-CHECKPOINT-01. Implementação P2, tag e release não estão autorizadas.

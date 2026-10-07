@@ -2,14 +2,13 @@
 
 ```text
 PROJECT_ID = projeto_cam_scanner
-PROJECT_ROOT_HOME = histórico da execução anterior: C:\Users\walac\desenvolvimento\projeto_cam_scanner; não utilizado neste recheck
-PROJECT_ROOT_WORK = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner; root atual verificado
+PROJECT_ROOT = checkout local do projeto (resolver pelo Git; não depende de caminho absoluto)
 CURRENT_PHASE = P1 — Minimum Vertical Slice Implementation
-CURRENT_ACTIVITY = P1-A03-CLOSE — Documentation Authority Reconciliation + Git Closure; concluída
+CURRENT_ACTIVITY = P1-CHECKPOINT-01 — P1 closure + cross-computer published checkpoint
 CURRENT_DELIVERY_UNIT = activity/checkpoint conforme padrão registrado; sem sprint declarada
-DELIVERY_UNIT_STATUS = IN_PROGRESS; P1 real-camera DoD pendente
-LAST_COMPLETED_ACTIVITY = P1-A03-CLOSE — Documentation Authority Reconciliation + Git Closure
-PREVIOUS_COMPLETED_ACTIVITY = P1-A03 — Collection Strategy Documentation Reconciliation
+DELIVERY_UNIT_STATUS = CLOSED
+LAST_COMPLETED_ACTIVITY = P1-CHECKPOINT-01 — P1 closure + cross-computer published checkpoint
+PREVIOUS_COMPLETED_ACTIVITY = P1-A05 — Validação operacional READ_ONLY da estratégia revisada
 POLICY_INTERNALIZATION_GATE = PASS_WITH_FINDINGS (P0-A04; evidências em docs/audit/FOUNDATION_REVIEW_P0_A04.md)
 ENGINEERING_FOUNDATION = 10/10 ITEMS APPROVED (decisão histórica reportada pelo usuário)
 FOUNDATION_REVIEW = P0-A04 PASS_WITH_ACCEPTED_FINDINGS; P0-A02 conserva CHANGES_REQUIRED histórico
@@ -18,26 +17,26 @@ FOUNDATION_APPROVAL = APPROVED_WITH_ACCEPTED_FINDINGS (aprovação explícita do
 PROJECT_OPENING_GATE = PASS
 P0_STATUS = CLOSED
 PROJECT_READY_FOR_IMPLEMENTATION_PLANNING = SUPERSEDED; P1-A01 em execução autorizada
-AGENT_HANDOFF_GATE = NOT_REEVALUATED_FOR_P1_A03-CLOSE; a atividade de fechamento Git não avaliou o gate de handoff separado
-IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY
-P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY (payload executor de 2026-10-07)
-GIT_WRITE_AUTHORIZATION = CHECKPOINT P1-A03 baseline + commit documental local P1-A03-CLOSE; push não autorizado nem executado
+AGENT_HANDOFF_GATE = PASS (checkpoint published and portable continuity verified)
+IMPLEMENTATION_AUTHORIZATION = P1 CLOSED; P2 implementation NOT_GRANTED
+P1_IMPLEMENTATION_AUTHORIZATION = CONSUMED (P1-A01 and P1-A04)
+GIT_WRITE_AUTHORIZATION = P1-CHECKPOINT-01 payload explicitly authorizes stage/commit/push to origin/master
 GIT_REPOSITORY = YES
 GIT_BRANCH = master
-GIT_COMMITS = 4
-GIT_HEAD = CURRENT_REPOSITORY_HEAD (commit documental P1-A03-CLOSE; confirmar SHA via git log)
-CURRENT_GOVERNED_CHECKPOINT = baseline P1-A01/P1-A02 e fechamento documental P1-A03 commitados localmente; sem push
+GIT_COMMITS = 5 (após P1-CHECKPOINT-01)
+GIT_HEAD = CURRENT_PUBLISHED_CHECKPOINT; confirmar com Git no checkout
+CURRENT_GOVERNED_CHECKPOINT = P1-CHECKPOINT-01 publicado em origin/master; confirmar SHA e paridade com Git
 GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git; configuração local)
 GIT_UPSTREAM = origin/master
-WORKING_TREE = documentação P1-A03 commitada; dois scripts diagnósticos e cópias locais em docs/policies/ permanecem untracked e fora do commit
+WORKING_TREE = checkpoint P1-A04/P1-A05 e continuidade; scripts diagnósticos e docs/policies/ locais excluídos
 P1_CONTRACT_STATUS = APPROVED
 P1_A02_HISTORICAL_RESULT = BLOCKED_AUTHENTICATION
-CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = NOT_RUN
+CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = PARTIAL_SUCCESS
 COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
 ONVIF_FIRST_REMOVED = YES
 ONVIF_ROLE = GENERIC_FALLBACK + COMPLEMENT + PREAUTH_DISCOVERY
 ONVIF_ROLE_RECONCILED = PASS
-OPTIONAL_MANUFACTURER_INPUT = YES; STRONG_HINT
+OPTIONAL_MANUFACTURER_INPUT = NOT_REQUIRED_FOR_SINGLE_BY_CURRENT_CONTRACT; STRONG_HINT quando fornecido por fonte contratada
 TRY_ALL_VENDOR_LOGINS = PROHIBITED
 PER_CAMERA_CREDENTIAL_SCOPE = PASS
 PARTIAL_SUCCESS_SEMANTICS = PASS
@@ -46,21 +45,34 @@ P1_A02_HISTORICAL_RECONCILIATION = PASS
 ROADMAP_RECONCILIATION = PASS
 EXECUTION_PLAN_RECONCILIATION = PASS
 DOCUMENTATION_CONSISTENCY = PASS
-IMPLEMENTATION_ADAPTATION_REQUIRED = YES
+IMPLEMENTATION_ADAPTATION_REQUIRED = NO (P1-A04 implementada e validada sinteticamente)
 P1_IMPLEMENTATION_BASELINE = EXISTS
 P1_PREVIOUS_SYNTHETIC_VALIDATION = PASS
 P1_REAL_PREAUTH_EVIDENCE = PASS
-P1_STATUS = NOT_READY
-NEXT_ACTIVITY = P1-A04 — Implementar adaptação da estratégia de coleta revisada
-NEXT_ACTIVITY_READINESS = READY_FOR_ACTIVITY_DEFINITION
-NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; requer autorização de implementação específica
-UNRESOLVED_BLOCKERS = IMPLEMENTATION_ADAPTATION_REQUIRED
+P1_A05 = PASS (real target validation; evidence supplied by authorized activity payload)
+REAL_CAMERA_RESULT = PARTIAL_SUCCESS
+PREAUTH_DISCOVERY = PASS
+MANUFACTURER_RESOLUTION = HIKVISION
+ONVIF_AUTHENTICATED_COLLECTION = AUTH_ERROR
+AUTH_FAILURE_SEMANTICS = PASS
+PARTIAL_SUCCESS_SEMANTICS = PASS
+PASSWORD_SECURITY = PASS
+MUTATING_CALLS = 0
+ONVIF_DIGEST_INTEROPERABILITY = OPEN_NON_BLOCKING
+P1_CLOSURE = PASS
+P1_STATUS = CLOSED
+NEXT_PHASE = P2
+NEXT_ACTIVITY = P2 definition/contract according to canonical roadmap
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+UNRESOLVED_BLOCKERS = NONE
+LAST_VALIDATED_INTEGRATED_BASELINE = P1 vendor-first SINGLE flow; operational partial success reconciled in P1-CHECKPOINT-01
+SAFE_RESUME_POINT = Define/approve P2 contract; do not begin P2 implementation without separate authority
 CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
 ```
 
 ## Identidade e objetivo
 
-CLI para Windows para consultar câmeras IP e produzir inventário. Root atual verificado nesta P0-A04: `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner`. As declarações anteriores de HOME ativo e WORK inexistente descreviam outro computador e foram superadas para este ambiente. Código da aplicação não pode conter paths absolutos de máquina.
+CLI para Windows para consultar câmeras IP e produzir inventário. Resolver o checkout corrente pela raiz Git; a continuidade versionada não depende de paths absolutos de máquina. Código da aplicação não pode conter paths absolutos de máquina.
 
 ## Escopo funcional aprovado
 
@@ -68,7 +80,7 @@ CLI para Windows para consultar câmeras IP e produzir inventário. Root atual v
 - SINGLE solicita IP e username no terminal, password por `getpass()`, consulta exatamente uma câmera e mostra o resultado. Depois oferece nova pesquisa, MULTI ou saída. Não importa nem gera XLSX automaticamente.
 - MULTI solicita XLSX de entrada com IP/USERNAME/PASSWORD, processa em lote, mostra progresso percentual e gera XLSX consolidado com snapshot.
 - Famílias: Axis, Hikvision, Samsung/Samsung Techwin/Hanwha, Dahua, Panasonic e Bosch.
-- Acesso READ_ONLY; estratégia vigente `VENDOR_FIRST_WHEN_KNOWN`; ONVIF genérico como fallback, complemento e descoberta pré-autenticação (decisão P1-A03; adaptação de implementação pendente).
+- Acesso READ_ONLY; estratégia vigente `VENDOR_FIRST_WHEN_KNOWN`; ONVIF genérico como fallback, complemento para dados P1 ausentes e descoberta pré-autenticação (decisão P1-A03; adaptação implementada em P1-A04).
 - Fallback de snapshot: ONVIF_HTTP → VENDOR_HTTP → RTSP_FRAME.
 - P0-A03 autoriza somente remediação estrutural/documental; nenhuma coleta funcional.
 
@@ -89,9 +101,9 @@ CLI para Windows para consultar câmeras IP e produzir inventário. Root atual v
 
 ## Roadmap e execução
 
-O roadmap P0–P12 está em [`planning/ROADMAP.md`](planning/ROADMAP.md); sequência e DoD em [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md). P1 é SINGLE Minimum Vertical Slice, planejada e sem autorização de implementação.
+O roadmap P0–P12 está em [`planning/ROADMAP.md`](planning/ROADMAP.md); sequência e DoD em [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md). P0 e P1 estão CLOSED. A próxima atividade é definição/contrato de P2; implementação P2 não autorizada.
 
-O contrato P1 em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md) preserva os 14 campos atuais de `CameraResult` e registra a estratégia revisada. O baseline P1-A01 existe e passou validação sintética anterior; foi construído sob ONVIF-first e requer adaptação. P1 permanece `NOT_READY`; não declarar vendor-first implementado.
+O contrato P1 em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md) preserva os 14 campos atuais de `CameraResult` e registra a estratégia revisada e a aceitação de evidência operacional parcial. O baseline foi adaptado em P1-A04; P1-A05 passou com `PARTIAL_SUCCESS` e P1 foi fechada.
 
 ## Estado Git, validação e risco
 
@@ -304,5 +316,58 @@ PROJECT_STATE_UPDATE = PASS
 CONTINUITY_UPDATE = PASS
 ACTIVITY_COMPLETE = YES (P1-A03; reconciliação documental concluída com findings registrados)
 ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-A03)
+STATUS = COMPLETED_WITH_FINDINGS
+```
+
+## P1-A04 — SINGLE vendor-first strategy adaptation (2026-10-07)
+
+O payload executor concedeu authority específica para implementar P1-A04. A estratégia foi integrada ao fluxo canônico SINGLE com descoberta ONVIF anônima/READ_ONLY, fingerprint estrutural limitado, resolução e normalização do fabricante, seleção de um único adapter registrado e fallback ONVIF genérico. O registry começa vazio e não registra placeholders de fabricantes como adapters reais. A descoberta pré-auth não recebe username nem password; adapters e ONVIF autenticado recebem somente o `CameraTarget` corrente. Não existe iteração de logins nem tentativa contra fabricantes diferentes.
+
+`PARTIAL_SUCCESS` preserva evidência válida quando autenticação ONVIF falha; sem evidência pré-auth válida, a falha permanece `FAILED`. Quando adapter registrado deixa dados P1 ausentes, ONVIF complementa sem substituir valores vendor existentes. A saída terminal mostra os detalhes sanitizados de falha parcial. O fluxo SINGLE mantém os inputs existentes (IP, username, password); a autoridade P1 para SINGLE não exige prompt adicional de fabricante. O resolver detecta manufacturer mismatch sem substituir silenciosamente o fabricante declarado, quando um hint for fornecido por fonte contratada.
+
+O conjunto sintético passou em Python 3.14.0: 47 testes, Ruff para `src` e `tests`, smoke do menu canônico e `git diff --check`. O teste pytest emitiu um aviso de permissão para gravar cache, sem falha de teste. `CameraResult` permanece com exatamente 14 campos; não foram alterados contratos de domínio ou arquitetura e não há vazamento de escopo P2+. Nenhuma câmera real foi consultada: a autorização P1-A02 para `10.143.36.33` não se estende a esta atividade. Sem stage, commit, push ou qualquer outra escrita Git.
+
+```text
+P1-A04_IMPLEMENTATION = COMPLETE
+COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
+CANONICAL_FLOW_IMPLEMENTED = YES
+VENDOR_FIRST_ROUTING = PASS
+MANUFACTURER_HINT_SUPPORT = NOT_REQUIRED_BY_CONTRACT
+PREAUTH_FINGERPRINT = PASS
+UNKNOWN_MANUFACTURER_FLOW = PASS
+KNOWN_MANUFACTURER_WITHOUT_ADAPTER = PASS
+ONVIF_ROLE = PASS
+ONVIF_AUTH_FAILURE_SEMANTICS = PASS
+PARTIAL_SUCCESS = PASS
+MANUFACTURER_MISMATCH = PASS
+PER_CAMERA_CREDENTIAL_SCOPE = PASS
+TRY_ALL_VENDOR_LOGINS = ABSENT
+CAMERA_RESULT_14_FIELDS = PASS
+PASSWORD_SECURITY = PASS
+READ_ONLY_INVARIANT = PASS
+SOURCE_CODE_SCOPE = PASS
+P2_PLUS_SCOPE_LEAKAGE = NONE
+UNIT_VALIDATION = PASS
+INTEGRATION_VALIDATION = PASS
+ACCUMULATED_FLOW_VALIDATION = PASS
+PYTHON_3_14 = PASS (3.14.0)
+PYTEST = PASS (51 tests)
+RUFF = PASS
+CLI_SMOKE = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN_NO_ACTIVITY_AUTHORITY
+REGRESSION = PASS
+CONTRACT_GAP = NONE
+ARCHITECTURE_CHANGE = NONE
+DOMAIN_CONTRACT_CHANGE = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+AGENT_HANDOFF_GATE = PASS
+P1_STATUS = NOT_READY
+NEXT_ACTIVITY = P1-A05 — READ_ONLY operational validation with explicit target authority
+NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED
+UNRESOLVED_BLOCKERS = P1 DoD awaits real-camera READ_ONLY validation under separate authority
+GIT_WRITES = NONE
+ACTIVITY_COMPLETE = YES (somente P1-A04)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-A04)
 STATUS = COMPLETED_WITH_FINDINGS
 ```

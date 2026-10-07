@@ -3,8 +3,8 @@
 | Fase | Escopo e objetivo | Estado |
 |---|---|---|
 | P0 | Project Opening + Foundation | CLOSED; Foundation Approval `APPROVED_WITH_ACCEPTED_FINDINGS`; Project Opening Gate `PASS` (P0-A05-R1) |
-| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera; adaptar a coleta para `VENDOR_FIRST_WHEN_KNOWN` | Baseline SINGLE implementado e validado sinteticamente; evidência READ_ONLY pré-autenticação real aprovada; estratégia revisada documentada; adaptação pendente; P1 `NOT_READY` |
-| P2 | SINGLE Collection Strategy + Inventory Expansion: fingerprint, manufacturer resolution, evidence merge e coleta nativa/ONVIF | Planejada; depende da integração revisada de P1 |
+| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera; adaptar a coleta para `VENDOR_FIRST_WHEN_KNOWN` | CLOSED; P1-A04 implementada e validada sinteticamente; P1-A05 validada operacionalmente com evidência pré-auth preservada como `PARTIAL_SUCCESS`; finding ONVIF Digest aberto não bloqueante |
+| P2 | SINGLE Collection Strategy + Inventory Expansion: fingerprint, manufacturer resolution, evidence merge e coleta nativa/ONVIF | Planejada; próxima atividade é definição/contrato; implementação não autorizada |
 | P3 | SINGLE Snapshot Vertical Slice: captura e processamento de snapshot; sem XLSX | Planejada |
 | P4 | MULTI + XLSX Vertical Slice: entrada em lote, progresso, INVENTARIO/RESUMO e snapshot embutido | Planejada |
 | P5 | MULTI Concurrency / Batch Robustness: limites, cancelamento, exportação parcial e isolamento de falhas | Planejada |
@@ -18,7 +18,7 @@
 
 ## Dependências e integração
 
-- P1 estabelece a slice SINGLE integrada; o baseline P1-A01 usa ONVIF genérico, mas exige adaptação para a estratégia revisada antes do fechamento.
+- P1 estabeleceu a slice SINGLE integrada; P1-A04 adaptou o baseline para `VENDOR_FIRST_WHEN_KNOWN`; P1-A05 e seu DoD foram fechados com evidência READ_ONLY parcial conforme o contrato vigente.
 - P2 estrutura a expansão da coleta SINGLE: identificação/fingerprint READ_ONLY, resolução do fabricante, merge de evidências e seleção de adapter nativo com ONVIF como complemento/fallback. Não antecipar endpoints proprietários ainda não contratados.
 - P3 integra snapshot ao fluxo SINGLE; não produz XLSX.
 - P4 introduz MULTI e XLSX. É o primeiro ponto em que MULTI, XLSX e snapshot embedded coexistem no fluxo canônico.

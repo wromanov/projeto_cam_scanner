@@ -6,6 +6,8 @@
 - **P0-A02 — BLOCKED_FOR_FORMAL_CLOSURE / CHANGES_REQUIRED:** Foundation Review executada; findings F-01…F-08. Recomendação de aprovação: `DO_NOT_APPROVE_YET`; Foundation Approval não concedida; Project Opening Gate não pronto.
 - **P0-A03 — COMPLETED_WITH_FINDINGS:** aplicou as decisões posteriores do usuário, reconciliou os fatos e preparou a Foundation para recheck. Não converte retroativamente P0-A02 em PASS.
 - **P0-A03-G1 — COMPLETED_WITH_FINDINGS:** publicou o primeiro checkpoint governado em `origin/master`; commit inicial `chore(project): establish governed foundation baseline`, seguido por commit documental de continuidade. Sem implementação funcional, force push, tag ou release.
+- **P1-A04 — COMPLETED_WITH_FINDINGS:** adaptou e validou sinteticamente o fluxo SINGLE para `VENDOR_FIRST_WHEN_KNOWN`.
+- **P1-CHECKPOINT-01 — COMPLETED_WITH_FINDINGS:** reconciliou P1-A05, fechou P1 e publicou checkpoint cross-computer em `origin/master`; P2 segue sem autorização de implementação.
 
 ## Decisões e evidências aplicáveis
 
@@ -22,7 +24,7 @@ Decisões e evidências da P0-A03 não alteram silenciosamente authorities exter
 
 ## Baseline, riscos e retomada
 
-O scaffold continua estrutural: nenhum request real, snapshot, XLSX operacional, concorrência ou adapter proprietário. Credenciais reais não foram persistidas. A baseline lógica mais recente é scaffold P0, sem slice funcional integrada. O checkpoint está publicado em `origin/master`; confirme HEAD/paridade em runtime. P0-A04 executou validações estruturais em Python 3.14.0; validação operacional permanece deferida a P1.
+O baseline integrado contém a slice SINGLE vendor-first. P1-A05 confirmou descoberta pré-auth READ_ONLY e fabricante Hikvision; coleta autenticada falhou com `AUTH_ERROR`, mas a evidência foi preservada como `PARTIAL_SUCCESS`, conforme o contrato reconciliado. P1 e P0 estão fechadas; o checkpoint atual está publicado em `origin/master`. Nenhuma credencial foi persistida. P2 aguarda definição/contrato e não tem autorização de implementação.
 
 **Safe resume point histórico (antes de P0-A04):** conferir [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md), revalidar estado Git atual e executar o recheck Foundation conforme authority aplicável. O estado corrente está registrado abaixo.
 
@@ -171,4 +173,68 @@ NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; requer autorização específica
 PROJECT_STATE_UPDATE = PASS
 CONTINUITY_UPDATE = PASS
 STATUS = COMPLETED
+```
+
+## P1-A04 — SINGLE vendor-first strategy adaptation (2026-10-07)
+
+O payload executor concedeu authority de implementação específica P1-A04. A adaptação foi integrada no entrypoint canônico SINGLE: descoberta ONVIF anônima/read-only, fingerprint estrutural limitado, resolução/normalização de fabricante, seleção de um único adapter registrado e fallback genérico ONVIF. Nenhum placeholder de fabricante está registrado como implementação funcional. A estratégia nunca itera credenciais nem tenta autenticar outros fabricantes. Quando há evidência pré-auth e a autenticação ONVIF falha, o resultado permanece `PARTIAL_SUCCESS`; sem evidência válida, o serviço retorna falha sanitizada. A entrada SINGLE segue IP, username e password; nenhum novo prompt foi autorizado pelo contrato.
+
+O fluxo e regressão sintética passaram em Python 3.14.0: 48 testes, Ruff em `src` e `tests`, smoke do menu de entrada/saída e `git diff --check`. O pytest reportou aviso de cache sem permissão de escrita; todos os testes passaram. Nenhuma câmera real foi consultada porque a autorização da P1-A02 para `10.143.36.33` não foi estendida pela authority P1-A04. O `CameraResult` continua com 14 campos, nenhum contrato de domínio/arquitetura foi alterado e nenhuma funcionalidade P2+ foi incluída.
+
+```text
+P1-A04 = COMPLETED
+COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
+CANONICAL_FLOW_IMPLEMENTED = YES
+VENDOR_FIRST_ROUTING = PASS
+MANUFACTURER_HINT_SUPPORT = NOT_REQUIRED_BY_CONTRACT_FOR_SINGLE
+PREAUTH_FINGERPRINT = PASS (sintético)
+UNKNOWN_MANUFACTURER_FLOW = PASS
+KNOWN_MANUFACTURER_WITHOUT_ADAPTER = PASS
+ONVIF_ROLE = PASS
+ONVIF_AUTH_FAILURE_SEMANTICS = PASS
+PARTIAL_SUCCESS = PASS
+MANUFACTURER_MISMATCH = PASS (detecção sem substituição silenciosa; SINGLE não recebe hint)
+PER_CAMERA_CREDENTIAL_SCOPE = PASS
+TRY_ALL_VENDOR_LOGINS = ABSENT
+CAMERA_RESULT_14_FIELDS = PASS
+PASSWORD_SECURITY = PASS
+READ_ONLY_INVARIANT = PASS
+SOURCE_CODE_SCOPE = PASS
+P2_PLUS_SCOPE_LEAKAGE = NONE
+UNIT_VALIDATION = PASS
+INTEGRATION_VALIDATION = PASS
+ACCUMULATED_FLOW_VALIDATION = PASS
+PYTHON_3_14 = PASS (3.14.0)
+PYTEST = PASS (51 tests)
+RUFF = PASS
+CLI_SMOKE = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN_NO_ACTIVITY_AUTHORITY
+REGRESSION = PASS
+CONTRACT_GAP = NONE
+ARCHITECTURE_CHANGE = NONE
+DOMAIN_CONTRACT_CHANGE = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+P1_STATUS = NOT_READY (real-camera operational DoD remains pending)
+NEXT_ACTIVITY = P1-A05 — READ_ONLY operational validation with explicit target authority
+GIT_WRITES = NONE
+ACTIVITY_COMPLETE = YES (somente P1-A04; validação operacional da P1 não foi incluída na authority)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-A04)
+STATUS = COMPLETED_WITH_FINDINGS
+```
+
+## P1-CHECKPOINT-01 — P1 Closure + Cross-Computer Published Checkpoint (2026-10-07)
+
+O payload executor autorizou reconciliar P1-A05, executar validação do baseline, stage explícito, commit e push para `origin/master`. Evidência operacional autorizada para `10.143.36.33`: descoberta pré-auth PASS; fabricante Hikvision; coleta autenticada ONVIF `AUTH_ERROR`; tratamento da falha e semântica `PARTIAL_SUCCESS` PASS; segurança de senha PASS; chamadas mutantes zero. Nenhum username, password ou header de autorização foi preservado. O finding ONVIF Digest permanece `OPEN_NON_BLOCKING`.
+
+O contrato P1 foi esclarecido para aceitar evidência real READ_ONLY pré-autenticação como `PARTIAL_SUCCESS` quando a autenticação posterior falha, sem exigir `AUTHENTICATED_SUCCESS`. Assim, todos os requisitos P1 foram satisfeitos e P1 foi fechada. P0 permanece CLOSED. Próxima atividade: definição/contrato de P2; implementação P2 não autorizada. Continuidade e bootstrap foram ajustados para checkout cross-computer e não requerem path absoluto específico.
+
+```text
+P1_A04_IMPLEMENTATION = PASS
+P1_A05_REAL_VALIDATION = PASS
+REAL_CAMERA_RESULT = PARTIAL_SUCCESS
+P1_CLOSURE = PASS
+P1_STATUS = CLOSED
+ONVIF_DIGEST_INTEROPERABILITY_FINDING = OPEN_NON_BLOCKING
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
 ```

@@ -48,6 +48,11 @@ class TerminalUI:
             self._output(f"Erro: {result.error_message}")
             return
 
+        if result.error_code is not None:
+            self._output(f"Código: {result.error_code.value}")
+        if result.error_message is not None:
+            self._output(f"Aviso: {result.error_message}")
+
         for label, value in (
             ("Fabricante", result.manufacturer),
             ("Modelo", result.model),

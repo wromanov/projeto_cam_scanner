@@ -1,49 +1,72 @@
-# Last Handoff — P1-A03-CLOSE
+# Last Handoff — P1-CHECKPOINT-01
 
-P1-A03 reconciliou a estratégia de coleta aprovada pelo usuário. A direção vigente é `VENDOR_FIRST_WHEN_KNOWN`; o baseline P1-A01 permanece implementado sob a estratégia anterior e precisa de adaptação antes de P1 fechar. Nenhum código foi alterado nesta atividade.
+P1-A04 implementou e integrou `VENDOR_FIRST_WHEN_KNOWN` no fluxo SINGLE canônico. A sequência começa com descoberta ONVIF anônima/read-only; resolve fabricante por evidência estrutural; consulta apenas o adapter registrado daquele fabricante; e usa ONVIF genérico quando o fabricante é desconhecido, não há adapter, ou o caminho vendor não produz resultado. Quando adapter registrado omite dados P1, ONVIF complementa os campos ausentes sem substituir os valores vendor. Não há adapters vendor funcionais registrados nesta fase.
 
-P1-A02 continua preservada como evidência histórica: conectividade, descoberta ONVIF pré-autenticação e fingerprint Hikvision passaram; `GetDeviceInformation` autenticado retornou `AUTH_ERROR`. Esse resultado não exige mais retomar o fluxo para obter autenticação ONVIF válida. `PARTIAL_SUCCESS` deve preservar evidência útil, e falha ONVIF não significa automaticamente falha de coleta.
+A descoberta pré-autenticação não recebe credenciais. O caminho vendor e a autenticação ONVIF recebem o `CameraTarget` corrente. `TRY_ALL_VENDOR_LOGINS` está estruturalmente ausente. Evidência pré-auth válida com falha posterior de autenticação ONVIF produz `PARTIAL_SUCCESS`; sem evidência pré-auth válida a coleta falha normalmente. A entrada SINGLE permanece IP, username e password, sem prompt novo de fabricante. O resultado mantém os 14 campos e não contém senha.
 
-O contrato P1 contém os requisitos detalhados: fabricante XLSX opcional como `STRONG_HINT`; identificação READ_ONLY pré-autenticação quando ausente; adapter nativo quando conhecido; ONVIF como complemento/fallback; credenciais exclusivamente da linha/câmera correspondente; `TRY_ALL_VENDOR_LOGINS = PROHIBITED`; divergência técnica do fabricante detectada e reportada. O roadmap mantém a ordem aprovada de fabricantes. Nenhum endpoint ou modelo definitivo para novos campos foi inventado; `CameraResult` permanece com 14 campos até contrato futuro.
+P1-A05 foi reconciliada a partir da evidência operacional autorizada: target `10.143.36.33`; descoberta pré-auth PASS; fabricante Hikvision; coleta autenticada ONVIF retornou `AUTH_ERROR`; tratamento da falha e semântica `PARTIAL_SUCCESS` PASS; proteção de senha PASS; chamadas mutantes zero. A falha ONVIF Digest permanece `OPEN_NON_BLOCKING`. Nenhuma senha, username ou header de autorização foi registrado.
 
-Antes da reconciliação documental, o baseline foi checkpointado em `d64ff9799d5d84c22a33ab7c24f589cbe619e3a6` (`feat(p1): implement single camera vertical slice`). Python 3.14.0, 29 testes, Ruff em `src/` e `tests/`, e `git diff --check` passaram. P1-A03-CLOSE staged e commitou somente a documentação aprovada do projeto e a correção factual dos paths em `AGENTS.md`. O commit permanece local; não houve push.
+O contrato P1 foi atualizado para explicitar que evidência READ_ONLY pré-auth válida, preservada como `PARTIAL_SUCCESS`, satisfaz o DoD operacional sem exigir autenticação ONVIF bem-sucedida. P1 está fechada; próxima atividade é definição/contrato de P2. Implementação P2 não autorizada.
 
-Reconciliação das referências de authority: `AGENTS.md` agora aponta para a raiz irmã existente `../governanca_de_projetos/`. As identidades PM-01 v1.0 e Continuity 3.0 foram verificadas contra os pins SHA-256 de `PROJECT_GOVERNANCE_BINDING.json`, usando os membros dos ZIPs canônicos. Nenhum conteúdo de policy foi copiado ou promovido.
+Validação do checkpoint: Python 3.14.x, pytest, Ruff, CLI smoke, `git diff --check`, segurança e revisão de escopo. Resultados finais constam no relatório do checkpoint e no `PROJECT_STATE.md` versionados. Scripts diagnósticos e cópias locais de políticas foram excluídos.
 
 ```text
-P1-A03-CLOSE = COMPLETED
-AUTHORITY_REFERENCE_RECONCILIATION = PASS
-CONTINUITY_PROTOCOL_RESOLUTION = PASS (CONTINUITY 3.0; pinned SHA-256 verified in canonical ZIP)
-PM01_RESOLUTION = PASS (PM-01 1.0; pinned SHA-256 verified in canonical ZIP)
-AGENTS_MD_CHANGED = YES
-AGENTS_MD_CHANGE_REASON = Corrected the stale governance-root spelling to the verified sibling directory
-DOCUMENTATION_CONSISTENCY = PASS
-PROJECT_STATE_UPDATE = PASS
-CONTINUITY_UPDATE = PASS
-DIFF_CHECK = PASS
-SECRETS_EXPOSED = NO
-SOURCE_CODE_CHANGES = NONE
-TEST_CODE_CHANGES = NONE
-STAGED_SCOPE_VALIDATION = PASS
-TEMP_DIAGNOSTIC_FILES_COMMITTED = NO
-DOCUMENTATION_COMMIT = CURRENT_REPOSITORY_HEAD (see git log)
-GIT_PUSH = NONE
-P1-A03 = COMPLETED_WITH_FINDINGS
+PROJECT = projeto_cam_scanner
+ACTIVITY = P1-CHECKPOINT-01
+STARTING_HEAD = b6c3c09fc2588af1d800c5450845a510fc7333ca
+IMPLEMENTATION_STATUS = COMPLETE
 COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
-P1_IMPLEMENTATION_BASELINE = EXISTS
-P1_PREVIOUS_SYNTHETIC_VALIDATION = PASS
-P1_REAL_PREAUTH_EVIDENCE = PASS
-IMPLEMENTATION_ADAPTATION_REQUIRED = YES
-P1_STATUS = NOT_READY
-PRE_DOCUMENTATION_BASELINE_COMMIT = d64ff9799d5d84c22a33ab7c24f589cbe619e3a6
-SOURCE_CODE_CHANGES = NONE
-DOCUMENTATION_GIT_WRITES = NONE
-GIT_PUSH = NONE
-NEXT_ACTIVITY = P1-A04 — Implementar adaptação da estratégia de coleta revisada
-NEXT_ACTIVITY_READINESS = READY_FOR_ACTIVITY_DEFINITION
-NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; autorização específica de implementação necessária
-SAFE_RESUME_POINT = Definir atividade P1-A04 e obter autorização de implementação; preservar o contrato P1 e não retomar P1-A02 apenas para validar ONVIF autenticado
+CANONICAL_FLOW_IMPLEMENTED = YES
+VENDOR_FIRST_ROUTING = PASS
+MANUFACTURER_HINT_SUPPORT = NOT_REQUIRED_BY_CONTRACT
+PREAUTH_FINGERPRINT = PASS
+UNKNOWN_MANUFACTURER_FLOW = PASS
+KNOWN_MANUFACTURER_WITHOUT_ADAPTER = PASS
+ONVIF_ROLE = PASS
+ONVIF_AUTH_FAILURE_SEMANTICS = PASS
+PARTIAL_SUCCESS = PASS
+MANUFACTURER_MISMATCH = PASS
+PER_CAMERA_CREDENTIAL_SCOPE = PASS
+TRY_ALL_VENDOR_LOGINS = ABSENT
+CAMERA_RESULT_14_FIELDS = PASS
+PASSWORD_SECURITY = PASS
+READ_ONLY_INVARIANT = PASS
+SOURCE_CODE_SCOPE = PASS
+P2_PLUS_SCOPE_LEAKAGE = NONE
+UNIT_VALIDATION = PASS
+INTEGRATION_VALIDATION = PASS
+ACCUMULATED_FLOW_VALIDATION = PASS
+PYTHON_3_14 = PASS
+PYTEST = PASS (51 tests)
+RUFF = PASS
+CLI_SMOKE = PASS
+REAL_CAMERA_VALIDATION = PASS_WITH_PARTIAL_SUCCESS
+TARGET_AUTHORIZED = YES
+OPERATIONAL_CAMERA_RESULT = PARTIAL_SUCCESS
+PREAUTH_DISCOVERY = PASS
+MANUFACTURER_RESOLUTION = HIKVISION
+ONVIF_AUTHENTICATED_COLLECTION = AUTH_ERROR
+AUTH_FAILURE_SEMANTICS = PASS
+PARTIAL_SUCCESS_SEMANTICS = PASS
+PASSWORD_SECURITY = PASS
+MUTATING_CALLS = 0
+ONVIF_DIGEST_INTEROPERABILITY_FINDING = OPEN_NON_BLOCKING
+REGRESSION = PASS
+CONTRACT_GAP = NONE
+ARCHITECTURE_CHANGE = NONE
+DOMAIN_CONTRACT_CHANGE = NONE
 PROJECT_STATE_UPDATE = PASS
 CONTINUITY_UPDATE = PASS
-AGENT_HANDOFF_GATE = NOT_REEVALUATED_FOR_P1-A03-CLOSE; a atividade de fechamento Git não avaliou o gate de handoff separado
+P1_CLOSURE = PASS
+P1_STATUS = CLOSED
+UNRESOLVED_BLOCKERS = NONE
+NEXT_PHASE = P2
+NEXT_ACTIVITY = P2 definition/contract according to canonical roadmap
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+GIT_WRITES = COMMIT_AND_PUSH_EXPLICITLY_AUTHORIZED_BY_P1-CHECKPOINT-01_PAYLOAD
+STATUS = COMPLETED_WITH_FINDINGS
+ACTIVITY_COMPLETION_PERCENT = 100%
+COMPLETION_BASIS = P1-A04, P1-A05 evidence reconciliation, P1 closure, and published cross-computer checkpoint
+SAFE_RESUME_POINT = Define/approve P2 contract; do not begin P2 implementation without separate authority
+AGENT_HANDOFF_GATE = PASS
 ```

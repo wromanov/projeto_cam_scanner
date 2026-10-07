@@ -76,6 +76,56 @@ def test_cli_handles_authentication_failure_without_a_traceback(monkeypatch, cap
     assert "[3] Sair" in output
 
 
+def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_failure(
+    monkeypatch, capsys
+) -> None:
+    from zeep.exceptions import Fault
+
+    clients: list[dict[str, object]] = []
+    calls: list[str] = []
+
+    class PreAuthDevice:
+        def GetCapabilities(self, **_kwargs: object) -> dict[str, str]:
+            calls.append("GetCapabilities")
+            return {"Extension": "hikCapabilities"}
+
+        def GetSystemDateAndTime(self) -> dict[str, str]:
+            calls.append("GetSystemDateAndTime")
+            return {"Time": "read-only"}
+
+    class AuthDevice:
+        def GetDeviceInformation(self) -> dict[str, str]:
+            calls.append("GetDeviceInformation")
+            raise Fault("NotAuthorized")
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            clients.append(kwargs)
+
+        def devicemgmt(self) -> PreAuthDevice | AuthDevice:
+            if "password" in clients[-1]:
+                return AuthDevice()
+            return PreAuthDevice()
+
+    main_module = importlib.import_module("cam_scanner.main")
+    monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
+    monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-partial"))
+    answers = iter(["1", "192.0.2.10", "operator", "3"])
+    monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
+    monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
+
+    assert main_module.main() == 0
+
+    output = capsys.readouterr().out
+    assert calls == ["GetCapabilities", "GetSystemDateAndTime", "GetDeviceInformation"]
+    assert "Status: PARTIAL_SUCCESS" in output
+    assert "Fabricante: Hikvision" in output
+    assert "A câmera forneceu evidência pré-autenticação" in output
+    assert "private-password" not in output
+    assert "username" not in clients[0] and "password" not in clients[0]
+    assert clients[1]["password"] == "private-password"
+
+
 def test_post_query_menu_repeats_single_and_routes_multi_to_controller(monkeypatch, capsys) -> None:
     calls: list[str] = []
 

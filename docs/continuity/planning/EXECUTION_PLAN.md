@@ -10,7 +10,7 @@ Critérios de saída: F-03/F-05/F-06/F-07 remediados; F-01/F-02/F-04/F-08 corret
 
 P0-A02 permanece historicamente `CHANGES_REQUIRED`, com findings F-01…F-08. As decisões posteriores pertencem a P0-A03; não converter a review anterior em PASS. Esta atividade não concede aprovação Foundation, Project Opening Gate, autorização de P1 ou autorização Git.
 
-## P1 — SINGLE Minimum Vertical Slice (baseline integrado; adaptação da estratégia pendente)
+## P1 — SINGLE Minimum Vertical Slice (CLOSED)
 
 ```text
 DELIVERY_UNIT = definir conforme PM-01 e padrão já adotado no projeto
@@ -21,29 +21,29 @@ IMPLEMENTED_BASELINE_P1_A01 = Main Menu
 → CameraTarget
 → InventoryService
 → CameraCollector
-→ ONVIF read-only (estratégia anterior)
+→ vendor-first routing + ONVIF read-only fallback/complement + preauth discovery (P1-A04)
 → CameraResult
 → TerminalUI
 → post-query menu
 CURRENT_COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
 ONVIF_ROLE = GENERIC_FALLBACK + COMPLEMENT + PREAUTH_DISCOVERY
-IMPLEMENTATION_ADAPTATION_REQUIRED = YES
-P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY
+IMPLEMENTATION_ADAPTATION_REQUIRED = NO (P1-A04)
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_AND_P1_A04_ACTIVITY_PAYLOAD
 P1_CONTRACT_STATUS = APPROVED
 CAMERA_RESULT_FIELD_COUNT = 14
 TYPING_DECISIONS_PENDING = NONE
-P1_STATUS = NOT_READY
+P1_STATUS = CLOSED
 P1_A02_HISTORICAL_RESULT = BLOCKED_AUTHENTICATION
-CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = NOT_RUN
+CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = PARTIAL_SUCCESS (P1-A05; details in PROJECT_STATE and continuity record)
 ```
 
-Fluxo alvo para adaptação antes do fechamento de P1: input com fabricante opcional → identificação READ_ONLY pré-autenticação quando necessário → resolução do fabricante → adapter nativo quando conhecido → ONVIF como complemento/fallback → merge de evidências → `SUCCESS | PARTIAL_SUCCESS | FAILED`. Credenciais de XLSX são individuais por linha/câmera e `TRY_ALL_VENDOR_LOGINS = PROHIBITED`. O contrato P1 contém os requisitos completos e preserva os 14 campos atuais de `CameraResult` até eventual contrato futuro.
+Fluxo integrado em P1-A04: descoberta READ_ONLY pré-autenticação quando necessária → resolução do fabricante → adapter nativo registrado quando conhecido → ONVIF como complemento/fallback → `SUCCESS | PARTIAL_SUCCESS | FAILED`. Credenciais de XLSX são individuais por linha/câmera e `TRY_ALL_VENDOR_LOGINS = PROHIBITED`. O contrato P1 contém os requisitos completos e preserva os 14 campos atuais de `CameraResult` até eventual contrato futuro. P1 foi fechada em P1-CHECKPOINT-01 após validação operacional real READ_ONLY com evidência pré-auth preservada como `PARTIAL_SUCCESS`; autenticação ONVIF bem-sucedida não é obrigatória nesse cenário.
 
-O contrato P1 está em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md). O usuário aprovou preservar os dez campos existentes e acrescentar somente `error_code`, `error_message`, `collection_method` e `duration`, totalizando 14. As tipagens e regras canônicas dos quatro campos estão fechadas em P1-C01-R2. A autorização original cobriu P1-A01; a adaptação da estratégia revisada exige atividade e autorização próprias.
+O contrato P1 está em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md). O usuário aprovou preservar os dez campos existentes e acrescentar somente `error_code`, `error_message`, `collection_method` e `duration`, totalizando 14. As tipagens e regras canônicas dos quatro campos estão fechadas em P1-C01-R2. P1-A04 e P1-A05 estão concluídas conforme seus payloads autorizados.
 
 Critérios mínimos de DONE: aplicação inicia; menu principal funciona; SINGLE solicita IP, username e password via `getpass()` no terminal; realiza consulta ONVIF somente leitura; obtém Manufacturer, Model, Serial e Firmware quando disponíveis; normaliza em `CameraResult` e exibe no terminal; erros esperados não mostram traceback ao operador; menu oferece `[1] pesquisar nova câmera`, `[2] ir para MULTI`, `[3] sair`; não altera configuração da câmera; testes aplicáveis passam; validação operacional ocorre em Python 3.14.x; integração da slice no fluxo canônico é demonstrada; consulta READ_ONLY contra câmera real autorizada é evidenciada.
 
-`P1_PLANNED != P1_AUTHORIZED`. `DEFINITION_OF_READY` deve passar antes da implementação material. `DEFINITION_OF_DONE` exige implementação, validação de módulo, integração canônica, validação de integração/fluxo acumulado/regressão quando aplicáveis, invariantes, aceite, documentação e PROJECT_STATE reconciliados, delivery unit atualizada e blockers resolvidos.
+`DEFINITION_OF_DONE` foi satisfeito em P1-CHECKPOINT-01. Próxima atividade: definição/contrato de P2; `P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED`.
 
 ## P1-A03 — Collection Strategy Documentation Reconciliation
 
@@ -54,6 +54,50 @@ P1-A03 = COMPLETED_WITH_FINDINGS
 NEXT_ACTIVITY = P1-A04 — Implementar adaptação da estratégia de coleta revisada
 NEXT_ACTIVITY_READINESS = READY_FOR_ACTIVITY_DEFINITION
 NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; autorização de implementação específica necessária
+```
+
+## P1-A04 — SINGLE vendor-first strategy adaptation
+
+P1-A04 implementou no fluxo canônico a descoberta ONVIF READ_ONLY pré-autenticação, resolução estrutural de fabricante, consulta prioritária a um adapter registrado e fallback ONVIF genérico. O registry inicia vazio; os placeholders dos fabricantes não são registrados nem tratados como adapters funcionais. Evidência pré-autenticação válida preserva `PARTIAL_SUCCESS` quando a autenticação ONVIF falha. A entrada SINGLE existente foi mantida; o contrato não exige novo prompt de fabricante nessa slice. Validação contra câmera real não foi executada sem authority operacional específica.
+
+```text
+P1-A04_IMPLEMENTATION = COMPLETE
+CANONICAL_FLOW = PASS
+VENDOR_FIRST_ROUTING = PASS
+PREAUTH_FINGERPRINT = PASS (estrutural e sintético)
+ONVIF_AUTH_FAILURE_SEMANTICS = PASS (evidência preservada como PARTIAL_SUCCESS)
+CAMERA_RESULT_FIELD_COUNT = 14
+PYTHON = 3.14.0
+PYTEST = PASS (51 tests)
+RUFF = PASS
+CLI_SMOKE = PASS (main menu and exit)
+REAL_CAMERA_VALIDATION = NOT_RUN_NO_ACTIVITY_AUTHORITY
+P1_STATUS = NOT_READY
+NEXT_ACTIVITY = P1-A05 — Validar estratégia revisada READ_ONLY em target autorizado
+NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED
+GIT_WRITES = NONE
+```
+
+## P1-A05 — Validação operacional READ_ONLY e fechamento
+
+O payload executor autorizado registra target `10.143.36.33`, descoberta pré-auth aprovada e fabricante Hikvision. A coleta autenticada ONVIF retornou `AUTH_ERROR`; tratamento da falha, semântica `PARTIAL_SUCCESS` e segurança de senha passaram. Chamadas mutantes: zero. Finding de interoperabilidade ONVIF Digest: aberto, não bloqueante segundo o DoD revisado. P1 fechada; próxima atividade é definir o contrato P2. Implementação P2 não autorizada.
+
+```text
+P1_A05 = PASS
+REAL_CAMERA_RESULT = PARTIAL_SUCCESS
+PREAUTH_DISCOVERY = PASS
+MANUFACTURER_RESOLUTION = HIKVISION
+ONVIF_AUTHENTICATED_COLLECTION = AUTH_ERROR
+AUTH_FAILURE_SEMANTICS = PASS
+PARTIAL_SUCCESS_SEMANTICS = PASS
+PASSWORD_SECURITY = PASS
+MUTATING_CALLS = 0
+ONVIF_DIGEST_INTEROPERABILITY = OPEN_NON_BLOCKING
+P1_CLOSURE = PASS
+P1_STATUS = CLOSED
+NEXT_PHASE = P2
+NEXT_ACTIVITY = Definition/contract of P2 per canonical roadmap
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
 ```
 
 ## Roadmap executável e integração
