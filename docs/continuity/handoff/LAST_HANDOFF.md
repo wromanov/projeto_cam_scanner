@@ -1,4 +1,4 @@
-# Last Handoff — P1-CHECKPOINT-01
+# Last Handoff — P1-CHECKPOINT-01 (local; publication blocked)
 
 P1-A04 implementou e integrou `VENDOR_FIRST_WHEN_KNOWN` no fluxo SINGLE canônico. A sequência começa com descoberta ONVIF anônima/read-only; resolve fabricante por evidência estrutural; consulta apenas o adapter registrado daquele fabricante; e usa ONVIF genérico quando o fabricante é desconhecido, não há adapter, ou o caminho vendor não produz resultado. Quando adapter registrado omite dados P1, ONVIF complementa os campos ausentes sem substituir os valores vendor. Não há adapters vendor funcionais registrados nesta fase.
 
@@ -8,7 +8,7 @@ P1-A05 foi reconciliada a partir da evidência operacional autorizada: target `1
 
 O contrato P1 foi atualizado para explicitar que evidência READ_ONLY pré-auth válida, preservada como `PARTIAL_SUCCESS`, satisfaz o DoD operacional sem exigir autenticação ONVIF bem-sucedida. P1 está fechada; próxima atividade é definição/contrato de P2. Implementação P2 não autorizada.
 
-Validação do checkpoint: Python 3.14.x, pytest, Ruff, CLI smoke, `git diff --check`, segurança e revisão de escopo. Resultados finais constam no relatório do checkpoint e no `PROJECT_STATE.md` versionados. Scripts diagnósticos e cópias locais de políticas foram excluídos.
+Validação do checkpoint: Python 3.14.0, pytest 51 PASS, Ruff PASS, CLI smoke PASS, `git diff --check` PASS, security PASS e source scope P1 PASS. Scripts diagnósticos e cópias locais de políticas foram excluídos. O commit `af49f39` está local; push foi rejeitado pela revisão automática. `origin/master` no último estado local conhecido é `825b6799aba94fb4f347a3aeafef94b750bcc846`; cross-computer continuity permanece FAIL até publicação autorizada.
 
 ```text
 PROJECT = projeto_cam_scanner
@@ -63,10 +63,13 @@ UNRESOLVED_BLOCKERS = NONE
 NEXT_PHASE = P2
 NEXT_ACTIVITY = P2 definition/contract according to canonical roadmap
 P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-GIT_WRITES = COMMIT_AND_PUSH_EXPLICITLY_AUTHORIZED_BY_P1-CHECKPOINT-01_PAYLOAD
-STATUS = COMPLETED_WITH_FINDINGS
-ACTIVITY_COMPLETION_PERCENT = 100%
-COMPLETION_BASIS = P1-A04, P1-A05 evidence reconciliation, P1 closure, and published cross-computer checkpoint
+GIT_WRITES = LOCAL_COMMIT_CREATED; PUSH_REJECTED_BY_AUTO_REVIEW
+LOCAL_COMMIT = af49f39e8d60870c2574f98b6c06fa3ebb193f1e
+ORIGIN_MASTER = 825b6799aba94fb4f347a3aeafef94b750bcc846 (last locally known)
+CROSS_COMPUTER_CONTINUITY = FAIL
+STATUS = BLOCKED
+ACTIVITY_COMPLETION_PERCENT = 90%
+COMPLETION_BASIS = P1-A04, P1-A05 evidence reconciliation, P1 closure, and local checkpoint commit; publication and local/remote parity remain incomplete
 SAFE_RESUME_POINT = Define/approve P2 contract; do not begin P2 implementation without separate authority
 AGENT_HANDOFF_GATE = PASS
 ```
