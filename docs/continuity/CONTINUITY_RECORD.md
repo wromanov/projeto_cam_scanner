@@ -7,7 +7,7 @@
 - **P0-A03 — COMPLETED_WITH_FINDINGS:** aplicou as decisões posteriores do usuário, reconciliou os fatos e preparou a Foundation para recheck. Não converte retroativamente P0-A02 em PASS.
 - **P0-A03-G1 — COMPLETED_WITH_FINDINGS:** publicou o primeiro checkpoint governado em `origin/master`; commit inicial `chore(project): establish governed foundation baseline`, seguido por commit documental de continuidade. Sem implementação funcional, force push, tag ou release.
 - **P1-A04 — COMPLETED_WITH_FINDINGS:** adaptou e validou sinteticamente o fluxo SINGLE para `VENDOR_FIRST_WHEN_KNOWN`.
-- **P1-CHECKPOINT-01 — BLOCKED_PUBLICATION:** reconciliou P1-A05, fechou P1 e commitou o checkpoint localmente; push a `origin/master` foi rejeitado pela revisão automática. P2 segue sem autorização de implementação.
+- **P1-CHECKPOINT-01 — COMPLETED_WITH_FINDINGS:** reconciliou P1-A05, fechou P1 e publicou o checkpoint em `origin/master`; HEAD local e remoto coincidem. P2 segue sem autorização de implementação.
 
 ## Decisões e evidências aplicáveis
 
@@ -24,7 +24,7 @@ Decisões e evidências da P0-A03 não alteram silenciosamente authorities exter
 
 ## Baseline, riscos e retomada
 
-O baseline integrado contém a slice SINGLE vendor-first. P1-A05 confirmou descoberta pré-auth READ_ONLY e fabricante Hikvision; coleta autenticada falhou com `AUTH_ERROR`, mas a evidência foi preservada como `PARTIAL_SUCCESS`, conforme o contrato reconciliado. P1 e P0 estão fechadas; o checkpoint está commitado localmente e ainda não publicado em `origin/master`. Nenhuma credencial foi persistida. P2 aguarda definição/contrato e não tem autorização de implementação.
+O baseline integrado contém a slice SINGLE vendor-first. P1-A05 confirmou descoberta pré-auth READ_ONLY e fabricante Hikvision; coleta autenticada falhou com `AUTH_ERROR`, mas a evidência foi preservada como `PARTIAL_SUCCESS`, conforme o contrato reconciliado. P1 e P0 estão fechadas; o checkpoint está publicado em `origin/master`, com HEAD local igual ao remoto após fetch. Nenhuma credencial foi persistida. P2 aguarda definição/contrato e não tem autorização de implementação.
 
 **Safe resume point histórico (antes de P0-A04):** conferir [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md), revalidar estado Git atual e executar o recheck Foundation conforme authority aplicável. O estado corrente está registrado abaixo.
 
@@ -223,9 +223,9 @@ ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-A04)
 STATUS = COMPLETED_WITH_FINDINGS
 ```
 
-## P1-CHECKPOINT-01 — P1 Closure + Local Checkpoint (publication blocked)
+## P1-CHECKPOINT-01 — P1 Closure + Published Checkpoint
 
-O payload executor autorizou reconciliar P1-A05, executar validação do baseline, stage explícito, commit e push para `origin/master`. Evidência operacional autorizada para `10.143.36.33`: descoberta pré-auth PASS; fabricante Hikvision; coleta autenticada ONVIF `AUTH_ERROR`; tratamento da falha e semântica `PARTIAL_SUCCESS` PASS; segurança de senha PASS; chamadas mutantes zero. Nenhum username, password ou header de autorização foi preservado. O finding ONVIF Digest permanece `OPEN_NON_BLOCKING`. O commit local `af49f39` foi criado; o push foi rejeitado pela revisão automática por risco de publicação na branch padrão sem autoridade de destino considerada verificada. Não houve push alternativo.
+O payload executor autorizou reconciliar P1-A05, executar validação do baseline, stage explícito, commit e push para `origin/master`. Evidência operacional autorizada para `10.143.36.33`: descoberta pré-auth PASS; fabricante Hikvision; coleta autenticada ONVIF `AUTH_ERROR`; tratamento da falha e semântica `PARTIAL_SUCCESS` PASS; segurança de senha PASS; chamadas mutantes zero. Nenhum username, password ou header de autorização foi preservado. O finding ONVIF Digest permanece `OPEN_NON_BLOCKING`. A primeira tentativa de push foi rejeitada pela revisão automática; após autorização explícita direta e verificação do remoto, os seis commits pendentes foram publicados sem force push. Fetch posterior confirmou `HEAD = origin/master = ec53d2bd08b8bf0ee0d82b1411122f246502e820`.
 
 O contrato P1 foi esclarecido para aceitar evidência real READ_ONLY pré-autenticação como `PARTIAL_SUCCESS` quando a autenticação posterior falha, sem exigir `AUTHENTICATED_SUCCESS`. Assim, todos os requisitos P1 foram satisfeitos e P1 foi fechada. P0 permanece CLOSED. Próxima atividade: definição/contrato de P2; implementação P2 não autorizada. Continuidade e bootstrap foram ajustados para checkout cross-computer e não requerem path absoluto específico.
 
@@ -236,9 +236,11 @@ REAL_CAMERA_RESULT = PARTIAL_SUCCESS
 P1_CLOSURE = PASS
 P1_STATUS = CLOSED
 ONVIF_DIGEST_INTEROPERABILITY_FINDING = OPEN_NON_BLOCKING
-GIT_PUSH = FAIL (auto-review rejection)
-LOCAL_COMMIT = af49f39
-ORIGIN_MASTER_AT_LAST_CHECK = 825b6799aba94fb4f347a3aeafef94b750bcc846
-CROSS_COMPUTER_CONTINUITY = FAIL (checkpoint not published)
+GIT_PUSH = PASS
+PUSHED_COMMITS = 6
+LOCAL_HEAD = ec53d2bd08b8bf0ee0d82b1411122f246502e820
+ORIGIN_MASTER_HEAD = ec53d2bd08b8bf0ee0d82b1411122f246502e820
+LOCAL_REMOTE_MATCH = YES
+CROSS_COMPUTER_CONTINUITY = PASS
 P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
 ```

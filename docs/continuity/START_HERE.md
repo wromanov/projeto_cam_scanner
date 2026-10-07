@@ -16,7 +16,7 @@ Use esta página para retomar o trabalho sem depender do histórico do chat.
 
 ## Regras de retomada
 
-Leia `AGENTS.md`, este pacote e resolva os pins do binding por identidade e hash. O root de governança global fica na pasta irmã `governanca_de_projetos`; redescubra-a pelo binding e artefatos canônicos, sem assumir caminho de usuário ou drive. O checkpoint P1 está commitado localmente, mas ainda não publicado em `origin/master`; confira a paridade em runtime antes de retomar em outro computador.
+Leia `AGENTS.md`, este pacote e resolva os pins do binding por identidade e hash. O root de governança global fica na pasta irmã `governanca_de_projetos`; redescubra-a pelo binding e artefatos canônicos, sem assumir caminho de usuário ou drive. O checkpoint P1 está publicado em `origin/master`; confirme branch, HEAD, upstream e estado de trabalho em runtime antes de retomar em outro computador.
 
 P0-A02 executou Foundation Review com resultado `CHANGES_REQUIRED`; decisões F-01…F-08 e remediação estão registradas em `PROJECT_STATE.md` e `CONTINUITY_RECORD.md`. `PROJECT_OPENING_GATE` e `AGENT_HANDOFF_GATE` refletem somente evidências registradas no pacote. O checkpoint local P1-A01/P1-A02 foi autorizado e criado em `d64ff9799d5d84c22a33ab7c24f589cbe619e3a6`; não houve push. Na entrada de P1-A03-CLOSE, a documentação P1-A03 ainda aguardava stage e commit; o fechamento Git foi autorizado especificamente para esta atividade.
 
