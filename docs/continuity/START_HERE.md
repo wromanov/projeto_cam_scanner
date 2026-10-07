@@ -15,6 +15,6 @@ Use esta página para retomar o trabalho sem depender do histórico do chat.
 
 ## Regras de retomada
 
-Leia `AGENTS.md`, este pacote e resolva os pins do binding por identidade e hash. O root de governança global está fora deste projeto e deve ser redescoberto por seus arquivos canônicos; neste ambiente ele fica em `../governança_de_projetos/`. O repositório Git existe: confirme branch, HEAD e estado de trabalho em runtime; no checkpoint P0-A03, `master` tem zero commits e ainda não tem HEAD válido.
+Leia `AGENTS.md`, este pacote e resolva os pins do binding por identidade e hash. O root de governança global está fora deste projeto e deve ser redescoberto por seus arquivos canônicos; neste ambiente ele fica em `../governança_de_projetos/`. O primeiro checkpoint governado foi publicado em `origin/master`; confirme branch, HEAD, upstream e estado de trabalho em runtime. A documentação usa `CURRENT_GOVERNED_CHECKPOINT = CURRENT_REPOSITORY_HEAD` para evitar o ciclo de inserir o próprio hash no commit.
 
 P0-A02 executou Foundation Review com resultado `CHANGES_REQUIRED`; decisões F-01…F-08 e remediação estão registradas em `PROJECT_STATE.md` e `CONTINUITY_RECORD.md`. `PROJECT_OPENING_GATE` e `AGENT_HANDOFF_GATE` refletem somente evidências registradas no pacote. Nenhum gate concede autorização de implementação ou publicação Git. P1 permanece planejada e não autorizada.

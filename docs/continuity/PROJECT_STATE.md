@@ -5,10 +5,10 @@ PROJECT_ID = projeto_cam_scanner
 PROJECT_ROOT_HOME = ambiente atual, root C:\Users\walac\desenvolvimento\projeto_cam_scanner
 PROJECT_ROOT_WORK = não existe neste computador
 CURRENT_PHASE = P0 — Project Opening + Foundation
-CURRENT_ACTIVITY = P0-A03 — concluída com findings
+CURRENT_ACTIVITY = P0-A03-G1 — Governed Git Checkpoint Publication; concluída com findings
 CURRENT_DELIVERY_UNIT = activity/checkpoint conforme PM-01 (sem sprint declarada)
 DELIVERY_UNIT_STATUS = COMPLETED_WITH_FINDINGS
-LAST_COMPLETED_ACTIVITY = P0-A03 — Foundation Remediation & Continuity Reconciliation
+LAST_COMPLETED_ACTIVITY = P0-A03-G1 — Governed Git Checkpoint Publication
 PREVIOUS_COMPLETED_ACTIVITY = P0-A02 — Foundation Review (CHANGES_REQUIRED; BLOCKED_FOR_FORMAL_CLOSURE)
 POLICY_INTERNALIZATION_GATE = PASS_WITH_FINDINGS (conforme payload; não reexecutado neste checkpoint)
 ENGINEERING_FOUNDATION = 10/10 ITEMS APPROVED (conforme payload do usuário)
@@ -20,11 +20,15 @@ FOUNDATION_APPROVAL = NOT_GRANTED
 PROJECT_OPENING_GATE = NOT_READY
 AGENT_HANDOFF_GATE = PASS
 IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-GIT_WRITE_AUTHORIZATION = NOT_GRANTED
+GIT_WRITE_AUTHORIZATION = NOT_GRANTED_FOR_FUTURE_ACTIONS; P0-A03-G1 authorization consumed
 GIT_REPOSITORY = YES
 GIT_BRANCH = master
-GIT_COMMITS = 0
-GIT_HEAD = NOT_YET_VALID
+GIT_COMMITS = 2 (initial foundation checkpoint + continuity update)
+GIT_HEAD = CURRENT_GOVERNED_CHECKPOINT
+CURRENT_GOVERNED_CHECKPOINT = CURRENT_REPOSITORY_HEAD
+GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git)
+GIT_UPSTREAM = origin/master
+WORKING_TREE = CLEAN
 CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
 ```
 
@@ -63,7 +67,7 @@ O roadmap P0–P12 está em [`planning/ROADMAP.md`](planning/ROADMAP.md); sequê
 
 ## Estado Git, validação e risco
 
-O root contém `.git`; estado observado antes desta atividade: branch `master`, zero commits, sem HEAD válido. Nenhuma escrita Git foi executada. Nenhuma credencial real foi persistida. O Continuity 3.0 binding foi validado na P0-A02 usando PowerShell `Test-Json -Schema` contra o schema canônico; esta evidência não pertence à P0-A01. Python 3.14.x não foi validado; a baseline permanece 3.14.x e P1 exige validação operacional nessa versão. O root WORK não existe neste computador; HOME permanece root válido.
+O checkpoint governado foi publicado em `origin/master`; consulte o HEAD corrente em runtime, sem depender de hash persistido neste documento. A P0-A03-G1 criou o commit `chore(project): establish governed foundation baseline` e um commit documental para reconciliar esta continuidade. Nenhuma credencial real foi persistida. O Continuity 3.0 binding foi validado na P0-A02 usando PowerShell `Test-Json -Schema` contra o schema canônico; esta evidência não pertence à P0-A01. Python 3.14.x não foi validado; a baseline permanece 3.14.x e P1 exige validação operacional nessa versão. O root WORK não existe neste computador; HOME permanece root válido.
 As verificações sintáticas/imports foram executadas com Python 3.12.14 do runtime local; o alvo da Foundation é Python 3.14.x e não está instalado neste ambiente.
 
 ## Gates, readiness e autorização
@@ -72,16 +76,19 @@ P0-A02 executou a Foundation Review e permaneceu `CHANGES_REQUIRED`; P0-A03 não
 
 ```text
 PROJECT_STATE_UPDATE = PASS
-ACTIVITY_COMPLETE = YES (P0-A03 outputs completos com findings registrados)
-ACTIVITY_COMPLETION_PERCENT = 100% (exclusivamente P0-A03; itens requeridos remediados ou corretamente deferred)
+ACTIVITY_COMPLETE = YES (P0-A03-G1 outputs completos com findings registrados)
+ACTIVITY_COMPLETION_PERCENT = 100% (exclusivamente P0-A03-G1)
 P0_A03_STATUS = COMPLETED_WITH_FINDINGS
+P0_A03_G1_STATUS = COMPLETED_WITH_FINDINGS
+P0_A03_G1_COMPLETION = 100%
+P0_A03_G1_GIT_CHECKPOINT = PUBLISHED; LOCAL_HEAD = CURRENT_GOVERNED_CHECKPOINT; UPSTREAM = origin/master
 FOUNDATION_REVIEW_RECHECK_READINESS = READY
 FOUNDATION_APPROVAL = NOT_GRANTED_BY_P0_A03
 PROJECT_OPENING_GATE = NOT_YET_PASS
 SAFE_RESUME_POINT = pacote de continuidade reconciliado; próxima atividade é recheck da Foundation Review; P1 não autorizada
 NEXT_ACTIVITY = P0-A04 — Foundation Review recheck
 NEXT_ACTIVITY_READINESS = READY
-NEXT_ACTIVITY_AUTHORIZATION = revisão/recheck somente; implementação P1 e escrita Git não autorizadas
+NEXT_ACTIVITY_AUTHORIZATION = revisão/recheck somente; implementação P1 e novas escritas Git não autorizadas
 LAST_VALIDATED_INTEGRATED_BASELINE = NONE (nenhuma slice funcional integrada; scaffold somente)
 OPEN_DECISIONS = executar Foundation Review e determinar Project Opening Gate
 BLOCKERS = Foundation Review recheck e Project Opening Gate ainda pendentes; não impedem encerramento da remediação P0-A03
@@ -101,4 +108,4 @@ NEW_AGENT_CAN_RESUME_FROM_GOVERNED_PROJECT_ARTIFACTS = YES
 - A política de acesso permanece READ_ONLY.
 - Nenhuma funcionalidade real de snapshot, RTSP, XLSX MULTI ou concorrência deve ser criada em P0-A03.
 - Nenhum path absoluto de máquina foi colocado no código de aplicação.
-- Nenhuma ação de escrita Git foi executada; autorização Git permanece ausente.
+- As escritas Git autorizadas para P0-A03-G1 foram concluídas; futuras escritas Git exigem nova autorização explícita.

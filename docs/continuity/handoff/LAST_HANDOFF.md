@@ -1,21 +1,27 @@
-# Last Handoff — P0-A03
+# Last Handoff — P0-A03-G1
 
 ```text
 PROJECT = projeto_cam_scanner
-CHECKPOINT = P0-A03
+CHECKPOINT = P0-A03-G1
 STATUS = COMPLETED_WITH_FINDINGS
-ACTIVITY_COMPLETION_PERCENT = 100% (exclusivamente P0-A03)
+ACTIVITY_COMPLETION_PERCENT = 100% (exclusivamente P0-A03-G1)
 PROJECT_STATE_UPDATE = PASS
 FOUNDATION_REVIEW_RECHECK_READINESS = READY
 FOUNDATION_APPROVAL = NOT_GRANTED_BY_THIS_ACTIVITY
 PROJECT_OPENING_GATE = NOT_YET_PASS
 IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-GIT_WRITE_AUTHORIZATION = NOT_GRANTED
+GIT_WRITE_AUTHORIZATION = NOT_GRANTED_FOR_FUTURE_ACTIONS; P0-A03-G1 authorization consumed
+GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git)
+GIT_BRANCH = master
+GIT_UPSTREAM = origin/master
+GIT_COMMITS = 2 (foundation checkpoint + continuity update)
+CURRENT_GOVERNED_CHECKPOINT = CURRENT_REPOSITORY_HEAD
+WORKING_TREE = CLEAN
 AGENT_HANDOFF_GATE = PASS
 NEXT_ACTIVITY = P0-A04 — Foundation Review recheck
 NEXT_ACTIVITY_READINESS = READY
 NEXT_ACTIVITY_AUTHORIZATION = review/recheck somente; sem implementação
-SAFE_RESUME_POINT = recheck a Foundation Review a partir do pacote de continuidade atualizado; não iniciar P1
+SAFE_RESUME_POINT = confirmar HEAD/upstream/clean em runtime; executar P0-A04 Foundation Review recheck; não iniciar P1
 CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
 ```
 
@@ -35,7 +41,8 @@ CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
 ## Evidências e limites
 
 - Root ativo confirmado: `C:\Users\walac\desenvolvimento\projeto_cam_scanner`; root WORK declarado não existe neste computador.
-- Estado Git somente leitura: `master`, zero commits, nenhum HEAD válido. Nenhuma operação Git de escrita foi executada.
+- Remote `origin` foi validado e respondeu sem branches antes do checkpoint; após push, `master` acompanha `origin/master` e os HEADs locais/remotos foram iguais. Reconfirme todos os fatos mutáveis em runtime.
+- Commit inicial: `chore(project): establish governed foundation baseline`. A continuidade foi atualizada em um commit documental posterior. O hash não é persistido dentro do próprio checkpoint; `CURRENT_GOVERNED_CHECKPOINT = CURRENT_REPOSITORY_HEAD`.
 - Schema JSON validado com PowerShell `Test-Json -Schema`; JSON/TOML parseados com sucesso.
 - `AGENTS.md` localizadores foram reconciliados com os documentos canônicos existentes no root de governança irmão.
 - Python 3.12.14: compilação de `src` e `tests` e testes estruturais passaram (2 testes). Isso não demonstra compatibilidade 3.14.
@@ -44,6 +51,6 @@ CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
 
 ## Agent Handoff Gate
 
-PASS: continuidade, START_HERE, PROJECT_STATE, roadmap, execution plan, authority map, record, binding e este handoff existem e estão atualizados; estado corrente, atividade concluída/próxima, readiness/autorização, baseline, authorities, decisões, blockers, riscos, deferred items, invariantes e safe resume point são descobríveis; histórico do chat não é necessário. A condição Git sem HEAD válido está explícita e é redescobrível em runtime. As authorities canônicas permanecem localizáveis pelo mapa e binding.
+PASS: continuidade, START_HERE, PROJECT_STATE, roadmap, execution plan, authority map, record, binding e este handoff estão reconciliados com o checkpoint publicado; estado corrente, atividade concluída/próxima, readiness/autorização, baseline, authorities, decisões, blockers, riscos, deferred items, invariantes e safe resume point são descobríveis; histórico do chat não é necessário. O checkpoint é recuperável por clone/fetch de `origin/master`; confirme estado Git em runtime. As authorities canônicas permanecem localizáveis pelo mapa e binding.
 
 P0-A02 conserva `CHANGES_REQUIRED`; P0-A03 não concedeu Foundation Approval nem Project Opening Gate. Não iniciar P1 sem review/gates e autorização explícita posterior.
