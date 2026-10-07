@@ -2,8 +2,8 @@
 
 | Fase | Escopo e objetivo | Estado |
 |---|---|---|
-| P0 | Project Opening + Foundation | Em andamento; P0-A02 review `CHANGES_REQUIRED`; P0-A03 concluída; recheck e gates pendentes |
-| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera por ONVIF read-only | Planejada; implementação não autorizada |
+| P0 | Project Opening + Foundation | CLOSED; Foundation Approval `APPROVED_WITH_ACCEPTED_FINDINGS`; Project Opening Gate `PASS` (P0-A05-R1) |
+| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera por ONVIF read-only | Fluxo SINGLE validado contra ONVIF simulado; P1-A02 executada contra alvo autorizado, mas bloqueada por `AUTH_ERROR`; P1 `NOT_READY` |
 | P2 | SINGLE ONVIF Inventory Expansion: hostname, rede, MAC, portas e demais campos aplicáveis | Planejada |
 | P3 | SINGLE Snapshot Vertical Slice: captura e processamento de snapshot; sem XLSX | Planejada |
 | P4 | MULTI + XLSX Vertical Slice: entrada em lote, progresso, INVENTARIO/RESUMO e snapshot embutido | Planejada |

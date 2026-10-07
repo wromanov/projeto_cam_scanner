@@ -1,4 +1,4 @@
-"""Domain error categories; sanitization is implemented in a later phase."""
+"""Domain exceptions used to classify expected collection failures."""
 
 
 class CameraScannerError(Exception):
@@ -11,3 +11,7 @@ class ConfigurationError(CameraScannerError):
 
 class CollectionError(CameraScannerError):
     """A camera collection operation failed."""
+
+
+class InvalidInputError(CameraScannerError):
+    """The target supplied for a collection is invalid."""

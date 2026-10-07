@@ -3,7 +3,7 @@ from dataclasses import fields
 from pathlib import Path
 from typing import get_type_hints
 
-from cam_scanner.domain.enums import CollectionStatus
+from cam_scanner.domain.enums import CollectionMethod, CollectionStatus, ErrorCode
 from cam_scanner.domain.models import CameraResult, CameraTarget
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +35,10 @@ def test_result_contract_excludes_password_and_target_repr_hides_it() -> None:
         "firmware",
         "hardware_id",
         "mac",
+        "error_code",
+        "error_message",
+        "collection_method",
+        "duration",
     }
     assert "password" not in result_fields
     assert get_type_hints(CameraResult) == {
@@ -48,6 +52,10 @@ def test_result_contract_excludes_password_and_target_repr_hides_it() -> None:
         "firmware": str | None,
         "hardware_id": str | None,
         "mac": str | None,
+        "error_code": ErrorCode | None,
+        "error_message": str | None,
+        "collection_method": CollectionMethod | None,
+        "duration": float,
     }
     password_field = next(item for item in fields(CameraTarget) if item.name == "password")
     assert password_field.repr is False

@@ -4,13 +4,15 @@ CLI para Windows voltada ao inventário de câmeras IP. A versão inicial previs
 
 ## Estado atual
 
-Este diretório contém somente a Engineering Foundation aprovada, documentos de continuidade e scaffold estrutural. Coleta ONVIF, adapters de fabricantes, snapshots, leitura/escrita operacional de XLSX e processamento MULTI ainda não estão implementados.
+A slice SINGLE consulta Manufacturer, Model, SerialNumber e FirmwareVersion por ONVIF `GetDeviceInformation`, somente leitura. O menu e a navegação pós-consulta estão integrados. MULTI, adapters de fabricantes, snapshots e leitura/escrita operacional de XLSX continuam fora desta slice.
+
+A validação sintética da integração está implementada. A validação operacional com câmera real depende de um target e credenciais autorizados; sem essa evidência, P1 permanece aberta.
 
 ## Desenvolvimento
 
 - Python 3.14.x em `venv`;
 - instalação de desenvolvimento: `pip install -e .[dev]`;
-- entrypoint previsto: `cam-scanner` ou `python -m cam_scanner`;
+- entrypoint: `cam-scanner` ou `python -m cam_scanner`;
 - configuração em `config/settings.toml`;
 - dados de entrada e saída em `input/` e `output/`; logs em `logs/`.
 

@@ -1,56 +1,47 @@
-# Last Handoff — P0-A03-G1
+# Last Handoff — P1-A02
+
+P1-A01 implementou e integrou o fluxo SINGLE do entrypoint até a solicitação ONVIF `GetDeviceInformation`, a apresentação de `CameraResult` e a devolução da decisão de navegação ao `ApplicationController`. A biblioteca faz descoberta interna somente leitura com `GetServices` e pode usar `GetCapabilities` como fallback. O contrato aprovado de `CameraResult` mantém exatamente 14 campos; `CameraTarget.password` não aparece em `repr`, nos resultados, no terminal ou nos logs. Erros esperados são convertidos em mensagens sanitizadas sem traceback no terminal.
+
+Pytest, Ruff, fluxo CLI integrado com ONVIF falso, validação acumulada e regressão aplicável passaram em Python 3.14.0. O entrypoint `cam-scanner` iniciou pelo menu e encerrou corretamente. Nenhuma operação mutante de câmera foi introduzida. Não houve escrita Git.
+
+`REAL_CAMERA_VALIDATION = BLOCKED_NO_AUTHORIZED_TARGET`: nenhum endereço de câmera e credenciais autorizados foram fornecidos. Nenhuma câmera foi consultada. P1 permanece `NOT_READY` até evidência operacional READ_ONLY contra uma câmera autorizada.
+
+P1-A02 executou três consultas contra o alvo autorizado `10.143.36.33`; todas retornaram `AUTH_ERROR`. O log sanitizado confirma as três falhas sem username ou senha. O fluxo exibiu o erro sanitizado e retornou ao menu; nenhum dado de dispositivo foi obtido. Safe resume point: retomar P1-A02 após confirmar uma conta habilitada e autorizada para ONVIF. O cliente instalado usa WS-UsernameToken por padrão. Credenciais devem ser informadas somente no `getpass()` local. Não buscar nem reutilizar secrets locais, nem executar operações fora do fluxo READ_ONLY autorizado.
 
 ```text
-PROJECT = projeto_cam_scanner
-CHECKPOINT = P0-A03-G1
-STATUS = COMPLETED_WITH_FINDINGS
-ACTIVITY_COMPLETION_PERCENT = 100% (exclusivamente P0-A03-G1)
+P1_CONTRACT_STATUS = APPROVED
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01
+P1_A01_IMPLEMENTATION = COMPLETE
+CANONICAL_FLOW_INTEGRATED = YES
+PYTEST = PASS
+RUFF = PASS
+PYTHON_3_14_VALIDATION = PASS (Python 3.14.0)
+REAL_CAMERA_VALIDATION = BLOCKED_AUTHENTICATION
+TARGET_AUTHORIZED = YES
+TARGET_IP = 10.143.36.33
+CANONICAL_CLI_FLOW = PASS
+ONVIF_READ_ONLY = PASS
+GET_DEVICE_INFORMATION = FAIL (autenticação rejeitada; etapa ONVIF específica não identificada)
+DEVICE_INFORMATION_OBTAINED = NO
+CAMERA_RESULT = PASS (resultado FAILED produzido e apresentado)
+COLLECTION_METHOD = PASS
+DURATION = PASS
+PASSWORD_SECURITY = PASS
+EXPECTED_ERROR_HANDLING = PASS
+POST_QUERY_NAVIGATION = PASS
+MUTATING_CAMERA_CALLS = 0
+DEFECT_DETECTED = NO
+SOURCE_CODE_CHANGES = NONE
+FUNCTIONAL_SCOPE_LEAKAGE = NONE
+STATUS = BLOCKED
+ACTIVITY_COMPLETION_PERCENT = 40%
+COMPLETION_BASIS = fluxo real e tratamento de erro confirmados; estado e handoff reconciliados; diff --check sem erros; informações do dispositivo não obtidas
+P1_STATUS = NOT_READY
 PROJECT_STATE_UPDATE = PASS
-FOUNDATION_REVIEW_RECHECK_READINESS = READY
-FOUNDATION_APPROVAL = NOT_GRANTED_BY_THIS_ACTIVITY
-PROJECT_OPENING_GATE = NOT_YET_PASS
-IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-GIT_WRITE_AUTHORIZATION = NOT_GRANTED_FOR_FUTURE_ACTIONS; P0-A03-G1 authorization consumed
-GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git)
-GIT_BRANCH = master
-GIT_UPSTREAM = origin/master
-GIT_COMMITS = 2 (foundation checkpoint + continuity update)
-CURRENT_GOVERNED_CHECKPOINT = CURRENT_REPOSITORY_HEAD
-WORKING_TREE = CLEAN
+CONTINUITY_UPDATE = PASS
 AGENT_HANDOFF_GATE = PASS
-NEXT_ACTIVITY = P0-A04 — Foundation Review recheck
-NEXT_ACTIVITY_READINESS = READY
-NEXT_ACTIVITY_AUTHORIZATION = review/recheck somente; sem implementação
-SAFE_RESUME_POINT = confirmar HEAD/upstream/clean em runtime; executar P0-A04 Foundation Review recheck; não iniciar P1
-CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
+NEXT_ACTIVITY = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
+NEXT_ACTIVITY_READINESS = BLOCKED_AUTHENTICATION
+NEXT_ACTIVITY_AUTHORIZATION = Escopo READ_ONLY autorizado para 10.143.36.33
+GIT_WRITES = NONE
 ```
-
-## Findings e remediação
-
-| Finding | Status | Registro |
-|---|---|---|
-| F-01 | ACCEPTED_DEFERRED | Python 3.14.x permanece baseline. Não houve validação 3.14 nesta atividade; P1 não pode fechar sem validação operacional 3.14.x. |
-| F-02 | ACCEPTED_INFORMATIONAL | Root WORK ausente é fato ambiental; HOME é o root ativo válido. |
-| F-03 | REMEDIATED | `.git` existe, branch `master`, zero commits e `HEAD` inválido/não criado. Docs reconciliados; nenhuma escrita Git ou HEAD artificial. |
-| F-04 | ACCEPTED_RESOLVED_EVIDENCE | Binding Continuity 3.0 validado na P0-A02 por PowerShell `Test-Json -Schema` contra schema canônico; não atribuído à P0-A01. |
-| F-05 | REMEDIATED | Roadmap P0–P12 corrigido; P3 sem XLSX; P4 primeiro fluxo MULTI + XLSX + snapshot embedded. |
-| F-06 | REMEDIATED | `CameraResult` sem metadata/arbitrary extension bag; campos aprovados explicitamente tipados; sem password. |
-| F-07 | REMEDIATED | P1 definida como SINGLE Minimum Vertical Slice, fluxo e aceite documentados; autorização de implementação continua ausente. |
-| F-08 | ACCEPTED_DEFERRED_TO_P12 | Build operacional em P12 exige TESTS + RUFF + PACKAGE_SMOKE_TEST + PYINSTALLER. |
-
-## Evidências e limites
-
-- Root ativo confirmado: `C:\Users\walac\desenvolvimento\projeto_cam_scanner`; root WORK declarado não existe neste computador.
-- Remote `origin` foi validado e respondeu sem branches antes do checkpoint; após push, `master` acompanha `origin/master` e os HEADs locais/remotos foram iguais. Reconfirme todos os fatos mutáveis em runtime.
-- Commit inicial: `chore(project): establish governed foundation baseline`. A continuidade foi atualizada em um commit documental posterior. O hash não é persistido dentro do próprio checkpoint; `CURRENT_GOVERNED_CHECKPOINT = CURRENT_REPOSITORY_HEAD`.
-- Schema JSON validado com PowerShell `Test-Json -Schema`; JSON/TOML parseados com sucesso.
-- `AGENTS.md` localizadores foram reconciliados com os documentos canônicos existentes no root de governança irmão.
-- Python 3.12.14: compilação de `src` e `tests` e testes estruturais passaram (2 testes). Isso não demonstra compatibilidade 3.14.
-- Inspeção do scaffold: placeholders sem conexão ONVIF funcional, captura real, XLSX operacional, concorrência ou adapter proprietário.
-- Nenhuma credencial real foi persistida.
-
-## Agent Handoff Gate
-
-PASS: continuidade, START_HERE, PROJECT_STATE, roadmap, execution plan, authority map, record, binding e este handoff estão reconciliados com o checkpoint publicado; estado corrente, atividade concluída/próxima, readiness/autorização, baseline, authorities, decisões, blockers, riscos, deferred items, invariantes e safe resume point são descobríveis; histórico do chat não é necessário. O checkpoint é recuperável por clone/fetch de `origin/master`; confirme estado Git em runtime. As authorities canônicas permanecem localizáveis pelo mapa e binding.
-
-P0-A02 conserva `CHANGES_REQUIRED`; P0-A03 não concedeu Foundation Approval nem Project Opening Gate. Não iniciar P1 sem review/gates e autorização explícita posterior.

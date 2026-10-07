@@ -2,39 +2,47 @@
 
 ```text
 PROJECT_ID = projeto_cam_scanner
-PROJECT_ROOT_HOME = ambiente atual, root C:\Users\walac\desenvolvimento\projeto_cam_scanner
-PROJECT_ROOT_WORK = não existe neste computador
-CURRENT_PHASE = P0 — Project Opening + Foundation
-CURRENT_ACTIVITY = P0-A03-G1 — Governed Git Checkpoint Publication; concluída com findings
-CURRENT_DELIVERY_UNIT = activity/checkpoint conforme PM-01 (sem sprint declarada)
-DELIVERY_UNIT_STATUS = COMPLETED_WITH_FINDINGS
-LAST_COMPLETED_ACTIVITY = P0-A03-G1 — Governed Git Checkpoint Publication
-PREVIOUS_COMPLETED_ACTIVITY = P0-A02 — Foundation Review (CHANGES_REQUIRED; BLOCKED_FOR_FORMAL_CLOSURE)
-POLICY_INTERNALIZATION_GATE = PASS_WITH_FINDINGS (conforme payload; não reexecutado neste checkpoint)
-ENGINEERING_FOUNDATION = 10/10 ITEMS APPROVED (conforme payload do usuário)
-FOUNDATION_REVIEW = P0-A02 COMPLETED; CHANGES_REQUIRED; findings F-01..F-08
-P0_A02_COMPLETION = 90%
-P0_A02_STATUS = BLOCKED_FOR_FORMAL_CLOSURE
-FOUNDATION_REVIEW_APPROVAL_RECOMMENDATION = DO_NOT_APPROVE_YET
-FOUNDATION_APPROVAL = NOT_GRANTED
-PROJECT_OPENING_GATE = NOT_READY
+PROJECT_ROOT_HOME = histórico da execução anterior: C:\Users\walac\desenvolvimento\projeto_cam_scanner; não utilizado neste recheck
+PROJECT_ROOT_WORK = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner; root atual verificado
+CURRENT_PHASE = P1 — Minimum Vertical Slice Implementation
+CURRENT_ACTIVITY = P1-A02 — Real Camera READ_ONLY Validation; bloqueada por AUTH_ERROR no alvo autorizado
+CURRENT_DELIVERY_UNIT = activity/checkpoint conforme padrão registrado; sem sprint declarada
+DELIVERY_UNIT_STATUS = IN_PROGRESS; P1 real-camera DoD pendente
+LAST_COMPLETED_ACTIVITY = P1-A01 — SINGLE Minimum Vertical Slice Implementation
+PREVIOUS_COMPLETED_ACTIVITY = P1-C01-R2 — Typing Contract Closure
+POLICY_INTERNALIZATION_GATE = PASS_WITH_FINDINGS (P0-A04; evidências em docs/audit/FOUNDATION_REVIEW_P0_A04.md)
+ENGINEERING_FOUNDATION = 10/10 ITEMS APPROVED (decisão histórica reportada pelo usuário)
+FOUNDATION_REVIEW = P0-A04 PASS_WITH_ACCEPTED_FINDINGS; P0-A02 conserva CHANGES_REQUIRED histórico
+FOUNDATION_REVIEW_APPROVAL_RECOMMENDATION = READY_FOR_USER_APPROVAL
+FOUNDATION_APPROVAL = APPROVED_WITH_ACCEPTED_FINDINGS (aprovação explícita do usuário informada para P0-A05)
+PROJECT_OPENING_GATE = PASS
+P0_STATUS = CLOSED
+PROJECT_READY_FOR_IMPLEMENTATION_PLANNING = SUPERSEDED; P1-A01 em execução autorizada
 AGENT_HANDOFF_GATE = PASS
-IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-GIT_WRITE_AUTHORIZATION = NOT_GRANTED_FOR_FUTURE_ACTIONS; P0-A03-G1 authorization consumed
+IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01 (payload executor de 2026-10-07)
+GIT_WRITE_AUTHORIZATION = NOT_GRANTED; sem stage/commit/push
 GIT_REPOSITORY = YES
 GIT_BRANCH = master
-GIT_COMMITS = 2 (initial foundation checkpoint + continuity update)
-GIT_HEAD = CURRENT_GOVERNED_CHECKPOINT
-CURRENT_GOVERNED_CHECKPOINT = CURRENT_REPOSITORY_HEAD
-GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git)
+GIT_COMMITS = 2
+GIT_HEAD = 825b6799aba94fb4f347a3aeafef94b750bcc846
+CURRENT_GOVERNED_CHECKPOINT = WORKING_TREE baseado no HEAD; alterações locais não publicadas
+GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git; configuração local)
 GIT_UPSTREAM = origin/master
-WORKING_TREE = CLEAN
+WORKING_TREE = alterações documentais preexistentes + P1-A01 source/docs; sem stage
+P1_CONTRACT_STATUS = APPROVED
+P1_STATUS = NOT_READY
+REAL_CAMERA_VALIDATION = BLOCKED_AUTHENTICATION
+NEXT_ACTIVITY = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
+NEXT_ACTIVITY_READINESS = BLOCKED_AUTHENTICATION
+NEXT_ACTIVITY_AUTHORIZATION = Escopo READ_ONLY autorizado para 10.143.36.33; nenhuma operação mutante autorizada
+UNRESOLVED_BLOCKERS = BLOCKED_AUTHENTICATION
 CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
 ```
 
 ## Identidade e objetivo
 
-CLI para Windows para consultar câmeras IP e produzir inventário. Root escolhido: `C:\Users\walac\desenvolvimento\projeto_cam_scanner`, que existe e corresponde ao root HOME declarado. O root WORK `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner` não existe. Código da aplicação não pode conter paths absolutos de máquina.
+CLI para Windows para consultar câmeras IP e produzir inventário. Root atual verificado nesta P0-A04: `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner`. As declarações anteriores de HOME ativo e WORK inexistente descreviam outro computador e foram superadas para este ambiente. Código da aplicação não pode conter paths absolutos de máquina.
 
 ## Escopo funcional aprovado
 
@@ -65,47 +73,182 @@ CLI para Windows para consultar câmeras IP e produzir inventário. Root escolhi
 
 O roadmap P0–P12 está em [`planning/ROADMAP.md`](planning/ROADMAP.md); sequência e DoD em [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md). P1 é SINGLE Minimum Vertical Slice, planejada e sem autorização de implementação.
 
+O contrato P1 em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md) preserva os dez campos existentes e adiciona somente `error_code`, `error_message`, `collection_method` e `duration` (14 no total). P1-C01-R2 fechou tipo, vocabulário, nulabilidade, regras e unidade; sem password ou extension bag. Contrato pronto para aprovação final do usuário; implementação continua não autorizada.
+
 ## Estado Git, validação e risco
 
-O checkpoint governado foi publicado em `origin/master`; consulte o HEAD corrente em runtime, sem depender de hash persistido neste documento. A P0-A03-G1 criou o commit `chore(project): establish governed foundation baseline` e um commit documental para reconciliar esta continuidade. Nenhuma credencial real foi persistida. O Continuity 3.0 binding foi validado na P0-A02 usando PowerShell `Test-Json -Schema` contra o schema canônico; esta evidência não pertence à P0-A01. Python 3.14.x não foi validado; a baseline permanece 3.14.x e P1 exige validação operacional nessa versão. O root WORK não existe neste computador; HOME permanece root válido.
-As verificações sintáticas/imports foram executadas com Python 3.12.14 do runtime local; o alvo da Foundation é Python 3.14.x e não está instalado neste ambiente.
+Recheck de 2026-10-07 em Codex desktop local, execução DIRECT, sem subagentes. O Card A indica WORK; a superfície efetivamente utilizada é este checkout local. Não houve transferência para outro executor nem alegação de reconfiguração do modelo. Skills especializadas não foram necessárias. Resultado e evidências estão em [`../audit/FOUNDATION_REVIEW_P0_A04.md`](../audit/FOUNDATION_REVIEW_P0_A04.md).
 
-## Gates, readiness e autorização
+Na entrada P0-A05, Git confirmou `master`, HEAD `825b6799aba94fb4f347a3aeafef94b750bcc846`, dois commits e alterações documentais locais; HEAD coincide com a referência local `origin/master`; servidor remoto não foi reconsultado. P0-A05 alterou apenas os quatro registros de continuidade autorizados, sem staging, commit ou push.
 
-P0-A02 executou a Foundation Review e permaneceu `CHANGES_REQUIRED`; P0-A03 não promoveu essa review nem concedeu Foundation Approval. A aprovação 10/10 da Engineering Foundation permanece como decisão reportada pelo usuário, distinta do resultado da review.
+Python 3.14.0 existe neste ambiente. Os dois testes estruturais existentes foram executados diretamente e passaram; 44 arquivos Python passaram no parse AST e os três TOML foram parseados. `pytest` e Ruff não estão instalados no Python 3.14; não se declara sucesso desses runners nem validação operacional de P1. Nenhuma dependência foi instalada.
+
+O binding passou no schema Continuity 3.0 e todos os nove pins foram resolvidos por bytes exatos dos pacotes ZIP locais; os três pins VP-01/Opening/Continuity também coincidem com blobs Git externos. As cópias extraídas têm hashes distintos, com texto equivalente após decodificação e normalização de quebra de linha. Os ZIPs exatos são a fonte de integridade desta execução; binding e governança externa não foram alterados. Ver localizadores em ACTIVE_AUTHORITY_MAP e relatório.
+
+## P0-A05 — Project Opening Gate Finalization (2026-10-07)
+
+A aprovação explícita informada pelo usuário é `APPROVED_WITH_ACCEPTED_FINDINGS`. O recheck P0-A04 permanece `PASS_WITH_ACCEPTED_FINDINGS`; findings e contrato de segurança/read-only não foram reavaliados. P0-A05-R1 reconciliou a linha de P0 na roadmap para registrar a aprovação, o Opening Gate PASS e o fechamento de P0. A sequência P0→P1 e o escopo técnico permanecem inalterados; P1 continua não implementada.
+
+```text
+FOUNDATION_APPROVAL = APPROVED_WITH_ACCEPTED_FINDINGS
+PROJECT_OPENING_GATE = PASS
+P0_STATUS = CLOSED
+PROJECT_READY_FOR_IMPLEMENTATION_PLANNING = YES
+NEXT_ACTIVITY = USER FINAL APPROVAL OF P1 CONTRACT
+NEXT_ACTIVITY_READINESS = READY
+NEXT_ACTIVITY_AUTHORIZATION = CONTRACT_ONLY
+P1_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+UNRESOLVED_BLOCKERS = NONE
+FUNCTIONAL_IMPLEMENTATION_LEAKAGE = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+AGENT_HANDOFF_GATE = PASS
+ACTIVITY_COMPLETE = YES (P0-A05-R1)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente P0-A05-R1: roadmap e continuidade reconciliadas; gate/handoff aprovados)
+```
+
+## Estado histórico de gates ao final de P1-C01-R2 (supersedido por P1-A01)
+
+P0-A04 confirma F-03/F-05/F-06/F-07 remediados e conserva as decisões aceitas de F-01/F-02/F-04/F-08. Não promove retroativamente P0-A02. A Foundation está pronta para decisão do usuário, mantendo explícitos os limites de runtime, ferramentas e packaging.
 
 ```text
 PROJECT_STATE_UPDATE = PASS
-ACTIVITY_COMPLETE = YES (P0-A03-G1 outputs completos com findings registrados)
-ACTIVITY_COMPLETION_PERCENT = 100% (exclusivamente P0-A03-G1)
-P0_A03_STATUS = COMPLETED_WITH_FINDINGS
-P0_A03_G1_STATUS = COMPLETED_WITH_FINDINGS
-P0_A03_G1_COMPLETION = 100%
-P0_A03_G1_GIT_CHECKPOINT = PUBLISHED; LOCAL_HEAD = CURRENT_GOVERNED_CHECKPOINT; UPSTREAM = origin/master
-FOUNDATION_REVIEW_RECHECK_READINESS = READY
-FOUNDATION_APPROVAL = NOT_GRANTED_BY_P0_A03
-PROJECT_OPENING_GATE = NOT_YET_PASS
-SAFE_RESUME_POINT = pacote de continuidade reconciliado; próxima atividade é recheck da Foundation Review; P1 não autorizada
-NEXT_ACTIVITY = P0-A04 — Foundation Review recheck
-NEXT_ACTIVITY_READINESS = READY
-NEXT_ACTIVITY_AUTHORIZATION = revisão/recheck somente; implementação P1 e novas escritas Git não autorizadas
-LAST_VALIDATED_INTEGRATED_BASELINE = NONE (nenhuma slice funcional integrada; scaffold somente)
-OPEN_DECISIONS = executar Foundation Review e determinar Project Opening Gate
-BLOCKERS = Foundation Review recheck e Project Opening Gate ainda pendentes; não impedem encerramento da remediação P0-A03
-KNOWN_RISKS = Python 3.14.x não validado; baseline de governança reside fora do root do projeto
-DEFERRED_ITEMS = validação runtime 3.14.x até fase aplicável; expansão build.ps1 para P12; P1 e implementações funcionais P1-P12 sem autorização
-FINDING_DISPOSITIONS = F-01 ACCEPTED_DEFERRED; F-02 ACCEPTED_INFORMATIONAL; F-03 REMEDIATED; F-04 ACCEPTED_RESOLVED_EVIDENCE; F-05 REMEDIATED; F-06 REMEDIATED; F-07 REMEDIATED; F-08 ACCEPTED_DEFERRED_TO_P12
-KNOWN_STALE_STATE = NO
+ACTIVITY_COMPLETE = YES (P1-C01 concluiu a elaboração e reconciliação documental do contrato proposto)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-C01; finding estrutural registrado para decisão do usuário)
+FOUNDATION_REVIEW_RESULT = PASS_WITH_ACCEPTED_FINDINGS
+FOUNDATION_APPROVAL = APPROVED_WITH_ACCEPTED_FINDINGS
+PROJECT_OPENING_GATE = PASS
+P0_STATUS = CLOSED
+PROJECT_READY_FOR_IMPLEMENTATION_PLANNING = YES
+SAFE_RESUME_POINT = revisar contrato P1 proposto e decidir como reconciliar os quatro atributos de resultado ausentes sem violar a estrutura aprovada
+NEXT_ACTIVITY = USER REVIEW / APPROVAL OF P1 CONTRACT
+NEXT_ACTIVITY_READINESS = USER_DECISION_REQUIRED
+NEXT_ACTIVITY_AUTHORIZATION = REVIEW_ONLY; implementação P1 não autorizada
+P1_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+LAST_VALIDATED_INTEGRATED_BASELINE = NONE (scaffold somente)
+OPEN_DECISIONS = tipagem/nulabilidade de error_code e error_message; tipagem/vocabulário de collection_method; tipo/unidade/nulabilidade de duration
+BLOCKERS = decisão de compatibilidade do contrato de resultado bloqueia início de implementação P1
+KNOWN_RISKS = validação estrutural não prova coleta operacional; pytest/Ruff indisponíveis; governança externa depende de pacotes exatos
+DEFERRED_ITEMS = validação operacional Python 3.14.x antes de P1 fechar; build TESTS + RUFF + PACKAGE_SMOKE_TEST + PYINSTALLER em P12; implementação sem autorização
+FINDING_DISPOSITIONS = F-01 ACCEPTED_DEFERRED; F-02 ACCEPTED_INFORMATIONAL atualizada ao ambiente; F-03 REMEDIATED; F-04 ACCEPTED_RESOLVED_EVIDENCE; F-05 REMEDIATED; F-06 REMEDIATED; F-07 REMEDIATED; F-08 ACCEPTED_DEFERRED_TO_P12
+KNOWN_STALE_STATE = NO (fatos anteriores identificados como históricos)
 CONTRADICTORY_ACTIVE_STATE = NO
 SUPERSEDED_AUTHORITY_USED_AS_CURRENT = NO
-NEW_AGENT_CAN_RESUME_FROM_GOVERNED_PROJECT_ARTIFACTS = YES
+NEW_AGENT_CAN_RESUME_FROM_GOVERNED_PROJECT_ARTIFACTS = YES; exige acesso aos pacotes de governança referenciados
+```
+
+## P1-C01 — P1 SINGLE Minimum Vertical Slice Implementation Contract (2026-10-07; histórico, supersedido por P1-C01-R1)
+
+Registro histórico, supersedido pela reconciliação P1-C01-R1 abaixo. Nenhum código foi implementado.
+
+```text
+P1-C01 = COMPLETED_WITH_FINDINGS
+P1_CONTRACT_STATUS = SUPERSEDED_BY_P1-C01-R1
+P1_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+PROJECT_STATE_UPDATE = SUPERSEDED
+AGENT_HANDOFF_GATE = SUPERSEDED
+NEXT_ACTIVITY = P1-C01-R1 — CameraResult Contract Reconciliation
+```
+
+## P1-C01-R1 — CameraResult Contract Reconciliation (2026-10-07)
+
+Decisão explícita do usuário: `CAMERA_RESULT_CONTRACT_DECISION = APPROVED`; preservar os dez campos existentes e adicionar exclusivamente `error_code`, `error_message`, `collection_method` e `duration`. `CameraResult` permanece explicitamente tipado, com total de 14 campos; extension bag arbitrário e password são proibidos. A busca no scaffold encontrou `CollectionStatus` existente, mas nenhuma definição aprovada para os tipos/unidades dos quatro novos campos. Essas decisões de tipagem seguem pendentes e não são resolvidas por inferência. Contrato, roadmap e execution plan foram reconciliados; nenhuma alteração de código ou escrita Git foi feita.
+
+```text
+P1-C01-R1 = COMPLETED
+P1_CONTRACT_STATUS = READY_FOR_USER_APPROVAL
+P1_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+TYPING_DECISIONS_PENDING = error_code (tipo/vocabulário/nulabilidade); error_message (tipo/nulabilidade); collection_method (tipo/vocabulário); duration (tipo/unidade/nulabilidade)
+PROJECT_STATE_UPDATE = PASS
+AGENT_HANDOFF_GATE = PASS
+NEXT_ACTIVITY = USER FINAL REVIEW / APPROVAL OF P1 CONTRACT
+ACTIVITY_COMPLETE = YES (P1-C01-R1)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-C01-R1: contrato, roadmap, plano e continuidade reconciliados; validações estáticas passam)
+```
+
+## P1-C01-R2 — Typing Contract Closure (2026-10-07)
+
+Decisões de tipagem fornecidas pelo usuário foram registradas no contrato; roadmap e execution plan alinhados. Nenhum código, teste funcional, dependência ou operação Git de escrita foi executado.
+
+```text
+P1-C01-R2 = COMPLETED
+P1_CONTRACT_STATUS = READY_FOR_FINAL_USER_APPROVAL
+TYPING_DECISIONS_PENDING = NONE
+P1_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+NEXT_ACTIVITY = USER FINAL APPROVAL OF P1 CONTRACT
+PROJECT_STATE_UPDATE = PASS
+AGENT_HANDOFF_GATE = PASS
+ACTIVITY_COMPLETE = YES (P1-C01-R2)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-C01-R2)
 ```
 
 ## Invariantes atuais
 
-- Nenhuma coleta ou request real a câmera é executado em P0-A03.
-- Nenhuma senha pode aparecer em output, log, `CameraResult`, temporário ou telemetria; o modelo de resultado não possui campo de senha.
-- A política de acesso permanece READ_ONLY.
-- Nenhuma funcionalidade real de snapshot, RTSP, XLSX MULTI ou concorrência deve ser criada em P0-A03.
-- Nenhum path absoluto de máquina foi colocado no código de aplicação.
-- As escritas Git autorizadas para P0-A03-G1 foram concluídas; futuras escritas Git exigem nova autorização explícita.
+- P1-A01 implementa somente SINGLE mínimo: não inclui snapshot, RTSP, XLSX, MULTI funcional, concorrência ou adapters de fabricante.
+- `CameraResult` possui exatamente 14 campos explícitos tipados, sem senha nem extension bag; `CameraTarget.password` usa `repr=False`.
+- O caminho implementado chama apenas `GetDeviceInformation`; nenhuma operação mutante de câmera foi introduzida.
+- O comportamento foi validado com ONVIF falso. Nenhuma câmera real foi consultada por falta de target e credenciais autorizados; P1 continua `NOT_READY`.
+- Nenhuma escrita Git ocorreu.
+
+## P1-A01 — SINGLE Minimum Vertical Slice Implementation (2026-10-07)
+
+O usuário aprovou o contrato P1 e autorizou P1-A01 pelo payload executor desta atividade. O fluxo canônico está implementado e integrado com cliente ONVIF falso; o collector solicita `GetDeviceInformation`. A biblioteca faz descoberta interna somente leitura com `GetServices` e pode usar `GetCapabilities` como fallback. `CameraTarget.password` continua oculto em `repr`; `CameraResult` mantém exatamente 14 campos tipados; erros esperados são mapeados para mensagens sanitizadas; a navegação retorna ao `ApplicationController`. Pytest, Ruff e validações integradas passaram em Python 3.14.0.
+
+Não havia target e credenciais explicitamente autorizados para consulta operacional real. Nenhuma câmera foi consultada. Este bloqueio impede declarar P1 fechada, sem invalidar a implementação e os testes sintéticos. Não houve escrita Git.
+
+```text
+P1-A01_IMPLEMENTATION = COMPLETE
+CANONICAL_FLOW_IMPLEMENTED = YES
+CANONICAL_FLOW_INTEGRATED = YES
+SYNTHETIC_INTEGRATION_VALIDATION = PASS
+REAL_CAMERA_VALIDATION = BLOCKED_NO_AUTHORIZED_TARGET
+P1_STATUS = NOT_READY
+FUNCTIONAL_SCOPE_LEAKAGE = NONE
+ARCHITECTURE_CHANGE = NONE
+DOMAIN_CONTRACT_CHANGE = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+AGENT_HANDOFF_GATE = PASS
+ACTIVITY_COMPLETE = YES (P1-A01; implementação e validação sintética concluídas)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente P1-A01; a evidência operacional real continua pendente para fechar P1)
+NEXT_ACTIVITY = P1-A01-R1 — Validação READ_ONLY contra câmera real autorizada
+NEXT_ACTIVITY_READINESS = BLOCKED_NO_AUTHORIZED_TARGET
+NEXT_ACTIVITY_AUTHORIZATION = Escopo READ_ONLY autorizado na P1-A01; target e credenciais não fornecidos
+UNRESOLVED_BLOCKERS = REAL_CAMERA_VALIDATION_BLOCKED_NO_AUTHORIZED_TARGET
+GIT_WRITES = NONE
+```
+
+## P1-A02 — Real Camera READ_ONLY Validation (2026-10-07)
+
+O usuário autorizou o escopo READ_ONLY para `10.143.36.33`. O fluxo SINGLE foi executado três vezes com credenciais fornecidas localmente e retornou `AUTH_ERROR` em todas. O log sanitizado mais recente confirma três falhas para o IP e não registra username ou senha. A saída apresentou o erro de autenticação sanitizado e retornou ao menu pós-consulta. A evidência não distingue se a rejeição ocorreu durante a descoberta ONVIF ou na chamada explícita; nenhum dado de dispositivo foi obtido. A implementação usa WS-UsernameToken por padrão. Nenhuma operação mutante foi executada, nenhum defeito de código foi identificado e esta atividade não alterou código-fonte nem Git.
+
+```text
+P1-A02 = BLOCKED
+TARGET_AUTHORIZED = YES
+TARGET_IP = 10.143.36.33
+REAL_CAMERA_VALIDATION = BLOCKED_AUTHENTICATION
+CANONICAL_CLI_FLOW = PASS
+ONVIF_READ_ONLY = PASS
+GET_DEVICE_INFORMATION = FAIL (autenticação rejeitada; etapa ONVIF específica não identificada pela evidência disponível)
+DEVICE_INFORMATION_OBTAINED = NO
+CAMERA_RESULT = PASS (resultado FAILED produzido e apresentado)
+COLLECTION_METHOD = PASS (InventoryService atribui ONVIF ao iniciar coleta)
+DURATION = PASS (InventoryService mede duração monotônica)
+PASSWORD_SECURITY = PASS
+EXPECTED_ERROR_HANDLING = PASS
+POST_QUERY_NAVIGATION = PASS
+MUTATING_CAMERA_CALLS = 0
+DEFECT_DETECTED = NO
+FUNCTIONAL_SCOPE_LEAKAGE = NONE
+SOURCE_CODE_CHANGES = NONE
+UNRESOLVED_BLOCKERS = BLOCKED_AUTHENTICATION
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+AGENT_HANDOFF_GATE = PASS
+P1_STATUS = NOT_READY
+NEXT_ACTIVITY = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
+STATUS = BLOCKED
+ACTIVITY_COMPLETION_PERCENT = 40%
+COMPLETION_BASIS = fluxo SINGLE e tratamento de erro real confirmados; estado e handoff reconciliados; diff --check sem erros; aceite de obtenção de informações do dispositivo não cumprido
+GIT_WRITES = NONE
+```
