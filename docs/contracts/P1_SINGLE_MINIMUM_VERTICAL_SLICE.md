@@ -4,19 +4,23 @@
 PROJECT = projeto_cam_scanner
 PHASE = P1
 CAPABILITY = SINGLE Minimum Vertical Slice
-STATUS = APPROVED_FOR_IMPLEMENTATION
+STATUS = APPROVED_BASELINE_WITH_REVISED_STRATEGY
 CAMERA_RESULT_CONTRACT_DECISION = APPROVED
 CAMERA_RESULT_FIELD_COUNT = 14
-P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY
+COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
+IMPLEMENTATION_ADAPTATION_REQUIRED = YES
 ```
 
 ## 1. Objetivo e autoridade
 
-Definir o contrato implementável da primeira slice integrada do modo SINGLE: iniciar a aplicação pelo entrypoint canônico, consultar uma câmera real por ONVIF somente leitura, normalizar e apresentar o resultado no terminal e devolver a navegação ao `ApplicationController`.
+Este documento conserva os contratos de entrada, resultado e segurança de P1-A01 e registra a decisão de coleta aprovada em P1-A03. A implementação P1-A01 permanece como baseline histórico, mas foi construída sob ONVIF-first e precisa ser adaptada antes de P1 fechar. A direção vigente é `VENDOR_FIRST_WHEN_KNOWN`; não afirmar que ela já existe no código.
 
 Este contrato deriva da Engineering Foundation aprovada, da [roadmap](../continuity/planning/ROADMAP.md), do [execution plan](../continuity/planning/EXECUTION_PLAN.md) e dos contratos estruturais já presentes no projeto. O usuário aprovou este contrato e concedeu autorização explícita para a atividade P1-A01 por meio do payload executor de 2026-10-07. Isso não reabre a Foundation nem altera a arquitetura aprovada.
 
-## 2. Fluxo canônico
+## 2. Fluxo implementado em P1-A01 e direção vigente
+
+O fluxo abaixo descreve o baseline implementado e validado sinteticamente em P1-A01. Ele não representa a estratégia vigente completa:
 
 ```text
 CLI entrypoint
@@ -27,7 +31,7 @@ CLI entrypoint
 → CameraTarget
 → InventoryService
 → CameraCollector
-→ Generic ONVIF collector
+→ Generic ONVIF collector (estratégia P1-A01; adaptação pendente)
 → GetDeviceInformation
 → CameraResult
 → TerminalUI output
@@ -37,11 +41,53 @@ CLI entrypoint
 
 O `ApplicationController` controla navegação e ciclo da aplicação. `SingleWorkflow` não chama `MultiWorkflow`; sua saída de navegação retorna ao controller. A opção MULTI pode ser encaminhada conforme a arquitetura existente, sem implementar MULTI funcional nem antecipar P4.
 
+Direção vigente para coleta, a implementar antes do fechamento de P1:
+
+```text
+camera input (credenciais individuais por linha)
+→ pre-auth/read-only identification
+→ manufacturer resolution
+→ native read-only adapter when known
+→ ONVIF complement or generic fallback when needed
+→ evidence merge
+→ SUCCESS | PARTIAL_SUCCESS | FAILED
+```
+
+ONVIF passa a cumprir `GENERIC_FALLBACK + COMPLEMENT + PREAUTH_DISCOVERY`; `ONVIF_FIRST = REQUIRED` foi removido. Falha de autenticação em uma operação ONVIF não equivale automaticamente a falha de coleta se já houver evidência válida.
+
+## 2.1 Estratégia de entrada e seleção
+
+`COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN`. Para entrada MULTI XLSX, as colunas são `IP`, `USERNAME`, `PASSWORD` e `FABRICANTE` opcional. As credenciais pertencem exclusivamente à própria linha/câmera: `CREDENTIAL_ROW_N → somente CAMERA_ROW_N`. É proibido inferir ou testar credenciais de uma linha em outra câmera, por fabricante, modelo, faixa de IP ou similaridade.
+
+`MANUFACTURER_INPUT_ROLE = STRONG_HINT`: fabricante informado é normalizado e seleciona o adapter nativo correspondente, com coleta READ_ONLY; ONVIF pode complementar ou servir de fallback. Fabricante ausente exige identificação pré-autenticação/read-only de baixo risco antes de qualquer tentativa autenticada. Se reconhecido, usa adapter nativo com a credencial daquela linha; se continuar desconhecido, ONVIF genérico pode ser usado quando disponível. `TRY_ALL_VENDOR_LOGINS = PROHIBITED`.
+
+Exemplos de associação arquitetural: Hikvision → ISAPI; Axis → VAPIX; Samsung/Hanwha → vendor API; Dahua → CGI/API; Panasonic → vendor API/CGI; Bosch → vendor API. Isso não antecipa endpoints nem detalhes não contratados por suas fases.
+
+Fingerprint pode combinar características de resposta HTTP, headers, endpoints públicos e evidência ONVIF pré-autenticação como `GetCapabilities`, `GetSystemDateAndTime`, namespaces, XAddr ou extensões de capability. Nenhum endpoint de fabricante, modelo definitivo de dados ou ordem nova de fabricantes é contratado aqui. A lista existente de famílias e sua ordem no roadmap permanecem inalteradas.
+
+Se evidência técnica contrariar o fabricante declarado, `MANUFACTURER_MISMATCH = DETECT_AND_REPORT`. Não definir comportamento destrutivo ou tentativas indiscriminadas.
+
+```text
+OPTIONAL_MANUFACTURER_INPUT = YES
+PER_CAMERA_CREDENTIAL_SCOPE = YES
+ONVIF_AUTH_FAILURE != CAMERA_SCAN_FAILURE (when valid evidence already exists)
+```
+
+O XLSX existente permanece a fonte operacional de entrada; esta atividade não cria armazenamento de credenciais nem `CredentialProfile`, vault, database ou inferência de compartilhamento.
+
+## 2.2 Resultado parcial e evidências
+
+Preservar os estados distintos `SUCCESS`, `PARTIAL_SUCCESS` e `FAILED`. Uma falha em uma fonte não descarta automaticamente dados válidos já coletados de outra. Um cenário real observado em P1-A02 teve conectividade, endpoint ONVIF, `GetSystemDateAndTime`, `GetCapabilities` e fingerprint Hikvision aprovados, enquanto `GetDeviceInformation` autenticado retornou `AUTH_ERROR`. A evidência é registrada como história, não como funcionalidade já implementada.
+
+P1-A02 foi `BLOCKED` sob a premissa de coleta anterior. Sua evidência permanece histórica; a retomada operacional de autenticação ONVIF foi supersedida pela estratégia revisada. Nenhum dado de username/senha pode ser registrado.
+
 ## 3. Entrada e proteção de credenciais
 
 SINGLE solicita IP, username e password no terminal. A senha é obrigatoriamente lida por `getpass()` e mantida apenas em memória durante a coleta. `CameraTarget.password` preserva `repr=False`.
 
 A senha não pode aparecer em `CameraResult`, terminal, logs, exceptions sanitizadas, telemetry ou arquivos temporários. Erros e logs devem ser sanitizados antes de exposição. O username não deve ser registrado por padrão, conforme EF-LOGGING-01.
+
+No futuro input XLSX, `PASSWORD` é permitido somente na entrada e no `CameraTarget`; é proibido em `CameraResult`, planilha de saída, logs, terminal, telemetry e exceptions não sanitizadas. Esta atividade não cria armazenamento de credenciais.
 
 ## 4. Consulta ONVIF mínima
 
@@ -80,7 +126,7 @@ O `CameraResult` contém exatamente os dez campos existentes e os quatro campos 
 
 ## 6. Collection method
 
-O método de coleta da operação P1 usa o tipo `CollectionMethod | None`, com vocabulário P1 `ONVIF` e regras definidas na seção 5. Nenhum vendor adapter pertence a P1.
+O contrato P1-A01 usou `CollectionMethod | None`, vocabulário `ONVIF`; isso descreve o baseline anterior. A estratégia revisada pode exigir distinguir fonte de evidência, fonte de autenticação, fabricante declarado/resolvido e método de coleta. Esses campos são necessidades contratuais futuras para definição da atividade de implementação, não estruturas de código autorizadas ou definidas nesta reconciliação. Preservar os 14 campos atuais de `CameraResult` até contrato/atividade futura autorizar sua evolução.
 
 ## 7. Erros e continuidade da aplicação
 
@@ -142,8 +188,9 @@ P1 só será DONE após código implementado; módulos validados; integração c
 
 ```text
 P1_CONTRACT_STATUS = APPROVED
-P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01
-NEXT_ACTIVITY = P1-A01 synthetic validation and authorized real-camera validation
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY
+NEXT_ACTIVITY = P1-A04 implementation adaptation for the revised collection strategy
+NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; requires activity-specific implementation authorization
 FIELD_COUNT = 14
 ARBITRARY_EXTENSION_BAG = PROHIBITED
 PASSWORD_FIELD = PROHIBITED

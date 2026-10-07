@@ -11,7 +11,7 @@
 | Validação de internalização | VP-01 | v2.0 | CANONICAL / ACTIVE; VALIDATION_ONLY | Registry PM-00 / `validation/Gate-de-Internalizacao-Operacional-v2.0.md` |
 | Abertura do projeto | PROJECT_OPENING | 3.0 | CANONICAL / ACTIVE | Pacote Project Opening 3.0 / `OPENING_PROTOCOL.md` |
 | Continuidade | CONTINUITY | 3.0 | CANONICAL / ACTIVE | Pacote Continuity 3.0 / `CONTINUITY_PROTOCOL.md` |
-| Implementação P1 SINGLE | Contrato P1-C01 | aprovado; autorização P1-A01 | APPROVED_FOR_IMPLEMENTATION | `../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md` |
+| Contrato e estratégia P1 SINGLE | Contrato P1-C01/P1-A03 | baseline aprovado; estratégia `VENDOR_FIRST_WHEN_KNOWN`; adaptação pendente | ACTIVE / IMPLEMENTATION NOT YET AUTHORIZED | `../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md` |
 
 Os pins completos e hashes estão em `PROJECT_GOVERNANCE_BINDING.json`. A resolução usou o `POLICY_REGISTRY.json` do baseline GOV V1. O binding registra adoção inicial; nenhuma migração foi solicitada. Não copiar nem promover authorities normativas neste projeto.
 

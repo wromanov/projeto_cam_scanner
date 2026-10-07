@@ -2,11 +2,11 @@
 
 ```text
 IDIOMA = pt-BR
-ROLE = VALIDATOR
+ROLE = SCRIBE
 PROJECT = projeto_cam_scanner
-FIRST_RESPONSE_MODE = RESUME_BLOCKED_P1_A02_AFTER_ONVIF_AUTHENTICATION_REMEDIATION
+FIRST_RESPONSE_MODE = RESUME_P1_A04_AFTER_ACTIVITY_DEFINITION_AND_AUTHORIZATION
 CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
-IMPLEMENTATION_AUTHORIZATION = NONE_FOR_P1_A02; do not implement code
+IMPLEMENTATION_AUTHORIZATION = NONE_FOR_P1_A04
 GIT_WRITE_AUTHORIZATION = NOT_GRANTED_FOR_FUTURE_ACTIONS
 ```
 
@@ -15,6 +15,6 @@ GIT_WRITE_AUTHORIZATION = NOT_GRANTED_FOR_FUTURE_ACTIONS
 3. Resolva cada authority por `id + version + sha256`; use `locator` apenas como pista. Não substitua pins por versões globais mais recentes.
 4. Confirme fatos mutáveis do projeto e filesystem. O primeiro checkpoint foi publicado em `origin/master`; confirme branch, HEAD, upstream e estado de trabalho novamente em runtime.
 5. Leia `PROJECT_STATE.md`, `ACTIVE_AUTHORITY_MAP.md`, `CONTINUITY_RECORD.md`, roadmap, execution plan e `LAST_HANDOFF.md`.
-6. Leia o recheck `FOUNDATION_REVIEW_P0_A04.md` e o contrato aprovado em `../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`. Resolva os pins em ZIP conforme ACTIVE_AUTHORITY_MAP. P0-A02 é histórica e a Foundation Approval foi concedida. P1-A01 implementou o fluxo SINGLE e as validações sintéticas foram aprovadas. P1-A02 executou contra o alvo autorizado `10.143.36.33`, mas três tentativas retornaram `AUTH_ERROR`; nenhum dado de dispositivo foi obtido. Retome após confirmar uma conta com autenticação e permissão ONVIF; não buscar nem reutilizar secrets locais. A senha deve ser fornecida pelo prompt local `getpass()`. Não implementar código nem executar operações fora do fluxo P1.
+6. Leia o recheck `FOUNDATION_REVIEW_P0_A04.md` e o contrato P1 em `../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`. Resolva os pins conforme ACTIVE_AUTHORITY_MAP. P1-A01 é o baseline implementado sob a estratégia anterior. P1-A02 é evidência histórica; não retomar apenas para obter autenticação ONVIF válida. P1-A03 aprovou `VENDOR_FIRST_WHEN_KNOWN`, mas a adaptação ainda não foi implementada. Preserve credenciais individuais por câmera e o limite READ_ONLY. Não implementar sem autorização específica para P1-A04.
 
 Este bootstrap descreve recuperação e não concede autorização para executar a próxima atividade.

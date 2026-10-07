@@ -10,38 +10,55 @@ Critérios de saída: F-03/F-05/F-06/F-07 remediados; F-01/F-02/F-04/F-08 corret
 
 P0-A02 permanece historicamente `CHANGES_REQUIRED`, com findings F-01…F-08. As decisões posteriores pertencem a P0-A03; não converter a review anterior em PASS. Esta atividade não concede aprovação Foundation, Project Opening Gate, autorização de P1 ou autorização Git.
 
-## P1 — SINGLE Minimum Vertical Slice (autorizada; implementação integrada; validação operacional pendente)
+## P1 — SINGLE Minimum Vertical Slice (baseline integrado; adaptação da estratégia pendente)
 
 ```text
 DELIVERY_UNIT = definir conforme PM-01 e padrão já adotado no projeto
 SLICE = SINGLE Minimum Vertical Slice
-CANONICAL_FLOW = Main Menu
+IMPLEMENTED_BASELINE_P1_A01 = Main Menu
 → SINGLE
 → terminal credentials
 → CameraTarget
 → InventoryService
 → CameraCollector
-→ ONVIF read-only
+→ ONVIF read-only (estratégia anterior)
 → CameraResult
 → TerminalUI
 → post-query menu
-P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01
+CURRENT_COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
+ONVIF_ROLE = GENERIC_FALLBACK + COMPLEMENT + PREAUTH_DISCOVERY
+IMPLEMENTATION_ADAPTATION_REQUIRED = YES
+P1_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P1_A01_ONLY
 P1_CONTRACT_STATUS = APPROVED
 CAMERA_RESULT_FIELD_COUNT = 14
 TYPING_DECISIONS_PENDING = NONE
 P1_STATUS = NOT_READY
-REAL_CAMERA_VALIDATION = BLOCKED_AUTHENTICATION
+P1_A02_HISTORICAL_RESULT = BLOCKED_AUTHENTICATION
+CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = NOT_RUN
 ```
 
-O contrato aprovado está em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md). O usuário aprovou preservar os dez campos existentes e acrescentar somente `error_code`, `error_message`, `collection_method` e `duration`, totalizando 14. As tipagens e regras canônicas dos quatro campos estão fechadas no contrato P1-C01-R2. A autorização de implementação foi concedida no payload executor de P1-A01.
+Fluxo alvo para adaptação antes do fechamento de P1: input com fabricante opcional → identificação READ_ONLY pré-autenticação quando necessário → resolução do fabricante → adapter nativo quando conhecido → ONVIF como complemento/fallback → merge de evidências → `SUCCESS | PARTIAL_SUCCESS | FAILED`. Credenciais de XLSX são individuais por linha/câmera e `TRY_ALL_VENDOR_LOGINS = PROHIBITED`. O contrato P1 contém os requisitos completos e preserva os 14 campos atuais de `CameraResult` até eventual contrato futuro.
+
+O contrato P1 está em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md). O usuário aprovou preservar os dez campos existentes e acrescentar somente `error_code`, `error_message`, `collection_method` e `duration`, totalizando 14. As tipagens e regras canônicas dos quatro campos estão fechadas em P1-C01-R2. A autorização original cobriu P1-A01; a adaptação da estratégia revisada exige atividade e autorização próprias.
 
 Critérios mínimos de DONE: aplicação inicia; menu principal funciona; SINGLE solicita IP, username e password via `getpass()` no terminal; realiza consulta ONVIF somente leitura; obtém Manufacturer, Model, Serial e Firmware quando disponíveis; normaliza em `CameraResult` e exibe no terminal; erros esperados não mostram traceback ao operador; menu oferece `[1] pesquisar nova câmera`, `[2] ir para MULTI`, `[3] sair`; não altera configuração da câmera; testes aplicáveis passam; validação operacional ocorre em Python 3.14.x; integração da slice no fluxo canônico é demonstrada; consulta READ_ONLY contra câmera real autorizada é evidenciada.
 
 `P1_PLANNED != P1_AUTHORIZED`. `DEFINITION_OF_READY` deve passar antes da implementação material. `DEFINITION_OF_DONE` exige implementação, validação de módulo, integração canônica, validação de integração/fluxo acumulado/regressão quando aplicáveis, invariantes, aceite, documentação e PROJECT_STATE reconciliados, delivery unit atualizada e blockers resolvidos.
 
+## P1-A03 — Collection Strategy Documentation Reconciliation
+
+Concluída documentalmente em 2026-10-07 após checkpoint local do baseline P1-A01/P1-A02 (`d64ff9799d5d84c22a33ab7c24f589cbe619e3a6`). O usuário aprovou `VENDOR_FIRST_WHEN_KNOWN`; detalhes no contrato P1. P1-A02 continua como evidência histórica `BLOCKED` sob a premissa anterior; sua retomada para habilitar autenticação ONVIF foi supersedida. Nenhum código foi alterado nesta atividade. P1 continua `NOT_READY` até adaptação e validação.
+
+```text
+P1-A03 = COMPLETED_WITH_FINDINGS
+NEXT_ACTIVITY = P1-A04 — Implementar adaptação da estratégia de coleta revisada
+NEXT_ACTIVITY_READINESS = READY_FOR_ACTIVITY_DEFINITION
+NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; autorização de implementação específica necessária
+```
+
 ## Roadmap executável e integração
 
-O roadmap normativo está em [`ROADMAP.md`](ROADMAP.md). Sequência: P0 Foundation; P1 SINGLE mínimo; P2 expansão de inventário SINGLE; P3 snapshot SINGLE sem XLSX; P4 MULTI + XLSX + snapshot embedded; P5 concorrência/robustez; P6 Axis; P7 Hikvision; P8 Samsung/Hanwha; P9 Dahua; P10 Panasonic; P11 Bosch; P12 hardening/regressão/packaging.
+O roadmap normativo está em [`ROADMAP.md`](ROADMAP.md). Sequência: P0 Foundation; P1 SINGLE mínimo com adaptação da estratégia; P2 coleta SINGLE com fingerprint, resolução de fabricante, merge de evidências e expansão de inventário; P3 snapshot SINGLE sem XLSX; P4 MULTI + XLSX + snapshot embedded; P5 concorrência/robustez; P6 Axis; P7 Hikvision; P8 Samsung/Hanwha; P9 Dahua; P10 Panasonic; P11 Bosch; P12 hardening/regressão/packaging.
 
 Para cada slice: `IMPLEMENT → MODULE_VALIDATE → INTEGRATE_INTO_CANONICAL_FLOW → INTEGRATION_VALIDATE → VALIDATE_ACCUMULATED_FLOW → REGRESSION_VALIDATE → RECONCILE_PROJECT_STATE → CLOSE`. Adiamento de integração exige registro explícito de motivo, dependência, owner, target slice, risco e decisão de usuário ou justificativa de não necessidade. Não acumular módulos isolados para integração big-bang.
 
@@ -77,7 +94,7 @@ CANONICAL_FLOW_INTEGRATED = YES
 SYNTHETIC_INTEGRATION_VALIDATION = PASS
 REAL_CAMERA_VALIDATION = BLOCKED_NO_AUTHORIZED_TARGET
 P1_STATUS = NOT_READY
-NEXT_ACTIVITY = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
+NEXT_ACTIVITY_AT_THAT_TIME = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
 ```
 
 ## P1-A02 — Real Camera READ_ONLY Validation
@@ -89,5 +106,5 @@ P1-A02 = BLOCKED
 TARGET_AUTHORIZED = YES
 TARGET_IP = 10.143.36.33
 REAL_CAMERA_VALIDATION = BLOCKED_AUTHENTICATION
-NEXT_ACTIVITY = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
+NEXT_ACTIVITY_AT_THAT_TIME = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
 ```

@@ -3,8 +3,8 @@
 | Fase | Escopo e objetivo | Estado |
 |---|---|---|
 | P0 | Project Opening + Foundation | CLOSED; Foundation Approval `APPROVED_WITH_ACCEPTED_FINDINGS`; Project Opening Gate `PASS` (P0-A05-R1) |
-| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera por ONVIF read-only | Fluxo SINGLE validado contra ONVIF simulado; P1-A02 executada contra alvo autorizado, mas bloqueada por `AUTH_ERROR`; P1 `NOT_READY` |
-| P2 | SINGLE ONVIF Inventory Expansion: hostname, rede, MAC, portas e demais campos aplicáveis | Planejada |
+| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera; adaptar a coleta para `VENDOR_FIRST_WHEN_KNOWN` | Baseline SINGLE implementado e validado sinteticamente; evidência READ_ONLY pré-autenticação real aprovada; estratégia revisada documentada; adaptação pendente; P1 `NOT_READY` |
+| P2 | SINGLE Collection Strategy + Inventory Expansion: fingerprint, manufacturer resolution, evidence merge e coleta nativa/ONVIF | Planejada; depende da integração revisada de P1 |
 | P3 | SINGLE Snapshot Vertical Slice: captura e processamento de snapshot; sem XLSX | Planejada |
 | P4 | MULTI + XLSX Vertical Slice: entrada em lote, progresso, INVENTARIO/RESUMO e snapshot embutido | Planejada |
 | P5 | MULTI Concurrency / Batch Robustness: limites, cancelamento, exportação parcial e isolamento de falhas | Planejada |
@@ -18,12 +18,12 @@
 
 ## Dependências e integração
 
-- P1 estabelece a primeira slice integrada ao fluxo canônico: menu → SINGLE → consulta ONVIF read-only → resultado normalizado → terminal e menu pós-consulta.
-- P2 expande o inventário SINGLE sobre a base integrada de P1.
+- P1 estabelece a slice SINGLE integrada; o baseline P1-A01 usa ONVIF genérico, mas exige adaptação para a estratégia revisada antes do fechamento.
+- P2 estrutura a expansão da coleta SINGLE: identificação/fingerprint READ_ONLY, resolução do fabricante, merge de evidências e seleção de adapter nativo com ONVIF como complemento/fallback. Não antecipar endpoints proprietários ainda não contratados.
 - P3 integra snapshot ao fluxo SINGLE; não produz XLSX.
 - P4 introduz MULTI e XLSX. É o primeiro ponto em que MULTI, XLSX e snapshot embedded coexistem no fluxo canônico.
 - P5 robustece o lote de P4, incluindo concorrência controlada.
-- P6–P11 expandem adaptadores sobre os fluxos integrados, conforme contratos e aceite de cada fase.
+- P6–P11 expandem adaptadores sobre os fluxos integrados, conforme contratos e aceite de cada fase. A ordem existente Axis, Hikvision, Samsung/Hanwha, Dahua, Panasonic e Bosch é preservada; o alvo usado na evidência real não reordena o roadmap.
 - P12 executa hardening, regressão e packaging operacional; build operacional exige TESTS + RUFF + PACKAGE_SMOKE_TEST + PYINSTALLER.
 
 A sequência cumpre `INCREMENTAL_INTEGRATION_RULE`: cada slice deve integrar ao fluxo canônico e validar o fluxo acumulado antes do avanço dependente. `DEFINITION_OF_READY` e `DEFINITION_OF_DONE` são detalhadas no `EXECUTION_PLAN.md` e na autoridade PM-01. Nenhuma fase planejada concede autorização de implementação.

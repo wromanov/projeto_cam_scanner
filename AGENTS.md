@@ -13,12 +13,12 @@ uma segunda política extensa.
 ## 2. Ordem mínima de leitura
 
 1. `docs/continuity/PROJECT_STATE.md` (snapshot factual deste projeto)
-2. `../governança_de_projetos/Protocolos para Projetos - Vigente/Protocolo Continuidade Projeto Em Andamento Com Novo Agente 3.0/CONTINUITY_PROTOCOL.md`
-3. `../governança_de_projetos/Matriz Unificada de Políticas/policies/PM-01-Conducao-de-Projetos-v1.0.md`
-4. `../governança_de_projetos/Matriz Unificada de Políticas/policies/Independencia-Analitica-Agente-v1.md`
-5. `../governança_de_projetos/Matriz Unificada de Políticas/policies/Politica-Prompts-Agente-v1.7-R2.6.md`
-6. `../governança_de_projetos/Matriz Unificada de Políticas/policies/Politica-de-Uso-de-Skills-e-Plugins-Codex-Work-v1.2.md`
-7. `../governança_de_projetos/Matriz Unificada de Políticas/policies/AGENTS-Multiagente-Generico-v1.7-R2.3-Roteamento-Economico.md`
+2. `../governanca_de_projetos/Protocolos para Projetos - Vigente/Protocolo Continuidade Projeto Em Andamento Com Novo Agente 3.0/CONTINUITY_PROTOCOL.md`
+3. `../governanca_de_projetos/Matriz Unificada de Políticas/policies/PM-01-Conducao-de-Projetos-v1.0.md`
+4. `../governanca_de_projetos/Matriz Unificada de Políticas/policies/Independencia-Analitica-Agente-v1.md`
+5. `../governanca_de_projetos/Matriz Unificada de Políticas/policies/Politica-Prompts-Agente-v1.7-R2.6.md`
+6. `../governanca_de_projetos/Matriz Unificada de Políticas/policies/Politica-de-Uso-de-Skills-e-Plugins-Codex-Work-v1.2.md`
+7. `../governanca_de_projetos/Matriz Unificada de Políticas/policies/AGENTS-Multiagente-Generico-v1.7-R2.3-Roteamento-Economico.md`
 8. `Documentos específicos da atividade atual.`
 Se existir uma política canônica de delegação multiagente, referenciá-la pelo path exato em vez de reproduzi-la.
 
