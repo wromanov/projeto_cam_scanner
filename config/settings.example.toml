@@ -1,0 +1,30 @@
+# Exemplo sem credenciais. Nunca adicione username, password ou tokens à configuração.
+[collection]
+connect_timeout_seconds = 3
+request_timeout_seconds = 7
+onvif_budget_seconds = 15
+manufacturer_budget_seconds = 10
+camera_soft_deadline_seconds = 45
+max_retries = 1
+retry_backoff_seconds = 1
+
+[concurrency]
+default_max_workers = 8
+min_workers = 1
+max_workers = 32
+max_concurrent_rtsp = 2
+
+[snapshot]
+http_timeout_seconds = 10
+rtsp_open_timeout_seconds = 8
+rtsp_first_frame_timeout_seconds = 5
+thumbnail_width = 320
+thumbnail_height = 180
+jpeg_quality = 75
+keep_temporary_files = false
+stale_cleanup_hours = 24
+
+[logging]
+level = "INFO"
+retention_days = 30
+max_file_size_mb = 10

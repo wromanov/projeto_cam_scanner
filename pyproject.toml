@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cam-scanner"
+version = "0.1.0"
+description = "CLI Windows para inventário de câmeras IP, conforme o escopo governado do projeto."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = ["onvif-python", "httpx", "openpyxl", "Pillow", "rich", "av"]
+
+[project.scripts]
+cam-scanner = "cam_scanner.main:main"
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "pyinstaller"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
