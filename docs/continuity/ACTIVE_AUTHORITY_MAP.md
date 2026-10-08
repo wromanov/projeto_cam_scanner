@@ -11,7 +11,8 @@
 | Validação de internalização | VP-01 | v2.0 | CANONICAL / ACTIVE; VALIDATION_ONLY | Registry PM-00 / `validation/Gate-de-Internalizacao-Operacional-v2.0.md` |
 | Abertura do projeto | PROJECT_OPENING | 3.0 | CANONICAL / ACTIVE | Pacote Project Opening 3.0 / `OPENING_PROTOCOL.md` |
 | Continuidade | CONTINUITY | 3.0 | CANONICAL / ACTIVE | Pacote Continuity 3.0 / `CONTINUITY_PROTOCOL.md` |
-| Contrato e estratégia P1 SINGLE | Contrato P1-C01/P1-A03 + P1-A05 | estratégia `VENDOR_FIRST_WHEN_KNOWN`; DoD satisfeito com evidência operacional `PARTIAL_SUCCESS` | CLOSED / P1 implementation complete | `../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md` |
+| Contrato P1 SINGLE (baseline histórico) | Contrato P1-C01/P1-A03 + P1-A05 | `VENDOR_FIRST_WHEN_KNOWN`; DoD satisfeito com evidência operacional `PARTIAL_SUCCESS` | CLOSED / P1 válida sob seu contrato | `../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md` |
+| Direção arquitetural após P1 | ARCH-ALIGN-01; decisão de direção baseada na auditoria independente | `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; P2 detalhamento pendente | DIRECTION_APPROVED; P2 contract pending; implementação não autorizada | `planning/ROADMAP.md`, `planning/EXECUTION_PLAN.md`; fonte [`../audit/ARCH_AUDIT_01_REPORT.md`](../audit/ARCH_AUDIT_01_REPORT.md) |
 
 Os pins completos e hashes estão em `PROJECT_GOVERNANCE_BINDING.json`. A resolução usou o `POLICY_REGISTRY.json` do baseline GOV V1. O binding registra adoção inicial; nenhuma migração foi solicitada. Não copiar nem promover authorities normativas neste projeto.
 

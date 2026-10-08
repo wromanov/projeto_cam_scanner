@@ -15,7 +15,7 @@ P1_OPERATIONAL_VALIDATION = PARTIAL_SUCCESS_ACCEPTED_WITH_VALID_PREAUTH_EVIDENCE
 
 ## 1. Objetivo e autoridade
 
-Este documento conserva os contratos de entrada, resultado e segurança de P1-A01 e registra a decisão de coleta aprovada em P1-A03. A implementação P1-A01 permanece como baseline histórico, foi construída sob ONVIF-first e recebeu a adaptação de estratégia autorizada em P1-A04. A direção vigente é `VENDOR_FIRST_WHEN_KNOWN`; P1-A05 validou a operação READ_ONLY como `PARTIAL_SUCCESS`, conforme o DoD reconciliado na seção 13.
+Este documento conserva os contratos de entrada, resultado e segurança de P1-A01 e registra a decisão de coleta aprovada em P1-A03. Seu escopo é a P1 fechada: a estratégia contratada e implementada para essa fase é `VENDOR_FIRST_WHEN_KNOWN`. A implementação P1-A01 permaneceu como baseline sob ONVIF-first até receber a adaptação autorizada em P1-A04. P1-A05 validou a operação READ_ONLY como `PARTIAL_SUCCESS`, conforme o DoD reconciliado na seção 13. Para a direção aprovada de evolução após P1, consultar o roadmap e o execution plan; ARCH-ALIGN-01 não altera retroativamente este contrato nem o comportamento implementado.
 
 Este contrato deriva da Engineering Foundation aprovada, da [roadmap](../continuity/planning/ROADMAP.md), do [execution plan](../continuity/planning/EXECUTION_PLAN.md) e dos contratos estruturais já presentes no projeto. O usuário aprovou este contrato e concedeu autorização explícita para a atividade P1-A01 por meio do payload executor de 2026-10-07. Isso não reabre a Foundation nem altera a arquitetura aprovada.
 

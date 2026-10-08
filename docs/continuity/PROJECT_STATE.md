@@ -3,11 +3,11 @@
 ```text
 PROJECT_ID = projeto_cam_scanner
 PROJECT_ROOT = checkout local do projeto (resolver pelo Git; não depende de caminho absoluto)
-CURRENT_PHASE = P1 — Minimum Vertical Slice Implementation
-CURRENT_ACTIVITY = P1-CHECKPOINT-01 — published and verified on origin/master
+CURRENT_PHASE = P2 — Planning / Contract Pending
+CURRENT_ACTIVITY = ARCH-ALIGN-01 — Documentary Architecture Reconciliation (completed with findings)
 CURRENT_DELIVERY_UNIT = activity/checkpoint conforme padrão registrado; sem sprint declarada
-DELIVERY_UNIT_STATUS = CLOSED
-LAST_COMPLETED_ACTIVITY = P1-CHECKPOINT-01 — checkpoint publicado e paridade confirmada
+DELIVERY_UNIT_STATUS = ARCH-ALIGN-01 CLOSED
+LAST_COMPLETED_ACTIVITY = ARCH-ALIGN-01 — direção híbrida documentada e authorities reconciliadas
 PREVIOUS_COMPLETED_ACTIVITY = P1-A05 — Validação operacional READ_ONLY e fechamento de P1
 POLICY_INTERNALIZATION_GATE = PASS_WITH_FINDINGS (P0-A04; evidências em docs/audit/FOUNDATION_REVIEW_P0_A04.md)
 ENGINEERING_FOUNDATION = 10/10 ITEMS APPROVED (decisão histórica reportada pelo usuário)
@@ -17,25 +17,30 @@ FOUNDATION_APPROVAL = APPROVED_WITH_ACCEPTED_FINDINGS (aprovação explícita do
 PROJECT_OPENING_GATE = PASS
 P0_STATUS = CLOSED
 PROJECT_READY_FOR_IMPLEMENTATION_PLANNING = SUPERSEDED; P1-A01 em execução autorizada
-AGENT_HANDOFF_GATE = PASS (checkpoint publicado e paridade local/remota verificada)
+AGENT_HANDOFF_GATE = PASS (estado atualizado; relação com remoto não revalidada)
 IMPLEMENTATION_AUTHORIZATION = P1 CLOSED; P2 implementation NOT_GRANTED
 P1_IMPLEMENTATION_AUTHORIZATION = CONSUMED (P1-A01 and P1-A04)
-GIT_WRITE_AUTHORIZATION = P1-CHECKPOINT-01 payload explicitly authorizes stage/commit/push to origin/master
+GIT_WRITE_AUTHORIZATION = NONE for ARCH-ALIGN-01
 GIT_REPOSITORY = YES
 GIT_BRANCH = master
 GIT_COMMITS = resolver via Git em runtime (evita SHA/count autorreferente no checkpoint)
-GIT_HEAD = ec53d2bd08b8bf0ee0d82b1411122f246502e820 (checkpoint publicado)
-CURRENT_GOVERNED_CHECKPOINT = P1-CHECKPOINT-01 publicado em origin/master; LOCAL_HEAD == ORIGIN_MASTER_HEAD
+GIT_HEAD = 27582e1a3e26d861a94ece15c5d50a7348a8482f (baseline inicial de ARCH-ALIGN-01; alterações documentais unstaged)
+CURRENT_GOVERNED_CHECKPOINT = P1-CHECKPOINT-01 permanece como último checkpoint publicado; HEAD remoto não revalidado nesta atividade
 GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git; configuração local)
 GIT_UPSTREAM = origin/master
-WORKING_TREE = checkpoint P1-A04/P1-A05 e continuidade; scripts diagnósticos e docs/policies/ locais excluídos
+WORKING_TREE = documentos ativos alterados e unstaged; arquivos locais untracked docs/policies/ e scripts diagnósticos preservados
 P1_CONTRACT_STATUS = APPROVED
 P1_A02_HISTORICAL_RESULT = BLOCKED_AUTHENTICATION
 CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = PARTIAL_SUCCESS
-COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
-ONVIF_FIRST_REMOVED = YES
-ONVIF_ROLE = GENERIC_FALLBACK + COMPLEMENT + PREAUTH_DISCOVERY
-ONVIF_ROLE_RECONCILED = PASS
+P1_IMPLEMENTED_STRATEGY = VENDOR_FIRST_WHEN_KNOWN (baseline histórica válida para P1)
+ARCHITECTURE_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE
+DECISION_STATUS = DIRECTION_APPROVED
+ARCHITECTURE_DIRECTION_SOURCE = docs/audit/ARCH_AUDIT_01_REPORT.md
+P2_STATUS = CONTRACT_PENDING
+P2_DETAILED_CONTRACT = PENDING
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+ONVIF_ROLE = GENERIC_COLLECTION + DISCOVERY_WHEN_APPLICABLE + FALLBACK_OR_COMPLEMENT_CONDITIONED_ON_NEED
+ONVIF_DIGEST_ROOT_CAUSE = UNDETERMINED
 OPTIONAL_MANUFACTURER_INPUT = NOT_REQUIRED_FOR_SINGLE_BY_CURRENT_CONTRACT; STRONG_HINT quando fornecido por fonte contratada
 TRY_ALL_VENDOR_LOGINS = PROHIBITED
 PER_CAMERA_CREDENTIAL_SCOPE = PASS
@@ -58,21 +63,23 @@ AUTH_FAILURE_SEMANTICS = PASS
 PARTIAL_SUCCESS_SEMANTICS = PASS
 PASSWORD_SECURITY = PASS
 MUTATING_CALLS = 0
-ONVIF_DIGEST_INTEROPERABILITY = OPEN_NON_BLOCKING
+ONVIF_DIGEST_INTEROPERABILITY = OPEN
 P1_CLOSURE = PASS
 P1_STATUS = CLOSED
 NEXT_PHASE = P2
-NEXT_ACTIVITY = P2 definition/contract according to canonical roadmap
-P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-GIT_PUSH = PASS
-CROSS_COMPUTER_CONTINUITY = PASS
-ACTIVITY_STATUS = COMPLETED_WITH_FINDINGS
-ACTIVITY_COMPLETION_PERCENT = 100%
-COMPLETION_BASIS = P1 closure, checkpoint publication, and local/remote HEAD parity verified
+NEXT_ACTIVITY = P2-A01 — Define P2 Architecture Contract
+NEXT_ACTIVITY_READINESS = PLANNING; contract definition pending
+GIT_PUSH = NONE
+CROSS_COMPUTER_CONTINUITY = NOT_REVALIDATED
+ACTIVITY_STATUS = COMPLETED_WITH_FINDINGS (ARCH-ALIGN-01)
+ACTIVITY_COMPLETION_PERCENT = 100% (somente ARCH-ALIGN-01)
+COMPLETION_BASIS = direction, roadmap, execution plan, and continuity reconciled; documentary checks passed
 PROJECT_STATE_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (somente ARCH-ALIGN-01)
 UNRESOLVED_BLOCKERS = NONE
-LAST_VALIDATED_INTEGRATED_BASELINE = P1 vendor-first SINGLE flow; operational partial success reconciled in P1-CHECKPOINT-01
-SAFE_RESUME_POINT = Define/approve P2 contract; do not begin P2 implementation without separate authority
+LAST_VALIDATED_INTEGRATED_BASELINE = P1 SINGLE flow with VENDOR_FIRST_WHEN_KNOWN; implementation still reflects P1 baseline
+SAFE_RESUME_POINT = P2-A01 — define the detailed hybrid architecture contract; do not start implementation
+NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; separate activity authority required; implementation NOT_GRANTED
 CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
 ```
 
@@ -86,7 +93,7 @@ CLI para Windows para consultar câmeras IP e produzir inventário. Resolver o c
 - SINGLE solicita IP e username no terminal, password por `getpass()`, consulta exatamente uma câmera e mostra o resultado. Depois oferece nova pesquisa, MULTI ou saída. Não importa nem gera XLSX automaticamente.
 - MULTI solicita XLSX de entrada com IP/USERNAME/PASSWORD, processa em lote, mostra progresso percentual e gera XLSX consolidado com snapshot.
 - Famílias: Axis, Hikvision, Samsung/Samsung Techwin/Hanwha, Dahua, Panasonic e Bosch.
-- Acesso READ_ONLY; estratégia vigente `VENDOR_FIRST_WHEN_KNOWN`; ONVIF genérico como fallback, complemento para dados P1 ausentes e descoberta pré-autenticação (decisão P1-A03; adaptação implementada em P1-A04).
+- Acesso READ_ONLY; direção aprovada para evolução após P1: `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE` (ARCH-ALIGN-01). O fluxo implementado permanece no baseline P1 `VENDOR_FIRST_WHEN_KNOWN`; ONVIF genérico é discovery quando aplicável, fallback ou complemento condicionado à necessidade no desenho futuro.
 - Fallback de snapshot: ONVIF_HTTP → VENDOR_HTTP → RTSP_FRAME.
 - P0-A03 autoriza somente remediação estrutural/documental; nenhuma coleta funcional.
 

@@ -1,77 +1,47 @@
-# Last Handoff — P1-CHECKPOINT-01 (published)
+# Last Handoff — ARCH-ALIGN-01 (documentary reconciliation)
 
-P1-A04 implementou e integrou `VENDOR_FIRST_WHEN_KNOWN` no fluxo SINGLE canônico. A sequência começa com descoberta ONVIF anônima/read-only; resolve fabricante por evidência estrutural; consulta apenas o adapter registrado daquele fabricante; e usa ONVIF genérico quando o fabricante é desconhecido, não há adapter, ou o caminho vendor não produz resultado. Quando adapter registrado omite dados P1, ONVIF complementa os campos ausentes sem substituir os valores vendor. Não há adapters vendor funcionais registrados nesta fase.
+ARCH-ALIGN-01 registrou a direção aprovada para evolução após P1: `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`. O baseline integrado continua sendo a implementação SINGLE P1 sob `VENDOR_FIRST_WHEN_KNOWN`; esta reconciliação não mudou código, testes ou contrato implementado. A P1 continua `CLOSED`, válida segundo seu contrato e DoD.
 
-A descoberta pré-autenticação não recebe credenciais. O caminho vendor e a autenticação ONVIF recebem o `CameraTarget` corrente. `TRY_ALL_VENDOR_LOGINS` está estruturalmente ausente. Evidência pré-auth válida com falha posterior de autenticação ONVIF produz `PARTIAL_SUCCESS`; sem evidência pré-auth válida a coleta falha normalmente. A entrada SINGLE permanece IP, username e password, sem prompt novo de fabricante. O resultado mantém os 14 campos e não contém senha.
+Na direção futura, o coletor nativo será preferido quando fabricante/capacidade, campos necessários, autenticação disponível e budget justificarem. ONVIF continua como coleta genérica, descoberta quando aplicável, fallback ou complemento condicionado à necessidade. Descoberta ONVIF não é obrigatória se fabricante conhecido e caminho nativo válido cobrirem a consulta. Não se autoriza tentativa autenticada em sequência contra fabricantes.
 
-P1-A05 foi reconciliada a partir da evidência operacional autorizada: target `10.143.36.33`; descoberta pré-auth PASS; fabricante Hikvision; coleta autenticada ONVIF retornou `AUTH_ERROR`; tratamento da falha e semântica `PARTIAL_SUCCESS` PASS; proteção de senha PASS; chamadas mutantes zero. A falha ONVIF Digest permanece `OPEN_NON_BLOCKING`. Nenhuma senha, username ou header de autorização foi registrado.
+O relatório original está em [`../../audit/ARCH_AUDIT_01_REPORT.md`](../../audit/ARCH_AUDIT_01_REPORT.md) e permanece inalterado. F01/F02 são bugs confirmados; F03/F06 são limitações confirmadas; os demais F04–F12 permanecem com suas classes e severidades no execution plan e relatório. `ONVIF_DIGEST_ROOT_CAUSE = UNDETERMINED`; o finding permanece aberto e não resolvido. A PoC Hikvision ISAPI mínima está planejada dentro de P2, mas não implementada nem autorizada; o adapter completo continua em P7.
 
-O contrato P1 foi atualizado para explicitar que evidência READ_ONLY pré-auth válida, preservada como `PARTIAL_SUCCESS`, satisfaz o DoD operacional sem exigir autenticação ONVIF bem-sucedida. P1 está fechada; próxima atividade é definição/contrato de P2. Implementação P2 não autorizada.
+O próximo trabalho é `P2-A01 — Define P2 Architecture Contract`. Permanecem pendentes campos obrigatórios, cobertura/completude, estruturas tipadas, proveniência/conflitos, mecanismo ONVIF, fallback após erro de autenticação, limites, trust/TLS/destinos, expansão de resultado, registro de adapters, aceite da PoC e validação. `P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED`.
 
-Validação do checkpoint: Python 3.14.0, pytest 51 PASS, Ruff PASS, CLI smoke PASS, `git diff --check` PASS, security PASS e source scope P1 PASS. Scripts diagnósticos e cópias locais de políticas foram excluídos. Os seis commits pendentes foram publicados em `origin/master`; fetch posterior confirmou `LOCAL_HEAD == ORIGIN_MASTER_HEAD == ec53d2bd08b8bf0ee0d82b1411122f246502e820`. Os scripts diagnósticos e cópias locais de políticas continuam untracked e excluídos.
+Baseline inicial: `master` / `27582e1a3e26d861a94ece15c5d50a7348a8482f`; branch e HEAD foram verificados antes da edição. O relatório estava presente neste commit. Relação do HEAD atual com o remoto não foi revalidada. Arquivos locais `docs/policies/`, `onvif_auth_test.py` e `onvif_preauth_test.py` estavam untracked e foram preservados. Alterações desta atividade ficam unstaged.
 
 ```text
 PROJECT = projeto_cam_scanner
-ACTIVITY = P1-CHECKPOINT-01
-STARTING_HEAD = b6c3c09fc2588af1d800c5450845a510fc7333ca
-IMPLEMENTATION_STATUS = COMPLETE
-COLLECTION_STRATEGY = VENDOR_FIRST_WHEN_KNOWN
-CANONICAL_FLOW_IMPLEMENTED = YES
-VENDOR_FIRST_ROUTING = PASS
-MANUFACTURER_HINT_SUPPORT = NOT_REQUIRED_BY_CONTRACT
-PREAUTH_FINGERPRINT = PASS
-UNKNOWN_MANUFACTURER_FLOW = PASS
-KNOWN_MANUFACTURER_WITHOUT_ADAPTER = PASS
-ONVIF_ROLE = PASS
-ONVIF_AUTH_FAILURE_SEMANTICS = PASS
-PARTIAL_SUCCESS = PASS
-MANUFACTURER_MISMATCH = PASS
-PER_CAMERA_CREDENTIAL_SCOPE = PASS
-TRY_ALL_VENDOR_LOGINS = ABSENT
-CAMERA_RESULT_14_FIELDS = PASS
-PASSWORD_SECURITY = PASS
-READ_ONLY_INVARIANT = PASS
-SOURCE_CODE_SCOPE = PASS
-P2_PLUS_SCOPE_LEAKAGE = NONE
-UNIT_VALIDATION = PASS
-INTEGRATION_VALIDATION = PASS
-ACCUMULATED_FLOW_VALIDATION = PASS
-PYTHON_3_14 = PASS
-PYTEST = PASS (51 tests)
-RUFF = PASS
-CLI_SMOKE = PASS
-REAL_CAMERA_VALIDATION = PASS_WITH_PARTIAL_SUCCESS
-TARGET_AUTHORIZED = YES
-OPERATIONAL_CAMERA_RESULT = PARTIAL_SUCCESS
-PREAUTH_DISCOVERY = PASS
-MANUFACTURER_RESOLUTION = HIKVISION
-ONVIF_AUTHENTICATED_COLLECTION = AUTH_ERROR
-AUTH_FAILURE_SEMANTICS = PASS
-PARTIAL_SUCCESS_SEMANTICS = PASS
-PASSWORD_SECURITY = PASS
-MUTATING_CALLS = 0
-ONVIF_DIGEST_INTEROPERABILITY_FINDING = OPEN_NON_BLOCKING
-REGRESSION = PASS
-CONTRACT_GAP = NONE
-ARCHITECTURE_CHANGE = NONE
-DOMAIN_CONTRACT_CHANGE = NONE
-PROJECT_STATE_UPDATE = PASS
+ACTIVITY = ARCH-ALIGN-01
+STARTING_HEAD = 27582e1a3e26d861a94ece15c5d50a7348a8482f
+AUDIT_REPORT = docs/audit/ARCH_AUDIT_01_REPORT.md
+AUDIT_PRESERVED = YES
+ARCHITECTURAL_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE
+DIRECTION_DOCUMENTED = PASS
+ARCHITECTURE_DOC_UPDATE = PASS (roadmap and execution plan; no separate architecture/ADR authority exists)
+ROADMAP_UPDATE = PASS
+EXECUTION_PLAN_UPDATE = PASS
 CONTINUITY_UPDATE = PASS
-P1_CLOSURE = PASS
+AUDIT_FINDINGS_TRACEABILITY = PASS
+P1_HISTORICAL_INTEGRITY = PASS
 P1_STATUS = CLOSED
-UNRESOLVED_BLOCKERS = NONE
-NEXT_PHASE = P2
-NEXT_ACTIVITY = P2 definition/contract according to canonical roadmap
+P2_STATUS = CONTRACT_PENDING
+P2_DETAILED_CONTRACT = PENDING
 P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-GIT_PUSH = PASS
-PUSHED_COMMIT_COUNT = 6
-LOCAL_HEAD = ec53d2bd08b8bf0ee0d82b1411122f246502e820
-ORIGIN_MASTER_HEAD = ec53d2bd08b8bf0ee0d82b1411122f246502e820
-LOCAL_REMOTE_MATCH = YES
-CROSS_COMPUTER_CONTINUITY = PASS
+ONVIF_DIGEST_FINDING = OPEN; ROOT_CAUSE = UNDETERMINED
+HIKVISION_ISAPI_POC = PLANNED_NOT_IMPLEMENTED
+CONTRACT_CHANGE = NONE_IMPLEMENTED
+SOURCE_CHANGES = NONE
+TEST_CHANGES = NONE
+DOCUMENTS_MODIFIED = docs/continuity/planning/ROADMAP.md; docs/continuity/planning/EXECUTION_PLAN.md; docs/continuity/ACTIVE_AUTHORITY_MAP.md; docs/continuity/START_HERE.md; docs/continuity/PROJECT_STATE.md; docs/continuity/CONTINUITY_RECORD.md; docs/continuity/handoff/LAST_HANDOFF.md; docs/contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md (scope note only)
+DOCUMENTS_CREATED = NONE
+DOCUMENTARY_CONTRADICTIONS = NONE in active state; P1 contract remains scoped to closed P1
+GIT_DIFF_CHECK = PASS
+GIT_WRITES = NONE
+NEXT_ACTIVITY = P2-A01 — Define P2 Architecture Contract
 STATUS = COMPLETED_WITH_FINDINGS
 ACTIVITY_COMPLETION_PERCENT = 100%
-COMPLETION_BASIS = P1-A04, P1-A05 evidence reconciliation, P1 closure, published checkpoint, and local/remote parity
-SAFE_RESUME_POINT = Define/approve P2 contract; do not begin P2 implementation without separate authority
-AGENT_HANDOFF_GATE = PASS
+COMPLETION_BASIS = Documentary reconciliation only; no P2 implementation included
+SAFE_RESUME_POINT = Define the detailed P2 contract; no implementation without separate authority
+AGENT_HANDOFF_GATE = PASS; remote parity not revalidated
 ```

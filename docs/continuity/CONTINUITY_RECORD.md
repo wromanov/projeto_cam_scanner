@@ -8,6 +8,7 @@
 - **P0-A03-G1 — COMPLETED_WITH_FINDINGS:** publicou o primeiro checkpoint governado em `origin/master`; commit inicial `chore(project): establish governed foundation baseline`, seguido por commit documental de continuidade. Sem implementação funcional, force push, tag ou release.
 - **P1-A04 — COMPLETED_WITH_FINDINGS:** adaptou e validou sinteticamente o fluxo SINGLE para `VENDOR_FIRST_WHEN_KNOWN`.
 - **P1-CHECKPOINT-01 — COMPLETED_WITH_FINDINGS:** reconciliou P1-A05, fechou P1 e publicou o checkpoint em `origin/master`; HEAD local e remoto coincidem. P2 segue sem autorização de implementação.
+- **ARCH-ALIGN-01 — COMPLETED_WITH_FINDINGS:** registrou `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE` como direção aprovada para P2; P1 e sua estratégia implementada permanecem baseline histórica válida; P2-A01 é a próxima atividade e sua implementação não está autorizada.
 
 ## Decisões e evidências aplicáveis
 
@@ -24,9 +25,32 @@ Decisões e evidências da P0-A03 não alteram silenciosamente authorities exter
 
 ## Baseline, riscos e retomada
 
-O baseline integrado contém a slice SINGLE vendor-first. P1-A05 confirmou descoberta pré-auth READ_ONLY e fabricante Hikvision; coleta autenticada falhou com `AUTH_ERROR`, mas a evidência foi preservada como `PARTIAL_SUCCESS`, conforme o contrato reconciliado. P1 e P0 estão fechadas; o checkpoint está publicado em `origin/master`, com HEAD local igual ao remoto após fetch. Nenhuma credencial foi persistida. P2 aguarda definição/contrato e não tem autorização de implementação.
+O baseline integrado contém a slice SINGLE implementada sob `VENDOR_FIRST_WHEN_KNOWN`. P1-A05 confirmou descoberta pré-auth READ_ONLY e fabricante Hikvision; coleta autenticada falhou com `AUTH_ERROR`, mas a evidência foi preservada como `PARTIAL_SUCCESS`, conforme o contrato reconciliado. P1 e P0 estão fechadas. ARCH-ALIGN-01 aprovou documentalmente a direção híbrida para evolução após P1 sem declarar mudança no código; veja roadmap e execution plan. O HEAD local desta atividade começou em `27582e1a3e26d861a94ece15c5d50a7348a8482f`; relação do HEAD atual com o remoto não foi revalidada. Nenhuma credencial foi persistida. P2 aguarda contrato e não tem autorização de implementação.
 
 **Safe resume point histórico (antes de P0-A04):** conferir [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md), revalidar estado Git atual e executar o recheck Foundation conforme authority aplicável. O estado corrente está registrado abaixo.
+
+## ARCH-ALIGN-01 — Documentary Architecture Reconciliation (2026-10-08)
+
+A direção aprovada para evolução após P1 é `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`. A auditoria independente permanece preservada em [`../audit/ARCH_AUDIT_01_REPORT.md`](../audit/ARCH_AUDIT_01_REPORT.md) e é a fonte dos achados F01–F12. O roadmap registra o destino e o execution plan registra o conteúdo pendente de P2-A01. Não existe ADR/arquivo de arquitetura separado no pacote ativo; nenhum documento redundante foi criado.
+
+```text
+PREVIOUS = VENDOR_FIRST_WHEN_KNOWN (P1 implemented baseline)
+APPROVED_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE
+ARCH_AUDIT_01 = COMPLETED_WITH_FINDINGS
+ARCH_AUDIT_PUBLICATION = PUBLISHED at starting HEAD 27582e1a3e26d861a94ece15c5d50a7348a8482f
+P1_STATUS = CLOSED
+P2_STATUS = CONTRACT_PENDING
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+ONVIF_DIGEST_FINDING = OPEN; ROOT_CAUSE = UNDETERMINED
+HIKVISION_ISAPI_POC = PLANNED_NOT_IMPLEMENTED
+CONTRACT_CHANGE = NONE_IMPLEMENTED
+SOURCE_CHANGES = NONE
+TEST_CHANGES = NONE
+GIT_WRITES = NONE
+NEXT_ACTIVITY = P2-A01 — Define P2 Architecture Contract
+```
+
+P2 planeja correções de preservação de evidências, fingerprint/resolução, diagnóstico por operação, seleção controlada de autenticação ONVIF, proveniência/merge, PoC ISAPI mínima, validação operacional futura autorizada e expansão incremental do inventário/rede. F01/F02 são bugs confirmados; F03/F06 limitações confirmadas; F04 mantém causa Digest real indeterminada; F05 é capability planejada; F07–F11 mantêm os tipos individuais registrados no execution plan e relatório; F12 é divergência documental. READ_ONLY, escopo de credenciais por câmera, proibição de credential spraying, saída sem senhas e ausência de operações mutantes continuam obrigatórios. A descoberta ONVIF não é exigida em todas as consultas quando fabricante e caminho nativo válido já cobrem o necessário; nenhuma câmera será reconfigurada automaticamente ou exigirá provisionamento de contas em massa.
 
 ## P0-A04 — Foundation Review Recheck (2026-10-07)
 

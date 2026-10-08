@@ -100,9 +100,42 @@ NEXT_ACTIVITY = Definition/contract of P2 per canonical roadmap
 P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
 ```
 
+## ARCH-ALIGN-01 — Reconciliation documental da direção arquitetural
+
+Concluída em 2026-10-08 com base em [`ARCH_AUDIT_01_REPORT.md`](../../audit/ARCH_AUDIT_01_REPORT.md), publicado no HEAD inicial `27582e1a3e26d861a94ece15c5d50a7348a8482f`. A auditoria foi preservada. A direção aprovada para evolução após P1 é `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`, mantendo o monólito modular e os componentes existentes. A estratégia `VENDOR_FIRST_WHEN_KNOWN` permanece o baseline histórico/implementado da P1; sua substituição documental não declara mudança no código nem invalida o fechamento da P1.
+
+```text
+ARCHITECTURE_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE
+DECISION_STATUS = DIRECTION_APPROVED
+P2_STATUS = PLANNING / CONTRACT PENDING
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+ONVIF_DIGEST_ROOT_CAUSE = UNDETERMINED
+```
+
+P2-A01 — **Contrato arquitetural da P2** — é a próxima atividade. Antes de qualquer implementação, o contrato definirá: seleção híbrida determinística; descoberta e níveis de confiança; campos pedidos e cobertura/completude; adapters e operações de leitura suportadas; evidência já coletada; autenticação e limites por câmera; fallback após falhas; timeouts/budgets; `CollectionAttempt`/`CollectionReport`; proveniência, conflitos e recomposição de status; trust/TLS e destinos; expansão tipada de `CameraResult`; critérios de registro de adapter; escopo e aceite da PoC mínima Hikvision ISAPI; estratégia de validação. A atividade corrente não cria o contrato detalhado nem estruturas de código.
+
+A política futura deve considerar fabricante conhecido/identificado, adapter funcional disponível, operações READ_ONLY suportadas, campos necessários, evidências existentes, mecanismo de autenticação disponível, limites de tempo/requisições e risco de autenticações adicionais. O coletor nativo permanece preferencial quando fabricante, capacidade e escopo de credenciais justificarem. A evolução preserva o monólito modular e seus componentes `ApplicationController`, `SingleWorkflow`, `MultiWorkflow`, `InventoryService`, `CameraTarget`, `CameraResult`, `AdapterRegistry`, `TerminalUI`, `ExcelReader` e `ExcelWriter`; contratos tipados internos podem ser avaliados no contrato P2, sem implementação autorizada nesta atividade.
+
+Escopo planejado de P2: (A) contrato da política híbrida; (B) correção de preservação de evidências; (C) correção de resolução de fabricante/fingerprint; (D) diagnóstico por etapa/operação; (E) seleção controlada de autenticação ONVIF; (F) contratos de proveniência e merge; (G) PoC mínima Hikvision ISAPI integrada a SINGLE; (H) validação operacional posterior, com autorização independente; (I) expansão incremental do inventário e rede. Apenas a prova mínima Hikvision é antecipada de P7; o adapter Hikvision completo continua em P7. Ordem P3–P12 preservada. A PoC está planejada e não autorizada para implementação.
+
+Achados materiais rastreados ao relatório original, sem duplicá-lo: F01 (HIGH, bug confirmado: perda de evidência); F02 (HIGH, bug confirmado: fingerprint falso/ordem-dependente); F03 (HIGH, limitação confirmada: diagnóstico por etapa/contexto de tentativas); F04 (MEDIUM, seleção ONVIF não explícita; causa Digest real não determinada); F05 (MEDIUM, capability nativa planejada, sem adapter funcional); F06 (MEDIUM, merge/proveniência limitado); F07 (MEDIUM, budgets/deadline/retries não conectados e porta fixa); F08 (MEDIUM, lacuna de domínio/contrato para inventário e tentativas); F09 (MEDIUM, dependências sem versões reproduzíveis e `httpx` ausente no ambiente auditado); F10 (MEDIUM, registry sem validação de capability e contrato genérico); F11 (MEDIUM, risco de fronteira de transporte/trust, sem exploração demonstrada); F12 (LOW, divergência documental SHA). A PoC é capability planejada; riscos e hipóteses permanecem distinguidos de bugs confirmados. O 401 Digest não está declarado resolvido.
+
+Invariantes da direção: `READ_ONLY = MANDATORY`; credenciais limitadas à própria câmera; `NO_CREDENTIAL_SPRAYING`; `NO_PASSWORD_OUTPUT`; `NO_MUTATING_CAMERA_OPERATIONS`. ONVIF discovery não é obrigatória se fabricante conhecido e caminho nativo válido cobrirem os campos necessários. Nenhuma conta ONVIF deve ser provisionada em massa como pré-requisito. Nenhum detalhe pendente da P2 está aprovado implicitamente por esta direção.
+
+```text
+PREVIOUS = VENDOR_FIRST_WHEN_KNOWN
+APPROVED_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE
+SOURCE = docs/audit/ARCH_AUDIT_01_REPORT.md
+P1_STATUS = CLOSED
+P2_STATUS = CONTRACT_PENDING
+NEXT_ACTIVITY = P2-A01 — Contrato arquitetural da P2
+NEXT_ACTIVITY_READINESS = READY_FOR_ACTIVITY_DEFINITION
+NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; separate activity authority required; implementation NOT_GRANTED
+```
+
 ## Roadmap executável e integração
 
-O roadmap normativo está em [`ROADMAP.md`](ROADMAP.md). Sequência: P0 Foundation; P1 SINGLE mínimo com adaptação da estratégia; P2 coleta SINGLE com fingerprint, resolução de fabricante, merge de evidências e expansão de inventário; P3 snapshot SINGLE sem XLSX; P4 MULTI + XLSX + snapshot embedded; P5 concorrência/robustez; P6 Axis; P7 Hikvision; P8 Samsung/Hanwha; P9 Dahua; P10 Panasonic; P11 Bosch; P12 hardening/regressão/packaging.
+O roadmap normativo está em [`ROADMAP.md`](ROADMAP.md). Sequência preservada: P0 Foundation; P1 SINGLE mínimo fechado sob seu contrato; P2 contrato/política híbrida, correções, PoC ISAPI mínima e expansão incremental; P3 snapshot SINGLE sem XLSX; P4 MULTI + XLSX + snapshot embedded; P5 concorrência/robustez; P6 Axis; P7 adapter Hikvision completo; P8 Samsung/Hanwha; P9 Dahua; P10 Panasonic; P11 Bosch; P12 hardening/regressão/packaging.
 
 Para cada slice: `IMPLEMENT → MODULE_VALIDATE → INTEGRATE_INTO_CANONICAL_FLOW → INTEGRATION_VALIDATE → VALIDATE_ACCUMULATED_FLOW → REGRESSION_VALIDATE → RECONCILE_PROJECT_STATE → CLOSE`. Adiamento de integração exige registro explícito de motivo, dependência, owner, target slice, risco e decisão de usuário ou justificativa de não necessidade. Não acumular módulos isolados para integração big-bang.
 

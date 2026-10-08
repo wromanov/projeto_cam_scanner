@@ -3,8 +3,8 @@
 | Fase | Escopo e objetivo | Estado |
 |---|---|---|
 | P0 | Project Opening + Foundation | CLOSED; Foundation Approval `APPROVED_WITH_ACCEPTED_FINDINGS`; Project Opening Gate `PASS` (P0-A05-R1) |
-| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera; adaptar a coleta para `VENDOR_FIRST_WHEN_KNOWN` | CLOSED; P1-A04 implementada e validada sinteticamente; P1-A05 validada operacionalmente com evidência pré-auth preservada como `PARTIAL_SUCCESS`; finding ONVIF Digest aberto não bloqueante |
-| P2 | SINGLE Collection Strategy + Inventory Expansion: fingerprint, manufacturer resolution, evidence merge e coleta nativa/ONVIF | Planejada; próxima atividade é definição/contrato; implementação não autorizada |
+| P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera, sob a estratégia então vigente `VENDOR_FIRST_WHEN_KNOWN` | CLOSED; P1-A04 implementada e validada sinteticamente; P1-A05 validada operacionalmente com evidência pré-auth preservada como `PARTIAL_SUCCESS`; finding ONVIF Digest aberto |
+| P2 | Contrato da política híbrida e evolução da coleta SINGLE/inventário | PLANNING / CONTRACT PENDING; implementação não autorizada |
 | P3 | SINGLE Snapshot Vertical Slice: captura e processamento de snapshot; sem XLSX | Planejada |
 | P4 | MULTI + XLSX Vertical Slice: entrada em lote, progresso, INVENTARIO/RESUMO e snapshot embutido | Planejada |
 | P5 | MULTI Concurrency / Batch Robustness: limites, cancelamento, exportação parcial e isolamento de falhas | Planejada |
@@ -19,7 +19,10 @@
 ## Dependências e integração
 
 - P1 estabeleceu a slice SINGLE integrada; P1-A04 adaptou o baseline para `VENDOR_FIRST_WHEN_KNOWN`; P1-A05 e seu DoD foram fechados com evidência READ_ONLY parcial conforme o contrato vigente.
-- P2 estrutura a expansão da coleta SINGLE: identificação/fingerprint READ_ONLY, resolução do fabricante, merge de evidências e seleção de adapter nativo com ONVIF como complemento/fallback. Não antecipar endpoints proprietários ainda não contratados.
+- P2 segue a direção aprovada `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`, preservando o monólito modular e a baseline P1. Seu contrato precede qualquer implementação e define política determinística por fabricante/capacidade, campos necessários, evidências já obtidas, autenticação disponível e budgets. ONVIF permanece genérico, para descoberta quando aplicável, fallback ou complemento justificado; não é obrigatório em toda consulta quando fabricante e caminho nativo válido já forem conhecidos.
+- P2 planeja: (A) contrato da política híbrida; (B) preservação de evidências; (C) resolução de fabricante; (D) diagnóstico por etapa/operação; (E) seleção controlada de autenticação ONVIF; (F) proveniência e merge; (G) PoC mínima Hikvision ISAPI; (H) validação operacional futura sob autorização própria; (I) expansão incremental de inventário e rede. A PoC é escopo planejado, não autorização de implementação. O adapter Hikvision completo permanece em P7.
+- P2 não permite tentativas autenticadas sequenciais contra fabricantes, reconfiguração automática de câmeras ou provisionamento obrigatório de contas ONVIF em massa. READ_ONLY, credenciais por câmera, ausência de credential spraying e ausência de senhas em saídas são obrigatórios.
+- ARCH-ALIGN-01 registra a evolução documental `PREVIOUS = VENDOR_FIRST_WHEN_KNOWN` → `APPROVED_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`, com `DECISION_STATUS = DIRECTION_APPROVED` e fonte [`ARCH_AUDIT_01_REPORT.md`](../../audit/ARCH_AUDIT_01_REPORT.md). A P1 permanece fechada segundo seu contrato e não é reescrita por esta direção para P2. O finding ONVIF Digest segue aberto; `ONVIF_DIGEST_ROOT_CAUSE = UNDETERMINED`.
 - P3 integra snapshot ao fluxo SINGLE; não produz XLSX.
 - P4 introduz MULTI e XLSX. É o primeiro ponto em que MULTI, XLSX e snapshot embedded coexistem no fluxo canônico.
 - P5 robustece o lote de P4, incluindo concorrência controlada.
