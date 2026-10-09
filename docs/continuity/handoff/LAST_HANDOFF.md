@@ -1,47 +1,34 @@
-# Last Handoff — ARCH-ALIGN-01 (documentary reconciliation)
+# Last Handoff — P2 Contract Approval Reconciliation
 
-ARCH-ALIGN-01 registrou a direção aprovada para evolução após P1: `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`. O baseline integrado continua sendo a implementação SINGLE P1 sob `VENDOR_FIRST_WHEN_KNOWN`; esta reconciliação não mudou código, testes ou contrato implementado. A P1 continua `CLOSED`, válida segundo seu contrato e DoD.
+O contrato [`P2_COLLECTION_STRATEGY_EXPANSION.md`](../../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md) foi reconciliado com a aprovação humana de 2026-10-09. D00 já estava aprovada; D01 foi aprovada com revisão e D02–D06 com ajustes. D07 continua diferida. A aprovação contratual não encerra a fase P2 nem concede autorização de implementação. P0 e P1 permanecem `CLOSED`; o contrato histórico P1 e os 14 campos de `CameraResult` não foram reabertos.
 
-Na direção futura, o coletor nativo será preferido quando fabricante/capacidade, campos necessários, autenticação disponível e budget justificarem. ONVIF continua como coleta genérica, descoberta quando aplicável, fallback ou complemento condicionado à necessidade. Descoberta ONVIF não é obrigatória se fabricante conhecido e caminho nativo válido cobrirem a consulta. Não se autoriza tentativa autenticada em sequência contra fabricantes.
+`IDENTITY_V1` exige fabricante confirmado, modelo e serial number válidos, sem conflito material, para `SUCCESS`. Firmware, MAC, hostname, rede, protocolos e demais dados válidos disponíveis são complementares; firmware ausente não impede sucesso. O contrato também limita tipos iniciais a `CollectionAttempt`, `EvidenceRecord` e `CollectionReport`, sem persistência, e reconcilia D03/D04, PoC ISAPI, casos A–G e T01–T15. F01–F03 seguem preservados e a auditoria publicada não foi alterada.
 
-O relatório original está em [`../../audit/ARCH_AUDIT_01_REPORT.md`](../../audit/ARCH_AUDIT_01_REPORT.md) e permanece inalterado. F01/F02 são bugs confirmados; F03/F06 são limitações confirmadas; os demais F04–F12 permanecem com suas classes e severidades no execution plan e relatório. `ONVIF_DIGEST_ROOT_CAUSE = UNDETERMINED`; o finding permanece aberto e não resolvido. A PoC Hikvision ISAPI mínima está planejada dentro de P2, mas não implementada nem autorizada; o adapter completo continua em P7.
-
-O próximo trabalho é `P2-A01 — Define P2 Architecture Contract`. Permanecem pendentes campos obrigatórios, cobertura/completude, estruturas tipadas, proveniência/conflitos, mecanismo ONVIF, fallback após erro de autenticação, limites, trust/TLS/destinos, expansão de resultado, registro de adapters, aceite da PoC e validação. `P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED`.
-
-Baseline inicial: `master` / `27582e1a3e26d861a94ece15c5d50a7348a8482f`; branch e HEAD foram verificados antes da edição. O relatório estava presente neste commit. Relação do HEAD atual com o remoto não foi revalidada. Arquivos locais `docs/policies/`, `onvif_auth_test.py` e `onvif_preauth_test.py` estavam untracked e foram preservados. Alterações desta atividade ficam unstaged.
+O estado Git de entrada era `master`, HEAD `d8d2d02c9a659391fd80a7b4590f6767ab625cba`. Foram feitas apenas edições documentais autorizadas. Os arquivos untracked preexistentes `docs/policies/`, `onvif_auth_test.py` e `onvif_preauth_test.py` foram preservados. Sem mudanças de código, testes ou dependências; sem consultas a câmera real; sem escrita Git. Testes não foram executados.
 
 ```text
 PROJECT = projeto_cam_scanner
-ACTIVITY = ARCH-ALIGN-01
-STARTING_HEAD = 27582e1a3e26d861a94ece15c5d50a7348a8482f
-AUDIT_REPORT = docs/audit/ARCH_AUDIT_01_REPORT.md
-AUDIT_PRESERVED = YES
-ARCHITECTURAL_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE
-DIRECTION_DOCUMENTED = PASS
-ARCHITECTURE_DOC_UPDATE = PASS (roadmap and execution plan; no separate architecture/ADR authority exists)
-ROADMAP_UPDATE = PASS
-EXECUTION_PLAN_UPDATE = PASS
-CONTINUITY_UPDATE = PASS
-AUDIT_FINDINGS_TRACEABILITY = PASS
-P1_HISTORICAL_INTEGRITY = PASS
+ACTIVITY = P2 CONTRACT APPROVAL RECONCILIATION
+DATE = 2026-10-09
+ROOT_ROLE = SCRIBE / VALIDATOR
+MODEL_TARGET = LUNA
+EFFORT_TARGET = MEDIUM
+EXECUTION_MODE = DIRECT
+CONTRACT_STATUS = APPROVED
+DECISIONS_D01_D06 = APPROVED
+IDENTITY_V1 = MANUFACTURER_MODEL_SERIAL
+D07 = DEFERRED
+P0_STATUS = CLOSED
 P1_STATUS = CLOSED
-P2_STATUS = CONTRACT_PENDING
-P2_DETAILED_CONTRACT = PENDING
+P2_PHASE_STATUS = OPEN
 P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
-ONVIF_DIGEST_FINDING = OPEN; ROOT_CAUSE = UNDETERMINED
-HIKVISION_ISAPI_POC = PLANNED_NOT_IMPLEMENTED
-CONTRACT_CHANGE = NONE_IMPLEMENTED
+F01_F03 = PRESERVED
 SOURCE_CHANGES = NONE
 TEST_CHANGES = NONE
-DOCUMENTS_MODIFIED = docs/continuity/planning/ROADMAP.md; docs/continuity/planning/EXECUTION_PLAN.md; docs/continuity/ACTIVE_AUTHORITY_MAP.md; docs/continuity/START_HERE.md; docs/continuity/PROJECT_STATE.md; docs/continuity/CONTINUITY_RECORD.md; docs/continuity/handoff/LAST_HANDOFF.md; docs/contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md (scope note only)
-DOCUMENTS_CREATED = NONE
-DOCUMENTARY_CONTRADICTIONS = NONE in active state; P1 contract remains scoped to closed P1
-GIT_DIFF_CHECK = PASS
+DEPENDENCY_CHANGES = NONE
+REAL_CAMERA_CALLS = NONE
 GIT_WRITES = NONE
-NEXT_ACTIVITY = P2-A01 — Define P2 Architecture Contract
-STATUS = COMPLETED_WITH_FINDINGS
-ACTIVITY_COMPLETION_PERCENT = 100%
-COMPLETION_BASIS = Documentary reconciliation only; no P2 implementation included
-SAFE_RESUME_POINT = Define the detailed P2 contract; no implementation without separate authority
-AGENT_HANDOFF_GATE = PASS; remote parity not revalidated
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_STATUS = PASS
+NEXT_ACTIVITY = P2 planning; implementation requires separate explicit authority
 ```

@@ -9,6 +9,8 @@
 - **P1-A04 — COMPLETED_WITH_FINDINGS:** adaptou e validou sinteticamente o fluxo SINGLE para `VENDOR_FIRST_WHEN_KNOWN`.
 - **P1-CHECKPOINT-01 — COMPLETED_WITH_FINDINGS:** reconciliou P1-A05, fechou P1 e publicou o checkpoint em `origin/master`; HEAD local e remoto coincidem. P2 segue sem autorização de implementação.
 - **ARCH-ALIGN-01 — COMPLETED_WITH_FINDINGS:** registrou `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE` como direção aprovada para P2; P1 e sua estratégia implementada permanecem baseline histórica válida; P2-A01 é a próxima atividade e sua implementação não está autorizada.
+- **P2-A01 — COMPLETED_WITH_FINDINGS:** contrato proposto foi criado e revisado; decisões materiais D01–D06 aguardam aprovação humana; P2 implementation permanece não autorizada.
+- **P2-A01-R1 — COMPLETED:** aprovação humana D01–D06 formalizada no contrato em 2026-10-09 e continuidade reconciliada; implementação P2 permanece não autorizada.
 
 ## Decisões e evidências aplicáveis
 
@@ -25,7 +27,51 @@ Decisões e evidências da P0-A03 não alteram silenciosamente authorities exter
 
 ## Baseline, riscos e retomada
 
-O baseline integrado contém a slice SINGLE implementada sob `VENDOR_FIRST_WHEN_KNOWN`. P1-A05 confirmou descoberta pré-auth READ_ONLY e fabricante Hikvision; coleta autenticada falhou com `AUTH_ERROR`, mas a evidência foi preservada como `PARTIAL_SUCCESS`, conforme o contrato reconciliado. P1 e P0 estão fechadas. ARCH-ALIGN-01 aprovou documentalmente a direção híbrida para evolução após P1 sem declarar mudança no código; veja roadmap e execution plan. O HEAD local desta atividade começou em `27582e1a3e26d861a94ece15c5d50a7348a8482f`; relação do HEAD atual com o remoto não foi revalidada. Nenhuma credencial foi persistida. P2 aguarda contrato e não tem autorização de implementação.
+O baseline integrado contém a slice SINGLE implementada sob `VENDOR_FIRST_WHEN_KNOWN`. P1-A05 confirmou descoberta pré-auth READ_ONLY e fabricante Hikvision; coleta autenticada falhou com `AUTH_ERROR`, mas a evidência foi preservada como `PARTIAL_SUCCESS`, conforme o contrato reconciliado. P1 e P0 estão fechadas. ARCH-ALIGN-01 aprovou documentalmente a direção híbrida para evolução após P1. O contrato P2 foi aprovado em 2026-10-09; a fase P2 permanece aberta e a implementação não está autorizada. O HEAD local de entrada de P2-A01 foi `d8d2d02c9a659391fd80a7b4590f6767ab625cba`, igual a `origin/master` na entrada. Nenhuma credencial foi persistida.
+
+## P2-A01 — Hybrid Collection Architecture Contract (2026-10-09; estado inicial antes da aprovação, supersedido por P2-A01-R1)
+
+O contrato [`../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md`](../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md) materializa a direção híbrida aprovada sem reabrir P1. A auditoria original continua inalterada e é a fonte de evidências F01–F12. F01 (preservação), F02 (fingerprint determinístico) e F03 (diagnóstico por operação) estão contratados. F01–F03 são critérios para implementação futura, não mudanças realizadas.
+
+Decisões materiais D01–D06 — perfil mínimo de identidade, domínio tipado, limite/fallback de auth, TLS/destinos, PoC ISAPI e resolução/conflito de fabricante — estão como propostas pendentes de aprovação. D07 (retomada abrupta de lote) foi diferida por não ser material para P2-A01/SINGLE. `ONVIF_DIGEST_ROOT_CAUSE` continua `UNDETERMINED`; a política não declara Digest corrigido. P2 permanece `NOT_GRANTED` para implementação. P3–P12 permanecem intactas.
+
+```text
+PROJECT = projeto_cam_scanner
+ACTIVITY = P2-A01
+STARTING_HEAD = d8d2d02c9a659391fd80a7b4590f6767ab625cba
+CONTRACT_PATH = docs/contracts/P2_COLLECTION_STRATEGY_EXPANSION.md
+CONTRACT_STATUS = PENDING_APPROVAL
+P1_STATUS = CLOSED
+P1_REOPEN = NO
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+SOURCE_CHANGES = NONE
+TEST_CHANGES = NONE
+DEPENDENCY_CHANGES = NONE
+REAL_CAMERA_CALLS = NONE
+GIT_WRITES = NONE
+NEXT_ACTIVITY = USER REVIEW / APPROVAL OF P2-A01 CONTRACT
+SAFE_RESUME_POINT = Review D01-D06; no implementation until separate approval
+```
+
+## P2-A01-R1 — Reconciliation of Human Contract Approval (2026-10-09)
+
+O usuário aprovou D01 como `APPROVED_WITH_REVISION` e D02–D06 como `APPROVED_WITH_ADJUSTMENTS`; D00 já estava aprovada. O contrato foi atualizado em todas as seções afetadas: perfil e sucesso `IDENTITY_V1`, fallback, coleta complementar, domínio e proveniência, casos A–G, PoC ISAPI, critérios T01–T15 e encerramento. Firmware permanece complementar; `SUCCESS` requer fabricante confirmado, modelo e serial number válidos e ausência de conflito material. F01–F03 e o histórico P1 foram preservados. D07 continua diferida. P0/P1 permanecem fechadas, P2 continua aberta e implementação não autorizada.
+
+```text
+ACTIVITY = P2 CONTRACT APPROVAL RECONCILIATION
+CONTRACT_STATUS = APPROVED
+DECISIONS_D01_D06 = APPROVED
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+P1_STATUS = CLOSED
+P0_STATUS = CLOSED
+SOURCE_CHANGES = NONE
+TEST_CHANGES = NONE
+REAL_CAMERA_CALLS = NONE
+GIT_WRITES = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_STATUS = PASS
+SAFE_RESUME_POINT = P2 planning; any implementation needs separate explicit authority
+```
 
 **Safe resume point histórico (antes de P0-A04):** conferir [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md), revalidar estado Git atual e executar o recheck Foundation conforme authority aplicável. O estado corrente está registrado abaixo.
 

@@ -12,7 +12,8 @@
 | Abertura do projeto | PROJECT_OPENING | 3.0 | CANONICAL / ACTIVE | Pacote Project Opening 3.0 / `OPENING_PROTOCOL.md` |
 | Continuidade | CONTINUITY | 3.0 | CANONICAL / ACTIVE | Pacote Continuity 3.0 / `CONTINUITY_PROTOCOL.md` |
 | Contrato P1 SINGLE (baseline histórico) | Contrato P1-C01/P1-A03 + P1-A05 | `VENDOR_FIRST_WHEN_KNOWN`; DoD satisfeito com evidência operacional `PARTIAL_SUCCESS` | CLOSED / P1 válida sob seu contrato | `../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md` |
-| Direção arquitetural após P1 | ARCH-ALIGN-01; decisão de direção baseada na auditoria independente | `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; P2 detalhamento pendente | DIRECTION_APPROVED; P2 contract pending; implementação não autorizada | `planning/ROADMAP.md`, `planning/EXECUTION_PLAN.md`; fonte [`../audit/ARCH_AUDIT_01_REPORT.md`](../audit/ARCH_AUDIT_01_REPORT.md) |
+| Contrato de expansão de coleta P2 | P2-A01; reconciliação de aprovação em 2026-10-09 | `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; D00–D06 aprovadas; D07 diferida | APPROVED; P2 permanece aberta e implementação não autorizada | [`../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md`](../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md) |
+| Direção arquitetural após P1 | ARCH-ALIGN-01; decisão de direção baseada na auditoria independente | `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; contrato P2 aprovado | DIRECTION_APPROVED; P2 contract APPROVED; implementação não autorizada | `planning/ROADMAP.md`, `planning/EXECUTION_PLAN.md`; fonte [`../audit/ARCH_AUDIT_01_REPORT.md`](../audit/ARCH_AUDIT_01_REPORT.md) |
 
 Os pins completos e hashes estão em `PROJECT_GOVERNANCE_BINDING.json`. A resolução usou o `POLICY_REGISTRY.json` do baseline GOV V1. O binding registra adoção inicial; nenhuma migração foi solicitada. Não copiar nem promover authorities normativas neste projeto.
 

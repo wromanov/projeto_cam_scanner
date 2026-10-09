@@ -112,7 +112,7 @@ P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
 ONVIF_DIGEST_ROOT_CAUSE = UNDETERMINED
 ```
 
-P2-A01 — **Contrato arquitetural da P2** — é a próxima atividade. Antes de qualquer implementação, o contrato definirá: seleção híbrida determinística; descoberta e níveis de confiança; campos pedidos e cobertura/completude; adapters e operações de leitura suportadas; evidência já coletada; autenticação e limites por câmera; fallback após falhas; timeouts/budgets; `CollectionAttempt`/`CollectionReport`; proveniência, conflitos e recomposição de status; trust/TLS e destinos; expansão tipada de `CameraResult`; critérios de registro de adapter; escopo e aceite da PoC mínima Hikvision ISAPI; estratégia de validação. A atividade corrente não cria o contrato detalhado nem estruturas de código.
+P2-A01 — **Contrato arquitetural da P2** — foi aprovado documentalmente em 2026-10-09. O contrato define seleção híbrida determinística; identidade `IDENTITY_V1`; domínio mínimo; autenticação e limites por câmera; fallback; budgets; proveniência e status; TLS/destinos; PoC mínima Hikvision ISAPI e critérios T01–T15. A aprovação não autoriza implementação nem encerra a fase P2.
 
 A política futura deve considerar fabricante conhecido/identificado, adapter funcional disponível, operações READ_ONLY suportadas, campos necessários, evidências existentes, mecanismo de autenticação disponível, limites de tempo/requisições e risco de autenticações adicionais. O coletor nativo permanece preferencial quando fabricante, capacidade e escopo de credenciais justificarem. A evolução preserva o monólito modular e seus componentes `ApplicationController`, `SingleWorkflow`, `MultiWorkflow`, `InventoryService`, `CameraTarget`, `CameraResult`, `AdapterRegistry`, `TerminalUI`, `ExcelReader` e `ExcelWriter`; contratos tipados internos podem ser avaliados no contrato P2, sem implementação autorizada nesta atividade.
 
@@ -132,6 +132,26 @@ NEXT_ACTIVITY = P2-A01 — Contrato arquitetural da P2
 NEXT_ACTIVITY_READINESS = READY_FOR_ACTIVITY_DEFINITION
 NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED; separate activity authority required; implementation NOT_GRANTED
 ```
+
+## P2-A01 — Hybrid Collection Architecture Contract (estado inicial da proposta; supersedido por P2-A01-R1)
+
+Concluída como proposta documental no baseline `d8d2d02c9a659391fd80a7b4590f6767ab625cba` (`master`, igual a `origin/master` na entrada). O contrato está em [`../../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md`](../../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md). Preserva P1 e a direção híbrida aprovada, registra F01–F03, política de seleção, diagnóstico, evidências/proveniência, auth/fallback, transporte, budgets, PoC ISAPI, aceites T01–T15 e sequência incremental.
+
+```text
+P2_A01_DOCUMENT = CREATED_AND_ROOT_REVIEWED
+CONTRACT_STATUS = PENDING_APPROVAL
+MATERIAL_DECISIONS_PENDING = D01,D02,D03,D04,D05,D06
+D07 = DEFERRED; NOT_MATERIAL_TO_P2_A01
+P1_STATUS = CLOSED
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+SOURCE_CHANGES = NONE
+TEST_CHANGES = NONE
+GIT_WRITES = NONE
+NEXT_ACTIVITY = USER REVIEW / APPROVAL OF P2-A01 CONTRACT
+NEXT_ACTIVITY_AUTHORIZATION = REVIEW_ONLY
+```
+
+O DoD desta atividade documental foi satisfeito como proposta revisada. A aprovação do contrato e qualquer implementação continuam decisões separadas do usuário. Não executar câmeras reais nem testes nesta atividade; a baseline informada de 51 testes é histórica e não foi reexecutada.
 
 ## Roadmap executável e integração
 
@@ -184,4 +204,24 @@ TARGET_AUTHORIZED = YES
 TARGET_IP = 10.143.36.33
 REAL_CAMERA_VALIDATION = BLOCKED_AUTHENTICATION
 NEXT_ACTIVITY_AT_THAT_TIME = Retomar P1-A02 após confirmar autenticação e permissão ONVIF da conta autorizada
+```
+
+## P2-A01-R1 — Reconciliation of Human Contract Approval (2026-10-09)
+
+O usuário aprovou D01 (`APPROVED_WITH_REVISION`) e D02–D06 (`APPROVED_WITH_ADJUSTMENTS`); D00 já estava aprovada. O contrato em [`../../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md`](../../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md) foi reconciliado integralmente, incluindo perfil `IDENTITY_V1`, fallback, coleta complementar, proveniência, casos A–G, PoC ISAPI e critérios T01–T15. F01–F03 permanecem preservados. D07 continua `DEFERRED`.
+
+```text
+ACTIVITY = P2 CONTRACT APPROVAL RECONCILIATION
+DECISIONS_D01_D06 = APPROVED
+CONTRACT_STATUS = APPROVED
+P0_STATUS = CLOSED
+P1_STATUS = CLOSED
+P2_PHASE_STATUS = OPEN
+P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+SOURCE_CHANGES = NONE
+TEST_CHANGES = NONE
+DEPENDENCY_CHANGES = NONE
+REAL_CAMERA_CALLS = NONE
+GIT_WRITES = NONE
+NEXT_ACTIVITY = P2 planning/execution authority as a separate user decision
 ```

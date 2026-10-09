@@ -11,8 +11,9 @@ Use esta página para retomar o trabalho sem depender do histórico do chat.
 - [`planning/ROADMAP.md`](planning/ROADMAP.md): roadmap aprovado.
 - [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md): sequência de atividades e critérios de saída.
 - [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md): contrato e baseline histórica P1 (`VENDOR_FIRST_WHEN_KNOWN`), válida para a P1 fechada.
+- [`../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md`](../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md): contrato P2-A01 aprovado em 2026-10-09 (D00–D06); P2 continua aberta e implementação permanece não autorizada.
 - [`../audit/ARCH_AUDIT_01_REPORT.md`](../audit/ARCH_AUDIT_01_REPORT.md): relatório original preservado; fonte da direção híbrida aprovada para planejamento P2.
-- A direção corrente após P1 está registrada em [`planning/ROADMAP.md`](planning/ROADMAP.md) e [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md): `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; P2 aguarda contrato e não tem autorização de implementação.
+- A direção corrente após P1 está registrada em [`planning/ROADMAP.md`](planning/ROADMAP.md) e [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md): `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; contrato P2 aprovado, P2 ainda aberta e sem autorização de implementação.
 - [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md): handoff deste checkpoint.
 - [`NEW_AGENT_BOOTSTRAP.md`](NEW_AGENT_BOOTSTRAP.md): instruções para novo agente.
 
