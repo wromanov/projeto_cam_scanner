@@ -4,6 +4,7 @@ __pycache__/
 .ruff_cache/
 *.py[cod]
 *.log
+*.egg-info/
 
 logs/*
 !logs/.gitkeep
