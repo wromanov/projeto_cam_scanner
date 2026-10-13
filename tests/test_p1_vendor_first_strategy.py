@@ -80,7 +80,7 @@ def test_known_manufacturer_uses_registered_vendor_adapter_before_onvif() -> Non
     collector = VendorFirstCollector(
         onvif_collector=onvif,
         registry=registry,
-        discoverer=Discoverer(PreAuthEvidence(capabilities={"Extension": "hikCapabilities"}), events),
+        discoverer=Discoverer(PreAuthEvidence(capabilities={"Manufacturer": "Hikvision"}), events),
     )
 
     result = collector.collect(target)
@@ -104,7 +104,7 @@ def test_known_manufacturer_without_adapter_falls_back_without_other_vendor_atte
     collector = VendorFirstCollector(
         onvif_collector=onvif,
         registry=RecordingRegistry(),
-        discoverer=Discoverer(PreAuthEvidence(capabilities={"Namespace": "urn:hikvision"}), events),
+        discoverer=Discoverer(PreAuthEvidence(capabilities={"Manufacturer": "Hikvision"}), events),
     )
 
     result = collector.collect(target)
@@ -112,7 +112,7 @@ def test_known_manufacturer_without_adapter_falls_back_without_other_vendor_atte
     assert events == ["preauth"]
     assert looked_up == ["Hikvision"]
     assert onvif.targets == [target]
-    assert result.status is CollectionStatus.SUCCESS
+    assert result.status is CollectionStatus.PARTIAL_SUCCESS
 
 
 def test_registered_vendor_adapter_is_complemented_by_onvif_only_for_missing_p1_fields() -> None:
@@ -138,7 +138,7 @@ def test_registered_vendor_adapter_is_complemented_by_onvif_only_for_missing_p1_
     collector = VendorFirstCollector(
         onvif_collector=onvif,
         registry=registry,
-        discoverer=Discoverer(PreAuthEvidence(capabilities={"Extension": "hikCapabilities"}), []),
+        discoverer=Discoverer(PreAuthEvidence(capabilities={"Manufacturer": "Hikvision"}), []),
     )
 
     result = collector.collect(target)
@@ -173,14 +173,15 @@ def test_onvif_manufacturer_mismatch_is_reported_without_replacing_vendor_result
     collector = VendorFirstCollector(
         onvif_collector=onvif,
         registry=registry,
-        discoverer=Discoverer(PreAuthEvidence(capabilities={"Extension": "hikCapabilities"}), []),
+        discoverer=Discoverer(PreAuthEvidence(capabilities={"Manufacturer": "Hikvision"}), []),
     )
 
     result = collector.collect(target)
 
-    assert result.manufacturer == "Hikvision"
+    assert result.manufacturer is None
+    assert result.status is CollectionStatus.PARTIAL_SUCCESS
     assert result.model == "Model A"
-    assert "Manufacturer evidence mismatch detected" in caplog.text
+    assert "Conflicting collection evidence retained in report" in caplog.text
 
 
 def test_absent_manufacturer_runs_preauth_before_generic_onvif() -> None:
@@ -205,25 +206,30 @@ def test_absent_manufacturer_runs_preauth_before_generic_onvif() -> None:
 @pytest.mark.parametrize(
     ("capability", "expected"),
     [
-        ("hikCapabilities", "Hikvision"),
-        ("urn:axis:camera", "Axis"),
-        ("urn:hanwha:camera", "Samsung/Hanwha"),
-        ("vendor=Dahua", "Dahua"),
-        ("urn:panasonic:camera", "Panasonic"),
-        ("urn:bosch:camera", "Bosch"),
+        ({"Manufacturer": "Hikvision"}, "Hikvision"),
+        ({"Manufacturer": "Axis Communications"}, "Axis"),
+        ({"Manufacturer": "Samsung Techwin"}, "Samsung/Hanwha"),
+        ({"Manufacturer": "Dahua"}, "Dahua"),
+        ({"Manufacturer": "Panasonic"}, "Panasonic"),
+        ({"Manufacturer": "Bosch"}, "Bosch"),
     ],
 )
 def test_fingerprint_resolves_only_vendor_supported_by_structural_evidence(
-    capability: str, expected: str
+    capability: object, expected: str
 ) -> None:
     resolver = ManufacturerResolver()
-    assert resolver.resolve(None, PreAuthEvidence(capabilities={"Extension": capability})) == expected
+    assert resolver.resolve(None, PreAuthEvidence(capabilities=capability)) == expected
 
 
 def test_fingerprint_reads_onvif_compound_values_without_vendor_specific_parsing() -> None:
     class OnvifValue:
         def __init__(self) -> None:
-            self.__values__ = {"Extension": {"hikCapabilities": {"XAddr": "http://camera/onvif"}}}
+            self.__values__ = {
+                "Extension": {
+                    "Manufacturer": "Hikvision",
+                    "XAddr": "http://camera/onvif",
+                }
+            }
 
     assert ManufacturerResolver().detect(PreAuthEvidence(capabilities=OnvifValue())) == "Hikvision"
 
@@ -239,15 +245,15 @@ def test_unknown_manufacturer_uses_generic_onvif() -> None:
 
 def test_declared_manufacturer_mismatch_is_detected_without_silent_replacement() -> None:
     resolution = ManufacturerResolver().resolve_with_evidence(
-        "Axis", PreAuthEvidence(capabilities={"Namespace": "urn:hikvision"})
+        "Axis", PreAuthEvidence(capabilities={"Manufacturer": "Hikvision"})
     )
 
-    assert resolution.selected == "Axis"
+    assert resolution.selected == "Hikvision"
     assert resolution.detected == "Hikvision"
     assert resolution.mismatch
 
 
-def test_auth_failure_after_valid_preauth_evidence_returns_partial_success() -> None:
+def test_auth_failure_after_diagnostic_only_preauth_evidence_remains_failed() -> None:
     target = _target()
     onvif = RecordingCollector(error=Fault("NotAuthorized"))
     collector = VendorFirstCollector(
@@ -257,7 +263,7 @@ def test_auth_failure_after_valid_preauth_evidence_returns_partial_success() -> 
 
     result = collector.collect(target)
 
-    assert result.status is CollectionStatus.PARTIAL_SUCCESS
+    assert result.status is CollectionStatus.FAILED
     assert result.error_code is ErrorCode.AUTH_ERROR
     assert result.manufacturer is None
 
@@ -269,7 +275,7 @@ def test_wrapped_onvif_auth_error_after_preauth_still_returns_partial_success() 
     onvif = RecordingCollector(error=ONVIFOperationException("GetDeviceInformation", Fault("NotAuthorized")))
     collector = VendorFirstCollector(
         onvif_collector=onvif,
-        discoverer=Discoverer(PreAuthEvidence(capabilities={"Extension": "hikCapabilities"}), []),
+        discoverer=Discoverer(PreAuthEvidence(capabilities={"Manufacturer": "Hikvision"}), []),
     )
 
     result = collector.collect(target)
@@ -304,7 +310,7 @@ def test_each_collection_keeps_credentials_bound_to_their_own_target() -> None:
     registry.register("Axis", VendorAdapter())
     collector = VendorFirstCollector(
         registry=registry,
-        discoverer=Discoverer(PreAuthEvidence(capabilities={"Namespace": "axis"}), []),
+        discoverer=Discoverer(PreAuthEvidence(capabilities={"Manufacturer": "Axis"}), []),
     )
     first, second = _target("192.0.2.41", "first-secret"), _target("192.0.2.42", "second-secret")
 
@@ -321,7 +327,7 @@ def test_failed_fallback_never_exposes_password_or_adds_result_fields() -> None:
     target = _target(password=secret)
     collector = VendorFirstCollector(
         onvif_collector=RecordingCollector(error=Fault("NotAuthorized")),
-        discoverer=Discoverer(PreAuthEvidence(capabilities={"Extension": "hikCapabilities"}), []),
+        discoverer=Discoverer(PreAuthEvidence(capabilities={"Manufacturer": "Hikvision"}), []),
     )
 
     result = collector.collect(target)
@@ -343,7 +349,7 @@ def test_preauth_discovery_uses_no_target_credentials_and_calls_only_read_method
         def GetCapabilities(self, **kwargs: object) -> dict[str, str]:
             calls.append("GetCapabilities")
             assert kwargs == {"Category": "All"}
-            return {"Extension": "hikCapabilities"}
+            return {"Manufacturer": "Hikvision"}
 
         def GetSystemDateAndTime(self) -> dict[str, str]:
             calls.append("GetSystemDateAndTime")

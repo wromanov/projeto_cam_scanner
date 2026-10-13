@@ -225,3 +225,74 @@ REAL_CAMERA_CALLS = NONE
 GIT_WRITES = NONE
 NEXT_ACTIVITY = P2 planning/execution authority as a separate user decision
 ```
+
+## P2-I1 — Hybrid Collection Foundation: F01 + F02 + F03 (2026-10-12)
+
+O payload executor do usuário concedeu authority somente para esta atividade (`GRANTED_FOR_P2_I1_ONLY`). As fundações F01–F03 foram implementadas e integradas ao caminho SINGLE. `CollectionReport` preserva evidência por merge monotônico e projeta para `CameraResult` sem alterar os 14 campos históricos; a resolução de fabricante usa sinais estruturados e conflitos explícitos; tentativas registram diagnósticos sanitizados por operação. A UI SINGLE apresenta o relatório sem expor credenciais. Não houve alterações de dependências, consulta a câmera, implementação ISAPI, MULTI ou concorrência. P2 permanece aberta e não há concessão geral para atividades seguintes.
+
+```text
+ACTIVITY = P2-I1
+AUTHORITY = GRANTED_FOR_P2_I1_ONLY
+SCOPE = F01 + F02 + F03; offline; SINGLE
+P2_OFFLINE_ASSERTIONS = PASS (41 cases via direct runner, not pytest)
+AST_PARSE = PASS (53 Python files)
+SINGLE_FLOW_OFFLINE_SMOKE = PASS
+DIFF_CHECK = PASS
+PYTEST = BLOCKED (host runtime invalid; pytest module unavailable)
+RUFF = BLOCKED (host runtime invalid; Ruff module unavailable)
+ACCUMULATED_P1_REGRESSION = BLOCKED
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+ISAPI = NOT_IMPLEMENTED; outside P2-I1 scope
+MULTI_AND_CONCURRENCY = NOT_IMPLEMENTED; outside P2-I1 scope
+DEPENDENCY_CHANGES = NONE
+GIT_WRITES = NONE
+STATUS = BLOCKED_AT_REGRESSION_VALIDATION
+NEXT_ACTIVITY = Resume P2-I1 automated and accumulated regression in supported Python 3.14 environment
+```
+
+### Continuação P2-I1 — Regression Remediation (2026-10-12)
+
+A retomada da atividade existente corrigiu as regressões de semântica de `PARTIAL_SUCCESS`, distinção de `manufacturer_original` e apresentação de conflitos de descoberta. Fixtures positivas usam fabricante estruturado; descoberta contendo somente horário/alcançabilidade permanece `FAILED` após falha de autenticação. O valor de alcançabilidade é estável (`REACHABLE`) e não conflita por operação. Texto original do fabricante é mantido no campo histórico quando seguro; conteúdo com credenciais/URL ou controles não é preservado. `CameraResult` mantém os 14 campos P1.
+
+```text
+ACTIVITY = P2-I1 (continuação da atividade existente; sem nova atividade formal)
+F01 = PASS
+F02 = PASS
+F03 = PASS
+IDENTITY_V1 = PASS
+P1_COMPATIBILITY = PASS
+PYTEST_P2 = PASS (41 passed)
+PYTEST = PASS (93 passed, suíte acumulada)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+FALSE_CONFLICT_INVESTIGATION = RESOLVED; reachability is distinct from auth, identity, and material conflicts
+LEGACY_TEST_CHANGES = tests/test_p1_cli_flow.py (strong Manufacturer fixture); tests/test_p1_vendor_first_strategy.py (diagnostic-only case expects FAILED; strong structured fixtures replace weak hints); tests/test_p1_onvif_collector.py (raw manufacturer preservation and unsafe-value regression)
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+DEPENDENCY_CHANGES = NONE
+GIT_STAGE_COMMIT_PUSH = NONE
+UNTRACKED_EGG_INFO = PRESERVED; excluded from checkpoint
+PROJECT_STATE_UPDATE = PASS
+STATUS = COMPLETED
+ACTIVITY_COMPLETION_PERCENT = 100%
+NEXT_ACTIVITY = P2 follow-on work requires separate explicit user authority
+```
+
+### P2-I1 — Segurança V2 e preflight do checkpoint (2026-10-12)
+
+A revisão independente V2 confirmou `PASS`, sem findings materiais. Validações reportadas: 127 testes acumulados, incluindo 34 testes de segurança; Ruff, `pip check` e `git diff --check` aprovados. Nenhuma câmera real foi consultada; homologação operacional permanece `NOT_RUN_HOME`. O checkpoint local permanece sem publicação; o manifesto exato e a reconciliação estão em `PROJECT_STATE.md` e `handoff/LAST_HANDOFF.md`. D01–D06 continuam aprovadas, D07 diferida e P2 em andamento. Esta é uma atualização da atividade P2-I1 existente, sem abrir nova atividade formal.
+
+```text
+SECURITY_RECHECK = PASS
+PYTEST = PASS (127 passed; security tests 34 passed)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+CONTINUITY_RECONCILIATION = PASS
+CHECKPOINT_MANIFEST = VERIFIED
+CHECKPOINT_READY = YES
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+P2_STATUS = IN_PROGRESS
+GIT_ADD_COMMIT_PUSH = NONE
+NEXT_ACTION = Publish the Git checkpoint after user approval
+```

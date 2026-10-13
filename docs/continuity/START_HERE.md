@@ -11,17 +11,15 @@ Use esta página para retomar o trabalho sem depender do histórico do chat.
 - [`planning/ROADMAP.md`](planning/ROADMAP.md): roadmap aprovado.
 - [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md): sequência de atividades e critérios de saída.
 - [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md): contrato e baseline histórica P1 (`VENDOR_FIRST_WHEN_KNOWN`), válida para a P1 fechada.
-- [`../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md`](../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md): contrato P2-A01 aprovado em 2026-10-09 (D00–D06); P2 continua aberta e implementação permanece não autorizada.
+- [`../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md`](../contracts/P2_COLLECTION_STRATEGY_EXPANSION.md): contrato P2-A01 aprovado em 2026-10-09 (D00–D06); P2 continua aberta e D07 diferida.
 - [`../audit/ARCH_AUDIT_01_REPORT.md`](../audit/ARCH_AUDIT_01_REPORT.md): relatório original preservado; fonte da direção híbrida aprovada para planejamento P2.
-- A direção corrente após P1 está registrada em [`planning/ROADMAP.md`](planning/ROADMAP.md) e [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md): `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; contrato P2 aprovado, P2 ainda aberta e sem autorização de implementação.
-- [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md): handoff deste checkpoint.
+- A direção corrente após P1 está registrada em [`planning/ROADMAP.md`](planning/ROADMAP.md) e [`planning/EXECUTION_PLAN.md`](planning/EXECUTION_PLAN.md): `HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE`; P2-I1 offline concluiu F01–F03 e a revisão independente V2 passou. A homologação real está pendente e P2 continua aberta.
+- [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md): estado da revisão independente e preflight atual. O checkpoint Git P2-I1 está pronto, mas ainda não publicado; a publicação é a próxima ação após aprovação do usuário.
 - [`NEW_AGENT_BOOTSTRAP.md`](NEW_AGENT_BOOTSTRAP.md): instruções para novo agente.
 
 ## Regras de retomada
 
-Leia `AGENTS.md`, este pacote e resolva os pins do binding por identidade e hash. O root de governança global fica na pasta irmã `governanca_de_projetos`; redescubra-a pelo binding e artefatos canônicos, sem assumir caminho de usuário ou drive. O checkpoint P1 está publicado em `origin/master`; confirme branch, HEAD, upstream e estado de trabalho em runtime antes de retomar em outro computador.
-
-P0-A02 executou Foundation Review com resultado `CHANGES_REQUIRED`; decisões F-01…F-08 e remediação estão registradas em `PROJECT_STATE.md` e `CONTINUITY_RECORD.md`. `PROJECT_OPENING_GATE` e `AGENT_HANDOFF_GATE` refletem somente evidências registradas no pacote. O checkpoint local P1-A01/P1-A02 foi autorizado e criado em `d64ff9799d5d84c22a33ab7c24f589cbe619e3a6`; não houve push. Na entrada de P1-A03-CLOSE, a documentação P1-A03 ainda aguardava stage e commit; o fechamento Git foi autorizado especificamente para esta atividade.
+Leia `AGENTS.md`, este pacote e resolva os pins do binding por identidade e hash. O root de governança global fica na pasta irmã `governanca_de_projetos`; redescubra-a pelo binding e artefatos canônicos, sem assumir caminho de usuário ou drive. O checkpoint P1 está publicado em `origin/master`; o checkpoint P2-I1 permanece pendente de publicação. Confirme branch, HEAD, upstream e estado de trabalho em runtime antes de retomar em outro computador.
 
 ## Estado histórico após P1-C01-R2 (supersedido por P1-A01)
 

@@ -109,7 +109,8 @@ def test_unexpected_diagnostic_is_sanitized_in_the_log() -> None:
     assert "operator" not in log_text
     assert "c2VjcmV0dG9rZW4=" not in log_text
     assert "Authorization: [REDACTED]" in log_text
-    assert "https://[REDACTED]@camera.local" in log_text
+    assert "[REDACTED_URL]" in log_text
+    assert "camera.local" not in log_text
     logger.removeHandler(handler)
     handler.close()
 
@@ -120,6 +121,9 @@ def test_success_result_uses_the_inventory_service_duration() -> None:
             return CameraResult(
                 ip=target.ip,
                 status=CollectionStatus.SUCCESS,
+                manufacturer="Example",
+                model="Model A",
+                serial="serial-1",
                 collection_method=CollectionMethod.ONVIF,
             )
 
@@ -132,7 +136,7 @@ def test_success_result_uses_the_inventory_service_duration() -> None:
 
 
 def test_duration_uses_monotonic_seconds(monkeypatch) -> None:
-    ticks = iter([101.25, 103.5])
+    ticks = iter([101.25, 101.25, 103.5])
     monkeypatch.setattr("cam_scanner.application.inventory_service.time.monotonic", lambda: next(ticks))
 
     class SuccessfulCollector:
@@ -140,6 +144,9 @@ def test_duration_uses_monotonic_seconds(monkeypatch) -> None:
             return CameraResult(
                 ip=target.ip,
                 status=CollectionStatus.SUCCESS,
+                manufacturer="Example",
+                model="Model A",
+                serial="serial-1",
                 collection_method=CollectionMethod.ONVIF,
             )
 

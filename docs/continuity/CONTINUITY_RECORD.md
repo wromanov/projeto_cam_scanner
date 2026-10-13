@@ -69,7 +69,7 @@ TEST_CHANGES = NONE
 REAL_CAMERA_CALLS = NONE
 GIT_WRITES = NONE
 PROJECT_STATE_UPDATE = PASS
-CONTINUITY_STATUS = PASS
+CONTINUITY_STATUS = PASS_WITH_FINDINGS (external governance sibling paths unavailable in this checkout)
 SAFE_RESUME_POINT = P2 planning; any implementation needs separate explicit authority
 ```
 
@@ -313,4 +313,93 @@ ORIGIN_MASTER_HEAD = ec53d2bd08b8bf0ee0d82b1411122f246502e820
 LOCAL_REMOTE_MATCH = YES
 CROSS_COMPUTER_CONTINUITY = PASS
 P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+```
+
+## P2-I1 — Hybrid Collection Foundation: F01 + F02 + F03 (2026-10-12)
+
+O payload executor fornecido pelo usuário concedeu `GRANTED_FOR_P2_I1_ONLY`. A autorização cobre implementação offline das fundações F01–F03 no fluxo SINGLE; não amplia a authority geral de P2 nem autoriza consulta de câmera, PoC ISAPI, MULTI, concorrência, mudança de dependências ou escrita Git. P0 e P1 continuam fechadas; P2 permanece aberta.
+
+A implementação integrada adiciona `EvidenceRecord`, `CollectionAttempt` e `CollectionReport` sem alterar os 14 campos de `CameraResult`; preserva evidência por merge monotônico, deriva sucesso/partial/failure conforme `IDENTITY_V1`, resolve fabricantes por sinais estruturados sem seleção por substring/ordem e registra diagnósticos sanitizados por tentativa/operação. O caminho SINGLE passa o relatório até a UI e mantém a projeção compatível `CameraResult`. Erros/exceções não são retidos em bruto; tentativas não guardam URLs, headers, credenciais ou bodies. Não houve alterações de dependências.
+
+Validação offline: 41 casos das funções da nova suíte P2 executados por runner direto mínimo com stub de decorators do pytest; `AST_PARSE = PASS` em 53 arquivos Python; smoke do fluxo SINGLE e `git diff --check = PASS`. Isso não equivale à execução de pytest. O launcher Python 3.15 configurado no host aponta para caminho inválido, e não há `pytest` ou `ruff`; portanto execução do pytest, Ruff e regressão acumulada da P1 permanecem bloqueadas. Nenhuma câmera real foi consultada, ISAPI não foi implementado e nenhum segredo foi exposto.
+
+Estado Git observado: branch `master`; `HEAD = origin/master = 3737a5c64043950d053ec702929f528fc53a72cf` na entrada e após alterações de código/testes; arquivos continuam unstaged. A continuidade atualizada está em [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`handoff/LAST_HANDOFF.md`](handoff/LAST_HANDOFF.md). Ponto seguro de retomada: recuperar o runtime de projeto Python 3.14 com dependências de desenvolvimento já aprovadas, sem alterar manifests, então rodar pytest, Ruff e regressão acumulada antes de fechar P2-I1.
+
+```text
+ACTIVITY = P2-I1
+AUTHORITY = GRANTED_FOR_P2_I1_ONLY
+ROOT_MODEL_TARGET = LUNA
+ROOT_EFFORT_TARGET = XHIGH
+ROOT_RUNTIME = UNVERIFIABLE
+EXECUTION_MODE = DIRECT
+F01 = IMPLEMENTED; DIRECT_OFFLINE_ASSERTIONS_PASS
+F02 = IMPLEMENTED; DIRECT_OFFLINE_ASSERTIONS_PASS
+F03 = IMPLEMENTED; DIRECT_OFFLINE_ASSERTIONS_PASS
+P2_OFFLINE_ASSERTIONS = PASS (41 cases; direct runner, not pytest)
+AST_PARSE = PASS (53 Python files)
+SINGLE_FLOW_OFFLINE_SMOKE = PASS
+PYTEST = BLOCKED
+RUFF = BLOCKED
+P1_ACCUMULATED_REGRESSION = BLOCKED
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+ISAPI = NOT_IMPLEMENTED
+MULTI_AND_CONCURRENCY = NOT_IMPLEMENTED
+DEPENDENCY_CHANGES = NONE
+GIT_WRITES = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_STATUS = PASS_WITH_FINDINGS
+ACTIVITY_COMPLETE = NO
+STATUS = BLOCKED
+```
+
+### P2-I1 — Retomada para remediação de regressões (2026-10-12)
+
+A atividade P2-I1 existente foi retomada dentro da authority concedida, sem abrir nova atividade formal, alterar decisões D01–D06 ou modificar o contrato P1. As fixtures positivas de identidade pré-auth agora usam fabricante estruturado; o teste que oferece apenas horário/alcançabilidade passou a afirmar `FAILED` após recusa de autenticação. Foi adicionada regressão para garantir essa distinção. A coleta genérica preserva `manufacturer_original` exatamente como recebido quando o conteúdo é seguro e continua produzindo o fabricante normalizado no campo separado; texto com credenciais/URL ou controles não é exposto. `CameraResult` continua com 14 campos.
+
+A investigação da CLI encontrou conflito falso em `onvif_reachable`: cada operação registrava o próprio nome como valor. As operações agora compartilham `REACHABLE`, separando serviço alcançável de autenticação, identidade e conflito material.
+
+Gates no Python 3.14.7 do `.venv`: `pip check` aprovado; suíte P2 com 41 testes; acumulado com 93 testes; Ruff aprovado; `git diff --check` aprovado. O launcher emite aviso de localização antiga do Python base, mas executa os comandos e os códigos de saída foram bem-sucedidos. Não foram consultadas câmeras reais nem alteradas dependências. Os seis arquivos de `src/cam_scanner.egg-info/` foram inspecionados e permaneceram intactos, sem stage.
+
+```text
+ACTIVITY = P2-I1 (continuação; sem atividade formal nova)
+F01 = PASS
+F02 = PASS
+F03 = PASS
+IDENTITY_V1 = PASS
+P1_COMPATIBILITY = PASS
+PYTEST = PASS (93 passed; P2 suite 41 passed)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+FALSE_CONFLICT_INVESTIGATION = RESOLVED
+LEGACY_TEST_CHANGES = tests/test_p1_cli_flow.py; tests/test_p1_vendor_first_strategy.py; tests/test_p1_onvif_collector.py — justificativas registradas no execution plan
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+DEPENDENCY_CHANGES = NONE
+GIT_STAGE_COMMIT_PUSH = NONE
+UNTRACKED_EGG_INFO = PRESERVED_UNSTAGED_AND_EXCLUDED_FROM_CHECKPOINT
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_STATUS = PASS_WITH_FINDINGS (external governance sibling paths unavailable in this checkout)
+ACTIVITY_COMPLETE = YES
+STATUS = COMPLETED
+ACTIVITY_COMPLETION_PERCENT = 100%
+NEXT_ACTIVITY = P2 follow-on work requires separate explicit user authority
+```
+
+### P2-I1 — Revisão independente V2 e reconciliação final de continuidade (2026-10-12)
+
+A revisão independente V2 reportou `PASS`, sem findings materiais, e confirmou F01–F03, `IDENTITY_V1`, compatibilidade P1 e controles de segurança. A baseline acumulada mais recente reportada é 127 testes (34 de segurança), com Ruff, `pip check` e `git diff --check` aprovados. A documentação foi reconciliada sem reexecutar a suíte e sem alterar o contrato P2 aprovado. P0/P1 continuam `CLOSED`, P2 `IN_PROGRESS`; D01–D06 `APPROVED`, D07 `DEFERRED`. A homologação real permanece `NOT_RUN_HOME`.
+
+As seis fontes externas de governança referenciadas pelo `AGENTS.md` não estavam disponíveis nos caminhos HOME esperados. Esse finding é preservado; `GOVERNANCE_BINDING` não é promovido a PASS e nenhum hash foi inventado. O preflight do checkpoint está pronto, mas a publicação Git continua pendente. O manifesto com caminhos exatos está em `PROJECT_STATE.md`; os artefatos locais `src/cam_scanner.egg-info/` permanecem preservados e excluídos.
+
+```text
+ACTIVITY = P2-I1-GIT-CHECKPOINT-PREFLIGHT (continuação; sem nova atividade formal)
+SECURITY_RECHECK = PASS
+CONTINUITY_RECONCILIATION = PASS
+SCOPE_REVIEW = PASS
+MANIFEST_VERIFICATION = PASS
+GOVERNANCE_BINDING = FINDING
+CHECKPOINT_READY = YES
+GIT_ADD_COMMIT_PUSH = NONE
+P2_STATUS = IN_PROGRESS
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
 ```

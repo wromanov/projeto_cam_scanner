@@ -5,7 +5,7 @@ import getpass
 from collections.abc import Callable
 
 from cam_scanner.domain.enums import CollectionStatus, MainMenuChoice
-from cam_scanner.domain.models import CameraResult, CameraTarget
+from cam_scanner.domain.models import CameraResult, CameraTarget, CollectionReport
 
 
 class TerminalUI:
@@ -62,6 +62,27 @@ class TerminalUI:
             if value is not None:
                 self._output(f"{label}: {value}")
         self._output(f"Duração: {result.duration:.3f} s")
+
+    def render_report(self, report: CollectionReport, *, ip: str, duration: float) -> None:
+        """Render the P1-compatible result and safe per-operation diagnostics."""
+        self.render_result(report.to_camera_result(ip, duration=duration))
+        if report.conflicts:
+            self._output("Conflitos preservados: " + ", ".join(report.conflicts))
+        if not report.attempts:
+            return
+        self._output("Diagnósticos da coleta")
+        for attempt in report.attempts:
+            protocol = attempt.protocol or "local"
+            outcome = attempt.error_category or attempt.outcome
+            details = [f"{protocol}.{attempt.operation}", attempt.stage, outcome]
+            if attempt.http_status is not None:
+                details.append(f"HTTP {attempt.http_status}")
+            if attempt.protocol_code is not None:
+                details.append(f"código {attempt.protocol_code}")
+            if attempt.retry_count:
+                details.append(f"retries {attempt.retry_count}")
+            details.append(f"{attempt.duration:.3f} s")
+            self._output(" - " + " | ".join(details))
 
     def post_query_menu(self) -> MainMenuChoice:
         while True:

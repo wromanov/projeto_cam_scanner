@@ -3,11 +3,11 @@
 ```text
 PROJECT_ID = projeto_cam_scanner
 PROJECT_ROOT = checkout local do projeto (resolver pelo Git; não depende de caminho absoluto)
-CURRENT_PHASE = P2 — Planning / Contract Approved
-CURRENT_ACTIVITY = P2 CONTRACT APPROVAL RECONCILIATION (documental; concluída em 2026-10-09)
+CURRENT_PHASE = P2 — implementation in activity P2-I1; phase remains OPEN
+CURRENT_ACTIVITY = P2-I1 — HYBRID COLLECTION FOUNDATION (F01 + F02 + F03; offline implementation)
 CURRENT_DELIVERY_UNIT = activity/checkpoint conforme padrão registrado; sem sprint declarada
-DELIVERY_UNIT_STATUS = P2-A01 CONTRACT APPROVED; P2 remains open; implementation NOT_GRANTED
-LAST_COMPLETED_ACTIVITY = P2 Contract Approval Reconciliation — D01–D06 formalizadas e continuidade reconciliada
+DELIVERY_UNIT_STATUS = P2-I1 COMPLETED (offline gates PASS); P2 remains open
+LAST_COMPLETED_ACTIVITY = P2-I1 — F01–F03 e remediação de segurança V2 concluídas offline; revisão independente PASS
 PREVIOUS_COMPLETED_ACTIVITY = ARCH-ALIGN-01 — direção híbrida documentada e authorities reconciliadas
 PREVIOUS_COMPLETED_ACTIVITY = P1-A05 — Validação operacional READ_ONLY e fechamento de P1
 POLICY_INTERNALIZATION_GATE = PASS_WITH_FINDINGS (P0-A04; evidências em docs/audit/FOUNDATION_REVIEW_P0_A04.md)
@@ -18,18 +18,18 @@ FOUNDATION_APPROVAL = APPROVED_WITH_ACCEPTED_FINDINGS (aprovação explícita do
 PROJECT_OPENING_GATE = PASS
 P0_STATUS = CLOSED
 PROJECT_READY_FOR_IMPLEMENTATION_PLANNING = SUPERSEDED; P1-A01 em execução autorizada
-AGENT_HANDOFF_GATE = PASS (estado atualizado; relação com remoto não revalidada)
-IMPLEMENTATION_AUTHORIZATION = P1 CLOSED; P2 implementation NOT_GRANTED
+AGENT_HANDOFF_GATE = PASS (P2-I1 offline validation and continuity reconciled)
+IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P2_I1_ONLY by the activity payload; no blanket P2 authority
 P1_IMPLEMENTATION_AUTHORIZATION = CONSUMED (P1-A01 and P1-A04)
-GIT_WRITE_AUTHORIZATION = NONE for this activity
+GIT_WRITE_AUTHORIZATION = NONE (stage/commit/push não autorizados)
 GIT_REPOSITORY = YES
 GIT_BRANCH = master
 GIT_COMMITS = resolver via Git em runtime (evita SHA/count autorreferente no checkpoint)
-GIT_HEAD = d8d2d02c9a659391fd80a7b4590f6767ab625cba (baseline inicial e origin/master de P2-A01; alterações documentais unstaged)
-CURRENT_GOVERNED_CHECKPOINT = P1-CHECKPOINT-01 permanece como último checkpoint publicado; HEAD remoto não revalidado nesta atividade
+GIT_HEAD = 3737a5c64043950d053ec702929f528fc53a72cf (HEAD = origin/master at P2-I1 entry; unchanged)
+CURRENT_GOVERNED_CHECKPOINT = P1-CHECKPOINT-01 baseline; P2-I1 checkpoint pending publication; current HEAD remains 3737a5c64043950d053ec702929f528fc53a72cf
 GIT_REMOTE = origin (https://github.com/wromanov/projeto_cam_scanner.git; configuração local)
 GIT_UPSTREAM = origin/master
-WORKING_TREE = documentos ativos alterados e unstaged; arquivos locais untracked docs/contracts/P2_COLLECTION_STRATEGY_EXPANSION.md, docs/policies/ e scripts diagnósticos preservados
+WORKING_TREE = P2-I1 source, test, and continuity-document changes unstaged; no dependency changes; pre-existing ignored artifacts preserved
 P1_CONTRACT_STATUS = APPROVED
 P1_A02_HISTORICAL_RESULT = BLOCKED_AUTHENTICATION
 CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = PARTIAL_SUCCESS
@@ -37,12 +37,12 @@ P1_IMPLEMENTED_STRATEGY = VENDOR_FIRST_WHEN_KNOWN (baseline histórica válida p
 ARCHITECTURE_DIRECTION = HYBRID_CAPABILITY_DRIVEN_WITH_VENDOR_PREFERENCE
 DECISION_STATUS = DIRECTION_APPROVED
 ARCHITECTURE_DIRECTION_SOURCE = docs/audit/ARCH_AUDIT_01_REPORT.md
-P2_STATUS = CONTRACT_APPROVED; PHASE_OPEN
+P2_STATUS = IN_PROGRESS (contract approved; phase open)
 P2_DETAILED_CONTRACT = APPROVED (2026-10-09)
 CONTRACT_STATUS = APPROVED
 MATERIAL_DECISIONS_PENDING = NONE (D00-D06 approved; D07 deferred)
 MATERIAL_DECISIONS_DEFERRED = D07 (not material to P2-A01/SINGLE)
-P2_IMPLEMENTATION_AUTHORIZATION = NOT_GRANTED
+P2_IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P2_I1_ONLY; no blanket P2 implementation authority
 ONVIF_ROLE = GENERIC_COLLECTION + DISCOVERY_WHEN_APPLICABLE + FALLBACK_OR_COMPLEMENT_CONDITIONED_ON_NEED
 ONVIF_DIGEST_ROOT_CAUSE = UNDETERMINED
 OPTIONAL_MANUFACTURER_INPUT = NOT_REQUIRED_FOR_SINGLE_BY_CURRENT_CONTRACT; STRONG_HINT quando fornecido por fonte contratada
@@ -71,24 +71,152 @@ ONVIF_DIGEST_INTEROPERABILITY = OPEN
 P1_CLOSURE = PASS
 P1_STATUS = CLOSED
 NEXT_PHASE = P2
-NEXT_ACTIVITY = P2 planning / implementation authorization as a separate user decision
-NEXT_ACTIVITY_READINESS = CONTRACT_APPROVED; P2 implementation remains NOT_GRANTED
+NEXT_ACTIVITY = P2 follow-on work requires separate explicit user authority
+NEXT_ACTIVITY_READINESS = USER_AUTHORITY_REQUIRED
 GIT_PUSH = NONE
 CROSS_COMPUTER_CONTINUITY = NOT_REVALIDATED
-ACTIVITY_STATUS = COMPLETED (P2 CONTRACT APPROVAL RECONCILIATION; documentary)
-ACTIVITY_COMPLETION_PERCENT = 100% (reconciliação documental e continuidade validadas)
-COMPLETION_BASIS = user approved D01-D06 on 2026-10-09; contract and canonical continuity reconciled; no implementation
-ROOT_FINAL_REVIEW = PASS
-SCRIBE_INVOKED = YES (Luna/Medium target configured)
-SCOUT_INVOKED = NO (existing audit sufficient)
+ACTIVITY_STATUS = COMPLETED (P2-I1 offline implementation, security remediation V2, and independent recheck; checkpoint preflight reconciled)
+ACTIVITY_COMPLETION_PERCENT = 100%
+COMPLETION_BASIS = Independent security V2 recheck PASS; 127 pytest tests, Ruff, pip check and diff check reported PASS; continuity and checkpoint manifest reconciled
+ROOT_MODEL_TARGET = LUNA
+ROOT_EFFORT_TARGET = XHIGH
+ROOT_RUNTIME = Python 3.14.7 in project .venv; launcher emits stale base-path warning but commands execute
+EXECUTION_MODE = DIRECT
+DELEGATION = NONE
+ROOT_FINAL_REVIEW = PASS_WITH_FINDINGS
+F01 = PASS
+F02 = PASS
+F03 = PASS
+IDENTITY_V1 = PASS
+P1_COMPATIBILITY = PASS (14 CameraResult fields retained)
+P2_OFFLINE_ASSERTIONS = PASS (41 passed under pytest)
+PYTEST = PASS (127 passed; accumulated suite)
+SECURITY_TESTS = PASS (34 passed)
+SECURITY_RECHECK = PASS (independent review V2; no material findings)
+RUFF = PASS
+PIP_CHECK = PASS
+P1_ACCUMULATED_REGRESSION = PASS (included in 93-test suite)
+GIT_DIFF_CHECK = PASS
+SINGLE_FLOW_OFFLINE_SMOKE = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+ISAPI = NOT_IMPLEMENTED (out of P2-I1 scope)
+MULTI_AND_CONCURRENCY = NOT_IMPLEMENTED (out of P2-I1 scope)
+FALSE_CONFLICT_INVESTIGATION = RESOLVED (reachability values now stable; service reachability is not authentication, identity, or material conflict)
 PROJECT_STATE_UPDATE = PASS
-CONTINUITY_STATUS = PASS
-ACTIVITY_COMPLETE = YES (somente reconciliação documental da aprovação P2)
-UNRESOLVED_BLOCKERS = NONE
-LAST_VALIDATED_INTEGRATED_BASELINE = P1 SINGLE flow with VENDOR_FIRST_WHEN_KNOWN; implementation still reflects P1 baseline
-SAFE_RESUME_POINT = P2 planning; any implementation requires separate explicit authorization
-NEXT_ACTIVITY_AUTHORIZATION = NOT_GRANTED for implementation; contract approval only
+CONTINUITY_STATUS = PASS_WITH_FINDINGS (external governance sibling paths unavailable in this checkout)
+ACTIVITY_COMPLETE = YES (P2-I1 only)
+UNRESOLVED_BLOCKERS = NONE_FOR_P2-I1; real camera validation not in HOME scope
+LAST_VALIDATED_INTEGRATED_BASELINE = P2-I1 offline SINGLE; 127 pytest tests, Ruff, pip check, and git diff check pass
+SAFE_RESUME_POINT = P2-I1 complete; any P2 follow-on requires separate authority
+NEXT_ACTIVITY_AUTHORIZATION = Existing payload authorizes only P2-I1; no camera/ISAPI or follow-on scope
 CHAT_HISTORY_REQUIRED_FOR_RESUMPTION = NO
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+GIT_STAGE_COMMIT_PUSH = NONE
+CHECKPOINT_PUBLICATION = PENDING
+CHECKPOINT_MANIFEST = VERIFIED; exact paths recorded in the current checkpoint-readiness report below
+UNTRACKED_EGG_INFO = PRESERVED_UNSTAGED_AND_EXCLUDED_FROM_CHECKPOINT
+```
+
+## P2-I1 — Security Remediation: Sensitive Evidence Boundary (2026-10-12)
+
+Remediação implementada no limite compartilhado de entrada e projeção de evidências. Valores ONVIF que contenham as credenciais do alvo, URLs, userinfo, marcadores explícitos de segredo, vazios ou placeholders são descartados antes de compor evidências públicas. Reports preconstruídos e resultados legados passam pela mesma validação contextual. Pré-autenticação retém somente sinais estruturados já validados; valores rejeitados geram diagnóstico normalizado sem conteúdo bruto. Evidências seguras dos demais campos são preservadas. `manufacturer_original` seguro mantém formatação literal. Firmware inválido não afeta `SUCCESS` quando `IDENTITY_V1` está completo.
+
+Validação offline executada com fixtures sintéticas: 111 testes aprovados, incluindo 18 novos casos parametrizados/individuais para a fronteira de evidência; Ruff, `pip check` e `git diff --check` aprovados. `CameraResult` permanece com 14 campos. Nenhuma câmera foi consultada, nenhuma dependência foi instalada e não houve stage, commit ou push. A mensagem de launcher de Python aponta para base path ausente, mas os comandos do ambiente `.venv` concluíram com sucesso.
+
+```text
+P2_I1_SECURITY_REMEDIATION = COMPLETED
+STARTING_HEAD = 3737a5c64043950d053ec702929f528fc53a72cf
+ENDING_HEAD = 3737a5c64043950d053ec702929f528fc53a72cf
+SECURITY_FINDING = RESOLVED
+INPUT_VALIDATION = PASS
+SECRET_NON_DISCLOSURE = PASS
+UNSAFE_EVIDENCE_REJECTION = PASS
+F01 = PASS
+F02 = PASS
+F03 = PASS
+IDENTITY_V1 = PASS
+P1_COMPATIBILITY = PASS (14 CameraResult fields retained)
+PYTEST = PASS (111 passed; 18 security test cases added)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+OFFLINE_VALIDATION = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+SECURITY_REVIEW_RECHECK = SUPERSEDED_BY_INDEPENDENT_V2_RECHECK_PASS (2026-10-12)
+CHECKPOINT_READY_AT_PRIOR_REMEDIATION = PENDING_FINAL_CONTINUITY_RECONCILIATION (superseded by final preflight below)
+GIT_STAGE_COMMIT_PUSH = NONE
+PROJECT_STATE_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (P2-I1 security remediation only)
+ACTIVITY_COMPLETION_PERCENT = 100%
+STATUS = COMPLETED
+```
+
+### P2-I1 — Security Remediation V2: username substring (2026-10-12)
+
+A reprodução independente foi corrigida no validador compartilhado. Antes da evidência ingressar em reports ou resultados, cada credencial não vazia do alvo é comparada como substring contígua, sem distinção de caixa; valores contaminados são descartados e só geram diagnóstico estático `INVALID_RESPONSE`. A regra alcança entrada ONVIF, relatórios já construídos, fallback e resultados legados. Fixtures cobrem usernames curtos conservadoramente rejeitados, usernames/senhas vazios, valores válidos, campos de identidade e complementares, conflitos, logs e projeção CLI. Sem mascaramento do valor contaminado.
+
+Limite conhecido: a regra detecta substrings literais, sem distinção de caixa, das credenciais conhecidas do `CameraTarget`, além de padrões reconhecidos de URL/segredo. Não detecta segredos desconhecidos, codificados, transformados ou não contíguos. Usernames curtos podem coincidir com texto legítimo e causar rejeição conservadora do campo; isso não invalida os demais campos.
+
+Validação offline: 127 testes aprovados, incluindo 34 casos na suíte de segurança; Ruff, `pip check` e `git diff --check` aprovados. Nenhuma câmera real foi acessada. O `HEAD` permaneceu no baseline; sem stage, commit ou push. P2 permanece aberta e o checkpoint depende de nova revisão independente.
+
+```text
+ACTIVITY = P2-I1
+SUBTASK = SECURITY_REMEDIATION_V2
+ORIGINAL_REPRODUCTION = FIXED
+KNOWN_CREDENTIAL_SUBSTRING_FILTER = PASS
+PUBLIC_OUTPUT_PROTECTION = PASS
+IDENTITY_V1 = PASS
+P1_COMPATIBILITY = PASS (14 CameraResult fields)
+F01 = PASS
+F02 = PASS
+F03 = PASS
+ADVERSARIAL_TESTS = 34 passed
+PYTEST = PASS (127 passed)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+LIMITATIONS = Known literal target credential substrings and recognized patterns only; short usernames can cause conservative false positives; unknown, transformed, encoded, or non-contiguous secrets are not guaranteed to be detected
+OFFLINE_VALIDATION = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+SECURITY_RECHECK = PASS (independent V2 review, 2026-10-12; no material findings)
+CHECKPOINT_READY_AT_V2_REMEDIATION = PENDING_FINAL_CONTINUITY_RECONCILIATION (superseded by final preflight below)
+GIT_STAGE_COMMIT_PUSH = NONE
+PROJECT_STATE_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (P2-I1 security remediation V2 only; checkpoint publication remains pending)
+ACTIVITY_COMPLETION_PERCENT = 100%
+STATUS = COMPLETED
+```
+
+### P2-I1 — Final Continuity Reconciliation and Checkpoint Preflight (2026-10-12)
+
+A revisão independente V2 reportou `PASS`, sem findings materiais. F01–F03, `IDENTITY_V1`, compatibilidade P1 e os controles de segurança reportados permanecem aprovados. A baseline de validação mais recente reportada é 127 testes, incluindo 34 testes de segurança, além de Ruff, `pip check` e `git diff --check` aprovados. Esses resultados foram fornecidos pela revisão independente; esta reconciliação documental não reexecutou testes. A validação de câmera real permanece `NOT_RUN_HOME`; homologação operacional continua pendente. P0 e P1 permanecem `CLOSED`; P2 permanece `IN_PROGRESS`; D01–D06 estão aprovadas e D07 diferida.
+
+O HEAD inicial e final desta reconciliação é `3737a5c64043950d053ec702929f528fc53a72cf`, branch `master`. O checkpoint Git ainda não foi publicado: sem stage, commit ou push. Os seis caminhos externos de governança indicados no entrypoint não foram encontrados nos caminhos HOME esperados; `GOVERNANCE_BINDING` permanece `FINDING`, sem inventar hashes. O manifesto abaixo contém somente a implementação F01–F03, segurança de evidências, integração SINGLE, testes P1/P2 relacionados e continuidade atualizada. `src/cam_scanner.egg-info/` está excluído e seus artefatos locais foram preservados.
+
+```text
+ACTIVITY = P2-I1-GIT-CHECKPOINT-PREFLIGHT (continuação da P2-I1; sem nova atividade formal)
+STEP = CONTINUITY_RECONCILIATION
+STARTING_HEAD = 3737a5c64043950d053ec702929f528fc53a72cf
+ENDING_HEAD = 3737a5c64043950d053ec702929f528fc53a72cf
+SECURITY_RECHECK = PASS (independent V2 review; no material findings)
+CONTINUITY_RECONCILIATION = PASS
+SCOPE_REVIEW = PASS
+MANIFEST_VERIFICATION = PASS
+PYTEST_BASELINE = 127_PASS
+SECURITY_TEST_BASELINE = 34_PASS
+GOVERNANCE_BINDING = FINDING (external governance documents unavailable at expected paths)
+DOCUMENTS_MODIFIED = docs/continuity/PROJECT_STATE.md; docs/continuity/CONTINUITY_RECORD.md; docs/continuity/ACTIVE_AUTHORITY_MAP.md; docs/continuity/START_HERE.md; docs/continuity/handoff/LAST_HANDOFF.md; docs/continuity/planning/ROADMAP.md; docs/continuity/planning/EXECUTION_PLAN.md
+CHECKPOINT_MANIFEST = src/cam_scanner/application/inventory_service.py; src/cam_scanner/application/single_workflow.py; src/cam_scanner/cameras/onvif/adapter.py; src/cam_scanner/cameras/preauth.py; src/cam_scanner/cameras/strategy.py; src/cam_scanner/domain/errors.py; src/cam_scanner/domain/models.py; src/cam_scanner/logging/sanitize.py; src/cam_scanner/terminal/ui.py; tests/test_p1_cli_flow.py; tests/test_p1_inventory_service.py; tests/test_p1_onvif_collector.py; tests/test_p1_vendor_first_strategy.py; tests/test_p2_i1_collection.py; tests/test_p2_i1_sensitive_evidence.py; docs/continuity/PROJECT_STATE.md; docs/continuity/CONTINUITY_RECORD.md; docs/continuity/ACTIVE_AUTHORITY_MAP.md; docs/continuity/START_HERE.md; docs/continuity/handoff/LAST_HANDOFF.md; docs/continuity/planning/ROADMAP.md; docs/continuity/planning/EXECUTION_PLAN.md
+EXCLUDED_ARTIFACTS = src/cam_scanner.egg-info/
+CHECKPOINT_READY = YES
+GIT_ADD = NO
+GIT_COMMIT = NO
+GIT_PUSH = NO
+REAL_CAMERA_VALIDATION = NOT_RUN_HOME
+P2_STATUS = IN_PROGRESS
+STATUS = COMPLETED
+ACTIVITY_COMPLETION_PERCENT = 100%
+COMPLETION_BASIS = Documentary reconciliation, worktree verification, and exact publication manifest
 ```
 
 ## Identidade e objetivo

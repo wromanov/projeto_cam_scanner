@@ -87,7 +87,7 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     class PreAuthDevice:
         def GetCapabilities(self, **_kwargs: object) -> dict[str, str]:
             calls.append("GetCapabilities")
-            return {"Extension": "hikCapabilities"}
+            return {"Manufacturer": "Hikvision"}
 
         def GetSystemDateAndTime(self) -> dict[str, str]:
             calls.append("GetSystemDateAndTime")
@@ -121,6 +121,7 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     assert "Status: PARTIAL_SUCCESS" in output
     assert "Fabricante: Hikvision" in output
     assert "A câmera forneceu evidência pré-autenticação" in output
+    assert "Conflitos preservados:" not in output
     assert "private-password" not in output
     assert "username" not in clients[0] and "password" not in clients[0]
     assert clients[1]["password"] == "private-password"

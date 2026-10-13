@@ -4,7 +4,7 @@
 |---|---|---|
 | P0 | Project Opening + Foundation | CLOSED; Foundation Approval `APPROVED_WITH_ACCEPTED_FINDINGS`; Project Opening Gate `PASS` (P0-A05-R1) |
 | P1 | SINGLE Minimum Vertical Slice: fluxo real end-to-end para uma câmera, sob a estratégia então vigente `VENDOR_FIRST_WHEN_KNOWN` | CLOSED; P1-A04 implementada e validada sinteticamente; P1-A05 validada operacionalmente com evidência pré-auth preservada como `PARTIAL_SUCCESS`; finding ONVIF Digest aberto |
-| P2 | Contrato da política híbrida e evolução da coleta SINGLE/inventário | Contrato P2-A01 `APPROVED` em 2026-10-09 (D00–D06); fase P2 permanece aberta; implementação não autorizada |
+| P2 | Contrato da política híbrida e evolução da coleta SINGLE/inventário | Contrato P2-A01 `APPROVED` em 2026-10-09 (D00–D06); P2-I1 concluída offline com revisão independente V2 PASS; fase P2 permanece `IN_PROGRESS`; homologação operacional pendente; próximos trabalhos exigem authority específica |
 | P3 | SINGLE Snapshot Vertical Slice: captura e processamento de snapshot; sem XLSX | Planejada |
 | P4 | MULTI + XLSX Vertical Slice: entrada em lote, progresso, INVENTARIO/RESUMO e snapshot embutido | Planejada |
 | P5 | MULTI Concurrency / Batch Robustness: limites, cancelamento, exportação parcial e isolamento de falhas | Planejada |

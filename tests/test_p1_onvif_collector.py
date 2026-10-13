@@ -42,6 +42,32 @@ def test_generic_collector_explicitly_calls_get_device_information() -> None:
     assert result.mac is None
 
 
+def test_generic_collector_does_not_preserve_unsafe_original_manufacturer_text() -> None:
+    secret = "fixture-private-value"
+
+    class FakeDeviceService:
+        def GetDeviceInformation(self) -> dict[str, str]:
+            return {
+                "Manufacturer": f"Example password={secret} https://user:{secret}@camera.local/"
+            }
+
+    class FakeClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def devicemgmt(self) -> FakeDeviceService:
+            return FakeDeviceService()
+
+    result = GenericOnvifCollector(client_factory=FakeClient).collect(
+        CameraTarget(ip="192.0.2.10", username="operator", password=secret)
+    )
+
+    assert result.manufacturer is None
+    assert result.manufacturer_original is None
+    assert secret not in repr(result)
+    assert "camera.local" not in repr(result)
+
+
 def test_default_client_disables_disk_cache_and_uses_request_timeout(monkeypatch) -> None:
     from onvif import CacheMode
 
