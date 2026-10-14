@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import threading
 import zipfile
 from pathlib import Path
 
@@ -16,7 +17,11 @@ from cam_scanner.domain.enums import CollectionStatus, MainMenuChoice
 from cam_scanner.domain.models import CameraResult, CameraTarget
 from cam_scanner.excel.reader import ExcelReader
 from cam_scanner.excel.writer import ExcelWriter
-from cam_scanner.snapshot.service import SnapshotService
+from cam_scanner.snapshot.service import (
+    SnapshotCaptureError,
+    SnapshotFailure,
+    SnapshotService,
+)
 from cam_scanner.terminal.ui import TerminalUI
 
 
@@ -140,6 +145,7 @@ def test_multi_workflow_runs_end_to_end_offline_and_exports_no_passwords(
         excel_reader=ExcelReader(),
         excel_writer=ExcelWriter(),
         progress_reporter=progress,
+        max_workers=1,
     )
     controller = ApplicationController(ui, NoopWorkflow(), multi)
 
@@ -151,7 +157,7 @@ def test_multi_workflow_runs_end_to_end_offline_and_exports_no_passwords(
     ]
     assert progress.total == 3
     assert len(progress.steps) == 3
-    assert progress.steps[1] == ("192.0.2.11", "FAILED")
+    assert ("192.0.2.11", "FAILED") in progress.steps
     assert progress.finished
     assert destination.is_file()
 
@@ -195,3 +201,106 @@ def test_excel_writer_refuses_to_overwrite_existing_output(tmp_path: Path) -> No
         ExcelWriter().write(destination, [])
 
     assert destination.read_bytes() == b"preserve"
+
+
+def test_multi_parallel_offline_smoke_orders_rows_and_keeps_passwords_private(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "cameras-p5.xlsx"
+    destination = tmp_path / "inventory-p5.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(("IP", "USERNAME", "PASSWORD"))
+    passwords: list[str] = []
+    for index in range(9):
+        password = f"P5_PASSWORD_CANARY_{index}"
+        passwords.append(password)
+        sheet.append(
+            (f"192.0.2.{101 + index}", f"P5_USER_{index}", password)
+        )
+    sheet.append(("192.0.2.250", None, "P5_INVALID_PASSWORD_CANARY"))
+    workbook.save(source)
+    workbook.close()
+
+    first_started = threading.Event()
+    release_first = threading.Event()
+    credential_lock = threading.Lock()
+    credentials: list[tuple[str, str, str]] = []
+
+    class Collector:
+        def collect(self, target: CameraTarget) -> CameraResult:
+            with credential_lock:
+                credentials.append((target.ip, target.username, target.password))
+            if target.ip == "192.0.2.101":
+                first_started.set()
+                assert release_first.wait(timeout=5)
+            elif target.ip == "192.0.2.102":
+                assert first_started.wait(timeout=5)
+                release_first.set()
+            if target.ip == "192.0.2.103":
+                return CameraResult(ip=target.ip, status=CollectionStatus.FAILED)
+            return CameraResult(
+                ip=target.ip,
+                status=CollectionStatus.SUCCESS,
+                manufacturer="Hikvision",
+                model="DS-KD8003",
+                serial=f"SERIAL-{target.ip.rsplit('.', maxsplit=1)[-1]}",
+            )
+
+    image_bytes = _jpeg_fixture()
+
+    class SnapshotProvider:
+        def capture(self, target: CameraTarget, **_context: object) -> bytes:
+            if target.ip in {"192.0.2.101", "192.0.2.105"}:
+                return image_bytes
+            raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
+
+    snapshot_service = SnapshotService(
+        SnapshotProvider(), SnapshotProvider(), SnapshotProvider()
+    )
+    output: list[str] = []
+    responses = iter((str(source), str(destination)))
+    ui = TerminalUI(
+        input_fn=lambda _prompt: next(responses),
+        output_fn=output.append,
+    )
+    progress = RecordingProgress()
+    workflow = MultiWorkflow(
+        ui,
+        InventoryService(Collector()),
+        snapshot_service,
+        excel_reader=ExcelReader(),
+        excel_writer=ExcelWriter(),
+        progress_reporter=progress,
+        max_workers=8,
+    )
+    workflow.run()
+
+    assert destination.is_file()
+    assert len(credentials) == 9
+    assert len({(ip, username, password) for ip, username, password in credentials}) == 9
+    assert all(password not in "\n".join(output) for password in passwords)
+    assert progress.total == 10
+    assert len(progress.steps) == 10
+    assert progress.finished
+    assert any("10 linhas processadas" in item and "2 falhas" in item for item in output)
+
+    exported = openpyxl.load_workbook(destination, data_only=True)
+    inventory = exported["INVENTARIO"]
+    assert [inventory.cell(row, 1).value for row in range(2, 12)] == list(range(2, 12))
+    assert [inventory.cell(row, 11).value for row in range(2, 12)] == [
+        "SUCCESS", "SUCCESS", "FAILED", "SUCCESS", "SUCCESS",
+        "SUCCESS", "SUCCESS", "SUCCESS", "SUCCESS", "FAILED",
+    ]
+    assert [image.anchor._from.row for image in inventory._images] == [1, 5]
+    assert "PASSWORD" not in [cell.value for cell in inventory[1]]
+    summary = exported["RESUMO"]
+    assert summary["B2"].value == 10
+    assert summary["B5"].value == 2
+    assert summary["B7"].value == 2
+    exported.close()
+
+    with zipfile.ZipFile(destination) as archive:
+        content = b"".join(archive.read(name) for name in archive.namelist())
+    assert all(password.encode() not in content for password in passwords)
+    assert b"P5_INVALID_PASSWORD_CANARY" not in content

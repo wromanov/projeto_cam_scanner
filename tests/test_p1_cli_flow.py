@@ -165,7 +165,7 @@ def test_post_query_menu_repeats_single_and_routes_multi_to_controller(monkeypat
     multi_calls: list[str] = []
 
     class FakeMultiWorkflow:
-        def __init__(self, *_args: object) -> None:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
             pass
 
         def run(self) -> None:

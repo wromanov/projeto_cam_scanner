@@ -115,8 +115,13 @@ class TerminalUI:
     def show_multi_error(self, message: str) -> None:
         self._output(f"MULTI não concluído: {message}")
 
-    def show_multi_complete(self, path: str | Path, camera_count: int) -> None:
-        self._output(f"MULTI concluído: {camera_count} linhas processadas.")
+    def show_multi_complete(
+        self, path: str | Path, camera_count: int, *, failed: int = 0
+    ) -> None:
+        self._output(
+            f"MULTI concluído: {camera_count} linhas processadas; "
+            f"{camera_count - failed} concluídas, {failed} falhas."
+        )
         self._output(f"Arquivo gerado: {path}")
 
     def show_multi_unavailable(self) -> None:

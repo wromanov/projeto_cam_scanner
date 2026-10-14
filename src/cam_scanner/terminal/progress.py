@@ -10,12 +10,14 @@ class ProgressReporter:
         self._output = output_fn or print
         self._progress: Any | None = None
         self._task_id: Any | None = None
-        self._completed = 0
+        self._processed = 0
+        self._failed = 0
         self._total = 0
 
     def start(self, total: int) -> None:
         self._total = max(0, total)
-        self._completed = 0
+        self._processed = 0
+        self._failed = 0
         try:
             from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
@@ -34,16 +36,26 @@ class ProgressReporter:
                 self._output("MULTI: nenhuma linha com dados para processar.")
 
     def advance(self, ip: str, status: str) -> None:
-        self._completed += 1
+        self._processed += 1
+        if status == "FAILED":
+            self._failed += 1
+        completed = self._processed - self._failed
+        description = (
+            f"MULTI — {self._processed}/{self._total} processadas — "
+            f"{completed} concluídas, {self._failed} falhas"
+        )
         if self._progress is not None and self._task_id is not None:
             self._progress.update(
                 self._task_id,
                 advance=1,
-                description=f"MULTI — {ip} — {status}",
+                description=description,
             )
             return
-        percent = 100 if self._total == 0 else int(self._completed * 100 / self._total)
-        self._output(f"MULTI: {percent}% ({self._completed}/{self._total}) — {ip} — {status}")
+        percent = 100 if self._total == 0 else int(self._processed * 100 / self._total)
+        self._output(
+            f"MULTI: {percent}% ({self._processed}/{self._total}) — "
+            f"{completed} concluídas, {self._failed} falhas — {ip} — {status}"
+        )
 
     def finish(self) -> None:
         if self._progress is not None:

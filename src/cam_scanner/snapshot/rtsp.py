@@ -20,7 +20,8 @@ from cam_scanner.snapshot.service import SnapshotCaptureError, SnapshotFailure
 _RTSP_OPEN_TIMEOUT = 8
 _RTSP_READ_TIMEOUT = 5
 _MAX_FRAME_PIXELS = 40_000_000
-_RTSP_CAPTURE_LOCK = threading.Lock()
+MAX_CONCURRENT_RTSP_FRAMES = 1
+_RTSP_CAPTURE_LOCK = threading.Semaphore(MAX_CONCURRENT_RTSP_FRAMES)
 
 
 class RtspFrameProvider:

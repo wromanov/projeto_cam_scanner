@@ -2,6 +2,7 @@
 
 ## Histórico de atividades
 
+- **P5_CONCURRENCY_IMPLEMENTATION — COMPLETED (offline):** `feature/p5-concurrency` sobre baseline `53034e0`; ThreadPoolExecutor limitado a 1–32 workers (padrão 8), resultados ordenados, falhas isoladas e semáforo RTSP global limitado a uma captura. Python 3.14.0: 184 testes, Ruff, pip check e diff check passaram. Benchmark sintético: 64 câmeras; 1,0016 s com 1 worker e 0,1274 s com 8 (7,86× observado). Câmeras reais não testadas; stage/commit/push não executados. Próximo gate: aprovação do usuário para checkpoint Git P5.
 - **P0-A01 — COMPLETED_WITH_FINDINGS:** persistência inicial da Engineering Foundation e scaffold governado. Não atribuir a esta atividade a validação do binding Continuity 3.0 feita posteriormente.
 - **P0-A02 — BLOCKED_FOR_FORMAL_CLOSURE / CHANGES_REQUIRED:** Foundation Review executada; findings F-01…F-08. Recomendação de aprovação: `DO_NOT_APPROVE_YET`; Foundation Approval não concedida; Project Opening Gate não pronto.
 - **P0-A03 — COMPLETED_WITH_FINDINGS:** aplicou as decisões posteriores do usuário, reconciliou os fatos e preparou a Foundation para recheck. Não converte retroativamente P0-A02 em PASS.

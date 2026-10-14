@@ -51,11 +51,11 @@ def test_rich_progress_lifecycle(monkeypatch: Any) -> None:
     assert ("add_task", "MULTI", 2) in events
     assert ("update", "task-1", {
         "advance": 1,
-        "description": "MULTI — 192.0.2.10 — OK",
+        "description": "MULTI — 1/2 processadas — 1 concluídas, 0 falhas",
     }) in events
     assert ("update", "task-1", {
         "advance": 1,
-        "description": "MULTI — 192.0.2.11 — FAILED",
+        "description": "MULTI — 2/2 processadas — 1 concluídas, 1 falhas",
     }) in events
     assert events.count(("start",)) == 1
     assert events.count(("stop",)) == 1
@@ -77,8 +77,8 @@ def test_text_fallback_reports_each_attempt_and_empty_input(monkeypatch: Any) ->
     reporter.finish()
 
     assert output == [
-        "MULTI: 50% (1/2) — 192.0.2.10 — OK",
-        "MULTI: 100% (2/2) — 192.0.2.11 — FAILED",
+        "MULTI: 50% (1/2) — 1 concluídas, 0 falhas — 192.0.2.10 — OK",
+        "MULTI: 100% (2/2) — 1 concluídas, 1 falhas — 192.0.2.11 — FAILED",
         "MULTI: nenhuma linha com dados para processar.",
-        "MULTI: 100% (1/0) — 192.0.2.12 — FAILED",
+        "MULTI: 100% (1/0) — 0 concluídas, 1 falhas — 192.0.2.12 — FAILED",
     ]

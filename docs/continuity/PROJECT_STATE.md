@@ -1,5 +1,51 @@
 # PROJECT_STATE — projeto_cam_scanner
-## Atualização vigente — BLOCO A (2026-10-14)
+## Atualização vigente — P5 CONCURRENCY IMPLEMENTATION (2026-10-14)
+
+O payload P5 autorizou a implementação offline isolada sobre `origin/master` na baseline `53034e0eff361afb1f3c3c030a18d0126496ee6e`. A atividade implementou concorrência limitada no MULTI, sem homologação em câmera real e sem escrita Git de publicação.
+
+```text
+PROJECT_ID = projeto_cam_scanner
+CURRENT_PHASE = P2 permanece OPEN; P3/P4 não declaradas formalmente encerradas
+CURRENT_ACTIVITY = P5_CONCURRENCY_IMPLEMENTATION
+ACTIVITY_STATUS = COMPLETED (somente implementação e validação offline P5)
+IMPLEMENTATION_AUTHORIZATION = GRANTED_FOR_P5 pelo payload desta atividade
+INTEGRATION_WORKTREE = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_p5_concurrency
+INTEGRATION_BRANCH = feature/p5-concurrency
+INTEGRATION_BASELINE = 53034e0eff361afb1f3c3c030a18d0126496ee6e (origin/master verificado)
+DEFAULT_MAX_WORKERS = 8
+WORKER_RANGE = 1..32
+MAX_CONCURRENT_RTSP_FRAMES = 1
+THREADPOOL_INTEGRATION = PASS (uma câmera por tarefa; fila limitada a 2x workers)
+RESULT_ORDER_PRESERVATION = PASS (consolidação pela posição original antes da escrita XLSX)
+CREDENTIAL_ISOLATION = PASS (target e credenciais próprios por tarefa; sem senha nos resultados/saída)
+FAILURE_ISOLATION = PASS
+PROGRESS_REPORTING = PASS (coordenador contabiliza conclusões/falhas)
+SINGLE_REGRESSION = PASS
+MULTI_END_TO_END = PASS (9 válidas, 1 inválida; uma falha de coleta; snapshots parciais; XLSX real)
+SECURITY_REGRESSION = PASS
+PYTEST = PASS (184 passed; 0 skipped; Python 3.14.0)
+RUFF = PASS (0.17.0; --no-cache por ACL do cache padrão)
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+BENCHMARK_CAMERAS = 64 por execução
+BENCHMARK_WORKERS_1 = 1.0016 s; 63.90 câmeras/s; 0 falhas
+BENCHMARK_WORKERS_8 = 0.1274 s; 502.19 câmeras/s; 0 falhas
+SYNTHETIC_SPEEDUP = 7.86x (observação do ambiente; sem requisito de velocidade)
+REAL_CAMERA_VALIDATION = NOT_RUN
+LIMITATIONS = Homologação operacional em câmeras reais permanece pendente
+ORIGINAL_CHECKOUT_PRESERVED = YES (conteúdo e alterações locais preexistentes não editados)
+GIT_ADD = NOT_EXECUTED
+GIT_COMMIT = NOT_EXECUTED
+GIT_PUSH = NOT_EXECUTED
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (somente P5 offline; fases não foram encerradas)
+ACTIVITY_COMPLETION_PERCENT = 100%
+NEXT_GATE = USER_APPROVAL_FOR_P5_GIT_CHECKPOINT
+STATUS = COMPLETED
+```
+
+### Snapshot histórico — BLOCO A (2026-10-14)
 
 Esta seção atualiza o snapshot anterior de P2-I1, preservado abaixo como histórico. O Card B fornecido pelo usuário autorizou a integração isolada de P2-I2, P3 e P4 sobre a baseline publicada; não autoriza P5 nem fechamento formal de fases.
 

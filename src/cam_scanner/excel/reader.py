@@ -1,4 +1,4 @@
-"""Streaming XLSX input boundary for sequential MULTI processing."""
+"""Streaming XLSX input boundary for bounded MULTI processing."""
 from __future__ import annotations
 
 import ipaddress

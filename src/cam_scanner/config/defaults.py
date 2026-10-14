@@ -13,6 +13,6 @@ DEFAULT_SETTINGS = {
         "default_max_workers": 8,
         "min_workers": 1,
         "max_workers": 32,
-        "max_concurrent_rtsp": 2,
+        "max_concurrent_rtsp": 1,
     },
 }
