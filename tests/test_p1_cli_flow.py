@@ -124,7 +124,11 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
             )
             return report
 
-    monkeypatch.setattr(main_module, "HikvisionAdapter", UnsupportedHikvisionAdapter)
+    from cam_scanner.cameras.registry import AdapterRegistry
+
+    registry = AdapterRegistry()
+    registry.register("Hikvision", UnsupportedHikvisionAdapter())
+    monkeypatch.setattr(main_module, "build_default_registry", lambda: registry)
     monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
     monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-partial"))
     answers = iter(["1", "192.0.2.10", "operator", "3"])

@@ -53,7 +53,7 @@ class HikvisionAdapter:
             with self._session_factory() as session:
                 session.trust_env = False
                 response = session.get(
-                    f"http://{host}:80/ISAPI/System/deviceInfo",
+                    f"https://{host}/ISAPI/System/deviceInfo",
                     auth=auth,
                     allow_redirects=False,
                     stream=True,
@@ -105,7 +105,7 @@ class HikvisionAdapter:
                 value=value,
                 source="VENDOR",
                 confidence="STRONG",
-                protocol="HTTP",
+                protocol="HTTPS",
                 operation=_OPERATION,
             )
             for field_name, value in parsed.items()
@@ -117,7 +117,7 @@ class HikvisionAdapter:
             CollectionAttempt(
                 stage="PARSE",
                 operation=_OPERATION,
-                protocol="HTTP",
+                protocol="HTTPS",
                 outcome="SUCCESS",
                 duration=max(0.0, time.monotonic() - started),
                 http_status=status,
@@ -139,7 +139,7 @@ class HikvisionAdapter:
             CollectionAttempt(
                 stage=stage,
                 operation=_OPERATION,
-                protocol="HTTP",
+                protocol="HTTPS",
                 outcome=outcome,
                 duration=max(0.0, time.monotonic() - started),
                 http_status=status,

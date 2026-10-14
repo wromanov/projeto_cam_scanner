@@ -57,7 +57,7 @@ def _adapter(handler):
 
     def session_factory() -> requests.Session:
         session = requests.Session()
-        session.mount("http://", OfflineAdapter())
+        session.mount("https://", OfflineAdapter())
         return session
 
     return HikvisionAdapter(session_factory=session_factory), sent
@@ -79,7 +79,8 @@ def test_digest_handshake_reads_only_approved_identity_endpoint_and_parses_xml()
 
     assert [request.method for request in sent] == ["GET", "GET"]
     assert all(urlsplit(request.url).path == "/ISAPI/System/deviceInfo" for request in sent)
-    assert urlsplit(sent[0].url).port == 80
+    assert urlsplit(sent[0].url).scheme == "https"
+    assert urlsplit(sent[0].url).port is None  # HTTPS default port 443
     assert "authorization" not in sent[0].headers
     assert sent[1].headers["Authorization"].startswith("Digest ")
     assert isinstance(sent[1].hooks.get("response"), list)
@@ -91,6 +92,8 @@ def test_digest_handshake_reads_only_approved_identity_endpoint_and_parses_xml()
     assert result.firmware == "3.7.1"
     assert any(item.field == "model" for item in report.evidence)
     assert report.attempts[-1].outcome == "SUCCESS"
+    assert {item.protocol for item in report.evidence} == {"HTTPS"}
+    assert report.attempts[-1].protocol == "HTTPS"
 
 
 @pytest.mark.parametrize(
@@ -216,7 +219,7 @@ def test_read_timeout_is_normalized_without_retaining_exception_text() -> None:
 
     def session_factory() -> requests.Session:
         session = requests.Session()
-        session.mount("http://", TimeoutAdapter())
+        session.mount("https://", TimeoutAdapter())
         return session
 
     report = HikvisionAdapter(session_factory=session_factory).collect_report(_target())
@@ -281,7 +284,7 @@ def test_ipv6_target_and_transport_settings_are_explicit_and_bounded() -> None:
 
     def session_factory() -> requests.Session:
         session = InstrumentedSession()
-        session.mount("http://", OfflineAdapter())
+        session.mount("https://", OfflineAdapter())
         return session
 
     HikvisionAdapter(session_factory=session_factory).collect(_target("2001:db8::10"))
@@ -292,6 +295,35 @@ def test_ipv6_target_and_transport_settings_are_explicit_and_bounded() -> None:
     assert call_options["verify"] is True
     assert call_options["stream"] is True
     assert call_options["auth"].__class__.__name__ == "_BoundedDigestAuth"
+    assert sent[0].url.startswith("https://")
+
+
+def test_tls_failure_is_reported_without_http_downgrade() -> None:
+    class TLSFailureAdapter(BaseAdapter):
+        def send(self, _request, **_kwargs):
+            raise requests.exceptions.SSLError("untrusted certificate")
+
+        def close(self) -> None:
+            return None
+
+    requests_seen: list[requests.PreparedRequest] = []
+
+    class RecordingTLSFailureAdapter(TLSFailureAdapter):
+        def send(self, request, **kwargs):
+            requests_seen.append(request)
+            return super().send(request, **kwargs)
+
+    def session_factory() -> requests.Session:
+        session = requests.Session()
+        session.mount("https://", RecordingTLSFailureAdapter())
+        return session
+
+    report = HikvisionAdapter(session_factory=session_factory).collect_report(_target())
+
+    assert len(requests_seen) == 1
+    assert requests_seen[0].url.startswith("https://")
+    assert report.attempts[-1].error_category == "TLS_ERROR"
+    assert report.attempts[-1].protocol == "HTTPS"
 
 
 class _Discoverer:

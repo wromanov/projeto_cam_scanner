@@ -76,6 +76,11 @@ _VALID_OPERATIONS = {
     "discover",
     "ONVIF pre-authentication discovery",
     "GET /ISAPI/System/deviceInfo",
+    "POST /axis-cgi/basicdeviceinfo.cgi getAllProperties",
+    "GET /stw-cgi/system.cgi deviceinfo view",
+    "GET /cgi-bin/magicBox.cgi getSystemInfo",
+    "GET /cgi-bin/magicBox.cgi getVendor",
+    "GET /cgi-bin/getinfo",
 }
 _VALID_PROTOCOLS = {"ONVIF", "HTTP", "HTTPS", "RTSP"}
 _VALID_EVIDENCE_SOURCES = {
@@ -435,19 +440,33 @@ class CollectionReport:
             item.protocol for item in (*self.attempts, *self.evidence) if item.protocol is not None
         }
         has_onvif = "ONVIF" in protocols
+        vendor_operations = {
+            "GET /ISAPI/System/deviceInfo",
+            "POST /axis-cgi/basicdeviceinfo.cgi getAllProperties",
+            "GET /stw-cgi/system.cgi deviceinfo view",
+            "GET /cgi-bin/magicBox.cgi getSystemInfo",
+            "GET /cgi-bin/magicBox.cgi getVendor",
+            "GET /cgi-bin/getinfo",
+        }
+        vendor_records = (*self.evidence, *self.attempts)
         has_vendor_http = any(
-            item.protocol == "HTTP" and item.operation == "GET /ISAPI/System/deviceInfo"
-            for item in self.evidence
-        ) or any(
-            item.protocol == "HTTP"
+            item.protocol in {"HTTP", "HTTPS"}
+            and item.operation in vendor_operations
+            and (not isinstance(item, CollectionAttempt) or item.outcome == "SUCCESS")
+            for item in vendor_records
+        )
+        has_hikvision_http = any(
+            item.protocol in {"HTTP", "HTTPS"}
             and item.operation == "GET /ISAPI/System/deviceInfo"
-            and item.outcome == "SUCCESS"
-            for item in self.attempts
+            and (not isinstance(item, CollectionAttempt) or item.outcome == "SUCCESS")
+            for item in vendor_records
         )
         method = (
             CollectionMethod.HYBRID
             if has_onvif and has_vendor_http
             else CollectionMethod.HIKVISION_ISAPI
+            if has_hikvision_http
+            else CollectionMethod.VENDOR_HTTP
             if has_vendor_http
             else CollectionMethod.ONVIF
             if has_onvif

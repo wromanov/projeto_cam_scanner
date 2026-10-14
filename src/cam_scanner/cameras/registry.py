@@ -26,3 +26,22 @@ class AdapterRegistry:
         if normalized is None:
             return None
         return self._adapters.get(normalized.casefold())
+
+
+def build_default_registry() -> AdapterRegistry:
+    """Build the application registry from vendor adapters available in this release."""
+    from cam_scanner.cameras.manufacturers.axis import AxisAdapter
+    from cam_scanner.cameras.manufacturers.bosch import BoschAdapter
+    from cam_scanner.cameras.manufacturers.dahua import DahuaAdapter
+    from cam_scanner.cameras.manufacturers.hikvision import HikvisionAdapter
+    from cam_scanner.cameras.manufacturers.panasonic import PanasonicAdapter
+    from cam_scanner.cameras.manufacturers.samsung_hanwha import SamsungHanwhaAdapter
+
+    registry = AdapterRegistry()
+    registry.register("Axis", AxisAdapter())
+    registry.register("Hikvision", HikvisionAdapter())
+    registry.register("Samsung/Hanwha", SamsungHanwhaAdapter())
+    registry.register("Dahua", DahuaAdapter())
+    registry.register("Panasonic", PanasonicAdapter())
+    registry.register("Bosch", BoschAdapter())
+    return registry

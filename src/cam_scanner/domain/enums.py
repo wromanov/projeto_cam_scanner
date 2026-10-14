@@ -21,6 +21,7 @@ class ErrorCode(StrEnum):
 class CollectionMethod(StrEnum):
     ONVIF = "ONVIF"
     HIKVISION_ISAPI = "HIKVISION_ISAPI"
+    VENDOR_HTTP = "VENDOR_HTTP"
     HYBRID = "HYBRID"
 
 

@@ -1,4 +1,93 @@
 # PROJECT_STATE — projeto_cam_scanner
+## Atualização vigente — BLOCO B FINAL HARDENING (2026-10-14)
+
+O hardening final autorizou resolver transporte Hikvision e confirmar o budget cumulativo antes do checkpoint do Bloco B. O adapter Hikvision agora usa apenas HTTPS com validação de certificado; HTTP não é tentado nem como fallback. Certificados não confiáveis resultam em `TLS_ERROR` até configuração autorizada de confiança. Os adapters vendor verificam deadline monotônico e limitam os timeouts ao tempo restante; o limite é soft durante chamadas bloqueadas.
+
+```text
+PROJECT_ID = projeto_cam_scanner
+CURRENT_PHASE = P2 permanece OPEN; P3/P4 não declaradas formalmente encerradas
+CURRENT_ACTIVITY = BLOCO_B_FINAL_HARDENING
+ACTIVITY_STATUS = COMPLETED_WITH_LIMITATION
+INTEGRATION_WORKTREE = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_bloco_b
+INTEGRATION_BRANCH = feature/bloco-b-vendors
+INTEGRATION_BASELINE = a5c8445e0262a82cc8d6a3d627f2066223203f09
+ENDING_HEAD = a5c8445e0262a82cc8d6a3d627f2066223203f09 (sem commits)
+HIKVISION_TRANSPORT_D04 = PASS (HTTPS-only, verify=True, Digest, redirects desativados, sem downgrade)
+HIKVISION_CERTIFICATE_COMPATIBILITY = NOT_VALIDATED_WITH_REAL_DEVICE (certificado não confiável falha fechado)
+VENDOR_BUDGET = PASS_WITH_SOFT_DEADLINE (timeout limitado ao restante; sem interrupção artificial de chamada bloqueada)
+IDENTITY_V1 = PRESERVED
+CAMERA_RESULT_FIELDS = 14
+SECURITY_REGRESSION = PASS
+PYTEST = PASS (220 passed; 0 failed; 0 skipped; Python 3.14.0)
+PYTEST_TEMP_FIXTURE = CUSTOM_PATH (raiz autorizada de visualizações; diretório temporário padrão bloqueado pelo sandbox)
+RUFF = PASS (0.17.0; --no-cache)
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+VENDOR_COVERAGE = Axis PASS; Hikvision PASS (HTTPS sintético); Hanwha PARTIAL; Dahua PASS; Panasonic/i-PRO PARTIAL; Bosch PARTIAL
+REAL_CAMERA_VALIDATION = NOT_RUN
+MATERIAL_FINDINGS = NONE (limitação soft e compatibilidade de certificados registrada)
+CHECKPOINT_MANIFEST = docs/continuity/BLOCO_B_FINAL_HARDENING_MANIFEST.md
+GENERATED_OR_PRIVATE_ARTIFACTS = EXCLUDED (nenhum artefato privado/ignorado no manifesto; pytest temporário fora do worktree)
+CHECKPOINT_READY = YES
+GIT_ADD = NOT_EXECUTED
+GIT_COMMIT = NOT_EXECUTED
+GIT_PUSH = NOT_EXECUTED
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (hardening offline; sem encerramento de P2/P3/P4 ou homologação P6–P11)
+NEXT_GATE = USER_APPROVAL_FOR_BLOCO_B_PUBLICATION
+STATUS = COMPLETED_WITH_LIMITATION
+```
+
+## Atualização vigente — BLOCO B / expansão de fabricantes (2026-10-14)
+
+O Card A autorizou a implementação offline isolada sobre a baseline publicada `a5c8445e0262a82cc8d6a3d627f2066223203f09`. A atividade integrou o registry de produção, adapters por fabricante onde havia operação documentada e fallback ONVIF para Bosch. O checkout original permaneceu intacto. A revisão independente foi READ_ONLY; quatro findings foram corrigidos e resta somente a limitação de deadline soft documentada abaixo.
+
+```text
+PROJECT_ID = projeto_cam_scanner
+CURRENT_PHASE = P2 permanece OPEN; P3/P4 não declaradas formalmente encerradas
+CURRENT_ACTIVITY = BLOCO_B_MULTIAGENT_VENDOR_EXPANSION
+ACTIVITY_STATUS = COMPLETED_WITH_LIMITATIONS (integração e validação offline)
+IMPLEMENTATION_AUTHORIZATION = BLOCO_B_OFFLINE_IMPLEMENTATION_GRANTED
+INTEGRATION_WORKTREE = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_bloco_b
+INTEGRATION_BRANCH = feature/bloco-b-vendors
+INTEGRATION_BASELINE = a5c8445e0262a82cc8d6a3d627f2066223203f09
+ENDING_HEAD = a5c8445e0262a82cc8d6a3d627f2066223203f09 (sem commits)
+CANONICAL_CONTRACT = PASS (EvidenceRecord/CollectionAttempt/CollectionReport; CameraResult permanece com 14 campos)
+PRODUCTION_REGISTRY = PASS (Axis, Hikvision, Samsung/Hanwha, Dahua, Panasonic/i-PRO e Bosch com fallback)
+SINGLE_INTEGRATION = PASS (rotas vendor-first existentes; testes sintéticos)
+MULTI_INTEGRATION = PASS (targets/fabricantes/credenciais isolados; ordem e XLSX cobertos pela regressão P4/P5)
+P5_REGRESSION = PASS
+P6_AXIS = PASS (VAPIX Basic Device Information; HTTPS verificado; firmware complementar)
+P7_HIKVISION = PASS_EXISTING_READ_ONLY (ISAPI existente e testes aprovados; transporte HTTP fixo é limitação herdada)
+P8_HANWHA = PARTIAL (SUNAPI deviceinfo; fabricante depende de evidência explícita/ONVIF)
+P9_DAHUA = PASS (getSystemInfo + getVendor; firmware não coletado)
+P10_PANASONIC_IPRO = PARTIAL (i-PRO H.265 getinfo; fabricante depende de ONVIF)
+P11_BOSCH = PARTIAL (sem chamada nativa de identidade fundamentada; fallback ONVIF)
+CREDENTIAL_SECURITY = PASS (credenciais por alvo, sanitização, Digest limitado, TLS verificado nos novos adapters)
+NATIVE_BUDGET = PASS (budget cumulativo de 10s; deadline é soft e não interrompe operação bloqueada)
+PYTEST = PASS (217 passed; 0 failed; 0 skipped; Python 3.14.0)
+PYTEST_TEMP_FIXTURE = CUSTOM_PATH (raiz de visualizações autorizada; necessário por ACL do tmpdir padrão; sem alterar código do produto)
+RUFF = PASS (0.17.0; --no-cache)
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+INDEPENDENT_REVIEW = PASS_WITH_LOW_LIMITATION (findings HIGH/MEDIUM corrigidos; deadline soft registrado)
+REAL_CAMERA_VALIDATION = NOT_RUN (não autorizada)
+DEPENDENCY_CHANGES = NONE
+ORIGINAL_CHECKOUT_PRESERVED = YES
+GIT_ADD = NOT_EXECUTED
+GIT_COMMIT = NOT_EXECUTED
+GIT_PUSH = NOT_EXECUTED
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (somente BLOCO B offline; P2/P3/P4 e P6–P11 não foram formalmente encerradas/homologadas)
+ACTIVITY_COMPLETION_PERCENT = 100% (escopo offline autorizado)
+NEXT_GATE = USER_APPROVAL_FOR_BLOCO_B_CHECKPOINT
+STATUS = COMPLETED_WITH_LIMITATIONS
+```
+
+**Cobertura e limitações:** Axis usa `POST /axis-cgi/basicdeviceinfo.cgi` (`getAllProperties`). Hanwha usa `GET /stw-cgi/system.cgi?msubmenu=deviceinfo&action=view`, mas não infere fabricante pelo endpoint. Dahua usa `getSystemInfo` e `getVendor` e não coleta firmware. Panasonic/i-PRO usa `GET /cgi-bin/getinfo?FILE=1`, com campos `NAME`, `SERIAL` e `VERSION` documentados para a família i-PRO H.265; a resposta é parcial sem fabricante. Bosch não executa operação nativa especulativa e continua pelo ONVIF. Hikvision permaneceu como baseline: o adapter existente usa HTTP fixo; não houve downgrade novo nem mudança nesta atividade. As leituras HTTPS dos novos adapters validam certificados e falham sem downgrade. O budget cumulativo verifica o tempo entre chunks; uma chamada já bloqueada pode excedê-lo até o timeout de rede retornar.
+
 ## Atualização vigente — P5 CONCURRENCY IMPLEMENTATION (2026-10-14)
 
 O payload P5 autorizou a implementação offline isolada sobre `origin/master` na baseline `53034e0eff361afb1f3c3c030a18d0126496ee6e`. A atividade implementou concorrência limitada no MULTI, sem homologação em câmera real e sem escrita Git de publicação.

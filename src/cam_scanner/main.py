@@ -7,8 +7,7 @@ from cam_scanner.application.controller import ApplicationController
 from cam_scanner.application.inventory_service import InventoryService
 from cam_scanner.application.multi_workflow import MultiWorkflow
 from cam_scanner.application.single_workflow import SingleWorkflow
-from cam_scanner.cameras.manufacturers.hikvision import HikvisionAdapter
-from cam_scanner.cameras.registry import AdapterRegistry
+from cam_scanner.cameras.registry import build_default_registry
 from cam_scanner.cameras.strategy import VendorFirstCollector
 from cam_scanner.config.loader import load_settings
 from cam_scanner.logging.sanitize import sanitized_traceback
@@ -24,8 +23,7 @@ def main() -> int:
 
     try:
         logger = configure_logging()
-        registry = AdapterRegistry()
-        registry.register("Hikvision", HikvisionAdapter())
+        registry = build_default_registry()
         inventory_service = InventoryService(VendorFirstCollector(registry=registry), logger=logger)
         settings = load_settings()
         snapshot_service = SnapshotService()

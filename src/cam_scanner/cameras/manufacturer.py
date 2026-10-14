@@ -9,8 +9,11 @@ _ALIASES = {
     "samsung": "Samsung/Hanwha",
     "samsung techwin": "Samsung/Hanwha",
     "hanwha": "Samsung/Hanwha",
+    "hanwha vision": "Samsung/Hanwha",
+    "hanwha techwin": "Samsung/Hanwha",
     "dahua": "Dahua",
     "panasonic": "Panasonic",
+    "i-pro": "Panasonic",
     "bosch": "Bosch",
 }
 

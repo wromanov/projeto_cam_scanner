@@ -1,5 +1,61 @@
 # Registro de continuidade
 
+## BLOCO B — Final Hardening (2026-10-14)
+
+O adapter Hikvision agora chama somente `https://<IP>/ISAPI/System/deviceInfo`, valida o certificado (`verify=True`), mantém Digest limitado, `trust_env=False` e redirects desativados. Não há fallback para HTTP. Testes offline confirmam challenge Digest, endpoint, scheme, IPv6, TLS error sanitizado e ausência de downgrade. Dispositivos com certificados autoassinados/não confiáveis falharão fechado; CA/pinning não foi configurado por esta atividade.
+
+Os adapters vendor mantêm budget cumulativo monotônico de 10 s; cada requisição começa com o menor timeout entre connect/read e o restante do budget. A leitura limitada verifica o prazo entre chunks e antes do parse; Dahua não inicia o segundo GET se o prazo esgotar. O deadline é soft: uma chamada já bloqueada pode aguardar até o timeout de rede retornar, conforme o contrato, sem thread adicional ou promessa de cancelamento imediato.
+
+Validação final em Python 3.14.0: 220 testes aprovados, zero falhas e zero ignorados; Ruff, `pip check` e `git diff --check` aprovados. O fixture `tmp_path` foi redirecionado para a raiz autorizada de visualizações porque o sandbox bloqueia o diretório temporário padrão. Não houve câmera real, mudança de dependência, stage, commit ou push. O manifesto explícito do checkpoint está em [`BLOCO_B_FINAL_HARDENING_MANIFEST.md`](BLOCO_B_FINAL_HARDENING_MANIFEST.md); artefatos gerados/privados ficam fora dele.
+
+```text
+ACTIVITY = BLOCO_B_FINAL_HARDENING
+HIKVISION_TRANSPORT_D04 = PASS
+VENDOR_BUDGET = PASS_WITH_SOFT_DEADLINE
+SECURITY_REGRESSION = PASS
+PYTEST = PASS (220 passed; 0 failed; 0 skipped; Python 3.14.0)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+CHECKPOINT_READY = YES
+GIT_ADD_COMMIT_PUSH = NONE
+REAL_CAMERA_VALIDATION = NOT_RUN
+P2_STATUS = IN_PROGRESS
+NEXT_GATE = USER_APPROVAL_FOR_BLOCO_B_PUBLICATION
+STATUS = COMPLETED_WITH_LIMITATION
+```
+
+## BLOCO B — Multiagent Vendor Expansion (2026-10-14)
+
+O Card A autorizou implementação, integração e validação offline no worktree `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_bloco_b`, branch `feature/bloco-b-vendors`, sobre a baseline `a5c8445e0262a82cc8d6a3d627f2066223203f09`. O checkout original e worktrees anteriores foram preservados. A composição de produção agora registra Axis, Hikvision, Samsung/Hanwha, Dahua, Panasonic/i-PRO e Bosch; o registry vazio padrão continua disponível para consumidores e testes. Bosch registra tentativa não suportada sem I/O e segue para o fallback ONVIF.
+
+Os adapters novos executam apenas operações de leitura fundamentadas, usam as credenciais do alvo, não seguem redirects, desativam `trust_env`, validam TLS e não fazem downgrade. Axis implementa VAPIX Basic Device Information. Hanwha implementa SUNAPI `deviceinfo`, sem inferir fabricante quando ausente no payload. Dahua obtém modelo/serial via `getSystemInfo` e fabricante via `getVendor`, sem leitura separada de firmware. Panasonic/i-PRO obtém modelo/serial/firmware via `getinfo` na família H.265 documentada; não inventa fabricante. Bosch permanece sem coleta nativa porque a fonte Bosch consultada não documenta operação mínima para fabricante/modelo/serial. Hikvision ISAPI não foi reconstruído; permanece o adapter existente, cuja limitação de HTTP fixo é anterior a este bloco.
+
+A revisão independente READ_ONLY encontrou e o integrador corrigiu: proveniência HTTPS registrada como HTTP; falta de budget cumulativo durante leitura; aliases exatos de fabricante que não chegavam ao registry; e rejeição de wrappers `<HTML>` documentados pelo i-PRO. O único risco residual revisado é LOW: o deadline de 10 segundos é soft, pois `iter_content` pode bloquear até o timeout de rede retornar; não se promete interrupção rígida de thread.
+
+Validação acumulada em Python 3.14.0: `pytest -q -rs` com fixture `tmp_path` direcionado à raiz de visualizações autorizada (o sandbox bloqueia criação/leitura do diretório temporário padrão): 217 aprovados, nenhum falho ou ignorado. A regressão inclui P1, segurança P2-I1, Hikvision P2-I2, snapshots P3, MULTI/XLSX P4 e concorrência P5. Ruff, `pip check` e `git diff --check` passaram. Nenhuma câmera real foi consultada; não houve alteração de dependências nem escrita Git de publicação.
+
+```text
+ACTIVITY = BLOCO_B_MULTIAGENT_VENDOR_EXPANSION
+BASELINE = a5c8445e0262a82cc8d6a3d627f2066223203f09
+WORKTREE = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_bloco_b
+BRANCH = feature/bloco-b-vendors
+AGENTS_A_B_C = IMPLEMENTATION_HANDOFFS_RECEIVED
+AGENT_D = INDEPENDENT_READ_ONLY_REVIEW_PASS_WITH_LOW_LIMITATION
+PYTEST = PASS (217 passed; 0 failed; 0 skipped; Python 3.14.0)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN
+PHASE_CLOSURE = NONE (P2/P3/P4 continuam abertas; P6–P11 não homologadas)
+GIT_ADD_COMMIT_PUSH = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (escopo offline autorizado)
+NEXT_GATE = USER_APPROVAL_FOR_BLOCO_B_CHECKPOINT
+STATUS = COMPLETED_WITH_LIMITATIONS
+```
+
 ## Histórico de atividades
 
 - **P5_CONCURRENCY_IMPLEMENTATION — COMPLETED (offline):** `feature/p5-concurrency` sobre baseline `53034e0`; ThreadPoolExecutor limitado a 1–32 workers (padrão 8), resultados ordenados, falhas isoladas e semáforo RTSP global limitado a uma captura. Python 3.14.0: 184 testes, Ruff, pip check e diff check passaram. Benchmark sintético: 64 câmeras; 1,0016 s com 1 worker e 0,1274 s com 8 (7,86× observado). Câmeras reais não testadas; stage/commit/push não executados. Próximo gate: aprovação do usuário para checkpoint Git P5.
