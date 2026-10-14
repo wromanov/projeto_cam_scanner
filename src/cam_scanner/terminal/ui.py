@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import getpass
 from collections.abc import Callable
+from pathlib import Path
 
 from cam_scanner.domain.enums import CollectionStatus, MainMenuChoice
 from cam_scanner.domain.models import CameraResult, CameraTarget, CollectionReport
+from cam_scanner.snapshot.service import SnapshotResult
 
 
 class TerminalUI:
@@ -38,7 +40,7 @@ class TerminalUI:
         password = self._password("Password: ")
         return CameraTarget(ip=ip, username=username, password=password)
 
-    def render_result(self, result: CameraResult) -> None:
+    def render_result(self, result: CameraResult, snapshot: SnapshotResult | None = None) -> None:
         self._output("\nResultado da consulta")
         self._output(f"IP: {result.ip}")
         self._output(f"Status: {result.status.value}")
@@ -62,10 +64,19 @@ class TerminalUI:
             if value is not None:
                 self._output(f"{label}: {value}")
         self._output(f"Duração: {result.duration:.3f} s")
+        if result.collection_method is not None:
+            self._output(f"Método: {result.collection_method.value}")
+        if snapshot is not None:
+            if snapshot.successful:
+                self._output(f"Snapshot: disponível ({snapshot.width}x{snapshot.height}, {snapshot.method.value})")
+            else:
+                self._output("Snapshot: indisponível; os dados de identidade foram preservados.")
 
-    def render_report(self, report: CollectionReport, *, ip: str, duration: float) -> None:
+    def render_report(
+        self, report: CollectionReport, *, ip: str, duration: float, snapshot: SnapshotResult | None = None
+    ) -> None:
         """Render the P1-compatible result and safe per-operation diagnostics."""
-        self.render_result(report.to_camera_result(ip, duration=duration))
+        self.render_result(report.to_camera_result(ip, duration=duration), snapshot)
         if report.conflicts:
             self._output("Conflitos preservados: " + ", ".join(report.conflicts))
         if not report.attempts:
@@ -93,6 +104,20 @@ class TerminalUI:
             if choice in {item.value for item in MainMenuChoice}:
                 return MainMenuChoice(choice)
             self._output("Opção inválida. Escolha 1, 2 ou 3.")
+
+    def prompt_multi_input_path(self) -> str:
+        return self._input("Caminho da planilha XLSX de entrada: ").strip()
+
+    def prompt_multi_output_path(self, default_path: str) -> str:
+        value = self._input(f"Caminho do XLSX de saída [{default_path}]: ").strip()
+        return value or default_path
+
+    def show_multi_error(self, message: str) -> None:
+        self._output(f"MULTI não concluído: {message}")
+
+    def show_multi_complete(self, path: str | Path, camera_count: int) -> None:
+        self._output(f"MULTI concluído: {camera_count} linhas processadas.")
+        self._output(f"Arquivo gerado: {path}")
 
     def show_multi_unavailable(self) -> None:
         self._output("O modo MULTI ainda não está disponível nesta versão.")

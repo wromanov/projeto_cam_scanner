@@ -20,6 +20,8 @@ class ErrorCode(StrEnum):
 
 class CollectionMethod(StrEnum):
     ONVIF = "ONVIF"
+    HIKVISION_ISAPI = "HIKVISION_ISAPI"
+    HYBRID = "HYBRID"
 
 
 class MainMenuChoice(StrEnum):

@@ -59,7 +59,7 @@ _USEFUL_EVIDENCE_FIELDS = {
     "hardware_id",
     "mac",
 }
-_SAFE_OPERATION = re.compile(r"^[A-Za-z0-9_.: -]{1,80}$")
+_SAFE_OPERATION = re.compile(r"^[A-Za-z0-9_./: -]{1,80}$")
 _VALID_OPERATIONS = {
     "GetCapabilities",
     "GetSystemDateAndTime",
@@ -75,6 +75,7 @@ _VALID_OPERATIONS = {
     "aggregate_collection_report",
     "discover",
     "ONVIF pre-authentication discovery",
+    "GET /ISAPI/System/deviceInfo",
 }
 _VALID_PROTOCOLS = {"ONVIF", "HTTP", "HTTPS", "RTSP"}
 _VALID_EVIDENCE_SOURCES = {
@@ -430,10 +431,26 @@ class CollectionReport:
             "hardware_id": self.value_for("hardware_id"),
             "mac": self.value_for("mac"),
         }
+        protocols = {
+            item.protocol for item in (*self.attempts, *self.evidence) if item.protocol is not None
+        }
+        has_onvif = "ONVIF" in protocols
+        has_vendor_http = any(
+            item.protocol == "HTTP" and item.operation == "GET /ISAPI/System/deviceInfo"
+            for item in self.evidence
+        ) or any(
+            item.protocol == "HTTP"
+            and item.operation == "GET /ISAPI/System/deviceInfo"
+            and item.outcome == "SUCCESS"
+            for item in self.attempts
+        )
         method = (
-            CollectionMethod.ONVIF
-            if any(item.protocol == "ONVIF" for item in self.attempts)
-            or any(item.protocol == "ONVIF" for item in self.evidence)
+            CollectionMethod.HYBRID
+            if has_onvif and has_vendor_http
+            else CollectionMethod.HIKVISION_ISAPI
+            if has_vendor_http
+            else CollectionMethod.ONVIF
+            if has_onvif
             else None
         )
         return CameraResult(

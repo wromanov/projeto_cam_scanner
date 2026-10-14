@@ -5,10 +5,14 @@ import logging
 
 from cam_scanner.application.controller import ApplicationController
 from cam_scanner.application.inventory_service import InventoryService
+from cam_scanner.application.multi_workflow import MultiWorkflow
 from cam_scanner.application.single_workflow import SingleWorkflow
+from cam_scanner.cameras.manufacturers.hikvision import HikvisionAdapter
+from cam_scanner.cameras.registry import AdapterRegistry
 from cam_scanner.cameras.strategy import VendorFirstCollector
 from cam_scanner.logging.sanitize import sanitized_traceback
 from cam_scanner.logging.setup import configure_logging
+from cam_scanner.snapshot.service import SnapshotService
 from cam_scanner.terminal.ui import TerminalUI
 
 
@@ -19,8 +23,15 @@ def main() -> int:
 
     try:
         logger = configure_logging()
-        inventory_service = InventoryService(VendorFirstCollector(), logger=logger)
-        controller = ApplicationController(ui, SingleWorkflow(ui, inventory_service))
+        registry = AdapterRegistry()
+        registry.register("Hikvision", HikvisionAdapter())
+        inventory_service = InventoryService(VendorFirstCollector(registry=registry), logger=logger)
+        snapshot_service = SnapshotService()
+        controller = ApplicationController(
+            ui,
+            SingleWorkflow(ui, inventory_service, snapshot_service),
+            MultiWorkflow(ui, inventory_service, snapshot_service),
+        )
         controller.run()
     except KeyboardInterrupt:
         ui.show_interrupted()

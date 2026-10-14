@@ -1,4 +1,44 @@
 # PROJECT_STATE — projeto_cam_scanner
+## Atualização vigente — BLOCO A (2026-10-14)
+
+Esta seção atualiza o snapshot anterior de P2-I1, preservado abaixo como histórico. O Card B fornecido pelo usuário autorizou a integração isolada de P2-I2, P3 e P4 sobre a baseline publicada; não autoriza P5 nem fechamento formal de fases.
+
+```text
+PROJECT_ID = projeto_cam_scanner
+CURRENT_PHASE = P2 permanece OPEN; P3/P4 não declaradas formalmente encerradas
+CURRENT_ACTIVITY = BLOCO_A_EXECUTABLE_INTEGRATION
+ACTIVITY_STATUS = COMPLETED (somente integração offline do BLOCO A)
+IMPLEMENTATION_AUTHORIZATION = P2-I2 + P3 + P4 pelo Card B; sem extensão a P5
+SOURCE_WORKTREE = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner; branch master; HEAD 3737a5c64043950d053ec702929f528fc53a72cf; conteúdo preexistente preservado
+INTEGRATION_WORKTREE = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_bloco_a_integration
+INTEGRATION_BRANCH = integration/bloco-a
+INTEGRATION_BASELINE = d4ddcc5f81e78583fa5bfe3b597ce5dd6197a210 (origin/master verificado)
+CANONICAL_CONTRACT = PASS (consumidores usam domain/models.py; CameraResult mantém 14 campos)
+P2_I1_SECURITY_REGRESSION = PASS (testes de evidência sensível e credenciais)
+HIKVISION_ISAPI = PASS (HTTP sintético, Digest, XML seguro, falhas e fallback controlado)
+SNAPSHOT = PASS (pipeline sintético; suporte Hikvision limitado a DS-KD8003)
+MULTI_XLSX_PYTHON314 = PASS (linhas isoladas; saída sem PASSWORD)
+SINGLE_END_TO_END = PASS (CLI sintético e menu pós-consulta)
+MULTI_END_TO_END = PASS (2 válidas, 1 inválida, XLSX real temporário, imagens e resumo)
+PYTEST = PASS (170 passed; skipped não reportados)
+PYTHON = 3.14.0
+RUFF = PASS (0.17.0)
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN
+P5 = NOT_STARTED
+GIT_ADD = NOT_EXECUTED
+GIT_COMMIT = NOT_EXECUTED
+GIT_PUSH = NOT_EXECUTED
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (BLOCO A somente; nenhuma fase formal encerrada)
+ACTIVITY_COMPLETION_PERCENT = 100%
+NEXT_GATE = USER_APPROVAL_FOR_INTEGRATED_CHECKPOINT
+STATUS = COMPLETED
+```
+
+### Snapshot histórico — P2-I1 (2026-10-12)
 
 ```text
 PROJECT_ID = projeto_cam_scanner

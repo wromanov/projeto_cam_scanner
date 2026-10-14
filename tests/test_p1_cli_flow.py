@@ -85,7 +85,7 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     calls: list[str] = []
 
     class PreAuthDevice:
-        def GetCapabilities(self, **_kwargs: object) -> dict[str, str]:
+        def GetCapabilities(self, **_kwargs: object) -> dict[str, object]:
             calls.append("GetCapabilities")
             return {"Manufacturer": "Hikvision"}
 
@@ -108,6 +108,23 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
             return PreAuthDevice()
 
     main_module = importlib.import_module("cam_scanner.main")
+
+    class UnsupportedHikvisionAdapter:
+        def collect_report(self, target):
+            from cam_scanner.domain.models import CollectionAttempt, CollectionReport
+
+            report = CollectionReport().with_attempt(
+                CollectionAttempt(
+                    protocol="HTTP",
+                    operation="GET /ISAPI/System/deviceInfo",
+                    stage="HTTP",
+                    outcome="SKIPPED",
+                    error_category="ENDPOINT_UNSUPPORTED",
+                )
+            )
+            return report
+
+    monkeypatch.setattr(main_module, "HikvisionAdapter", UnsupportedHikvisionAdapter)
     monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
     monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-partial"))
     answers = iter(["1", "192.0.2.10", "operator", "3"])
@@ -145,6 +162,16 @@ def test_post_query_menu_repeats_single_and_routes_multi_to_controller(monkeypat
     main_module = importlib.import_module("cam_scanner.main")
     monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
     monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-nav"))
+    multi_calls: list[str] = []
+
+    class FakeMultiWorkflow:
+        def __init__(self, *_args: object) -> None:
+            pass
+
+        def run(self) -> None:
+            multi_calls.append("run")
+
+    monkeypatch.setattr(main_module, "MultiWorkflow", FakeMultiWorkflow)
     answers = iter(
         [
             "1",
@@ -172,6 +199,66 @@ def test_post_query_menu_repeats_single_and_routes_multi_to_controller(monkeypat
     output = capsys.readouterr().out
     assert calls == ["GetDeviceInformation", "GetDeviceInformation"]
     assert len(password_calls) == 2
-    assert output.count("O modo MULTI ainda não está disponível nesta versão.") == 2
+    assert multi_calls == ["run", "run"]
     assert "192.0.2.11" in output
     assert "private-password" not in output
+
+
+def test_cli_single_success_includes_offline_snapshot_without_printing_password(
+    monkeypatch, capsys
+) -> None:
+    from cam_scanner.domain.enums import CollectionStatus
+    from cam_scanner.domain.models import CameraResult
+    from cam_scanner.snapshot.service import SnapshotService
+
+    snapshot_targets: list[str] = []
+
+    class FakeCollector:
+        def collect(self, target):
+            return CameraResult(
+                ip=target.ip,
+                status=CollectionStatus.SUCCESS,
+                manufacturer="Example Cameras",
+                model="Model A",
+                serial="serial-1",
+                duration=0.0,
+            )
+
+    class SnapshotProvider:
+        def capture(self, target, **_context):
+            snapshot_targets.append(target.ip)
+            return b"synthetic-frame"
+
+    class UnusedProvider:
+        def capture(self, _target, **_context):
+            raise AssertionError("unexpected snapshot fallback")
+
+    main_module = importlib.import_module("cam_scanner.main")
+    monkeypatch.setattr(
+        main_module,
+        "VendorFirstCollector",
+        lambda **_kwargs: FakeCollector(),
+    )
+    monkeypatch.setattr(
+        main_module,
+        "SnapshotService",
+        lambda: SnapshotService(
+            SnapshotProvider(),
+            UnusedProvider(),
+            UnusedProvider(),
+            image_processor=lambda _raw: (b"processed-jpeg", 320, 160),
+        ),
+    )
+    monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-snapshot"))
+    answers = iter(["1", "192.0.2.10", "operator", "3"])
+    monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
+    monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
+
+    assert main_module.main() == 0
+
+    output = capsys.readouterr().out
+    assert snapshot_targets == ["192.0.2.10"]
+    assert "Status: SUCCESS" in output
+    assert "Snapshot: disponível (320x160, ONVIF_HTTP)" in output
+    assert "private-password" not in output
+    assert "Traceback" not in output

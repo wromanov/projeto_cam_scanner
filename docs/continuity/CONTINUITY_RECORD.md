@@ -403,3 +403,33 @@ GIT_ADD_COMMIT_PUSH = NONE
 P2_STATUS = IN_PROGRESS
 REAL_CAMERA_VALIDATION = NOT_RUN_HOME
 ```
+
+## BLOCO A — Executable Integration (2026-10-14)
+
+O Card B foi executado em worktree separado a partir de `origin/master` na baseline `d4ddcc5f81e78583fa5bfe3b597ce5dd6197a210`, branch `integration/bloco-a`, em `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_bloco_a_integration`. O checkout de origem em `master`/`3737a5c64043950d053ec702929f528fc53a72cf` e suas alterações locais foram preservados. A integração usa os contratos publicados de `domain/models.py`; não mantém um segundo contrato para relatórios de coleta.
+
+Foram integrados Hikvision ISAPI somente leitura com Digest limitado, parsing XML seguro, snapshots ONVIF/vendor/um frame RTSP com miniatura JPEG 320×180 sem metadata, MULTI sequencial com leitura/exportação XLSX, progresso Rich com fallback de terminal e navegação SINGLE/MULTI compartilhando `InventoryService`. Evidências P2-I1 e os diagnósticos ONVIF canônicos foram mantidos. O leitor XLSX também mascara IPs inválidos com URL/userinfo.
+
+Validação em Python 3.14.0: 170 testes aprovados; `pip check`, Ruff 0.17.0 e `git diff --check` passaram. O smoke MULTI usou duas câmeras sintéticas válidas e uma inválida, credenciais distintas, snapshots, exportação XLSX temporária com abas `INVENTARIO`/`RESUMO` e conferência de ausência de senhas. O smoke SINGLE percorreu CLI, coleta sintética, resultado e menu pós-consulta. Nenhum equipamento real foi contatado.
+
+Limites: validação com câmera real continua pendente; snapshot vendor Hikvision está limitado aos modelos DS-KD8003; MULTI segue sequencial; P5 não foi iniciado; P2/P3/P4 não foram formalmente encerradas. A branch permanece sem stage/commit/push. Próximo gate: aprovação do usuário para o checkpoint integrado.
+
+```text
+ACTIVITY = BLOCO_A_EXECUTABLE_INTEGRATION
+INTEGRATION_BASELINE = d4ddcc5f81e78583fa5bfe3b597ce5dd6197a210
+INTEGRATION_BRANCH = integration/bloco-a
+SOURCE_WORKTREE_PRESERVED = YES
+PYTEST = PASS (170 passed)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+REAL_CAMERA_VALIDATION = NOT_RUN
+P5 = NOT_STARTED
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = YES (somente BLOCO A)
+ACTIVITY_COMPLETION_PERCENT = 100%
+GIT_ADD_COMMIT_PUSH = NONE
+NEXT_GATE = USER_APPROVAL_FOR_INTEGRATED_CHECKPOINT
+STATUS = COMPLETED
+```

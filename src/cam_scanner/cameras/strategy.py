@@ -1,10 +1,11 @@
-"""Evidence-aware, bounded collection on the canonical SINGLE path."""
+"""Vendor-first collection routing over the canonical domain evidence contracts."""
 from __future__ import annotations
 
 import logging
-import time
+from builtins import TimeoutError
 
 from cam_scanner.cameras.collector import CameraCollector
+from cam_scanner.cameras.manufacturer import ManufacturerNormalizer
 from cam_scanner.cameras.onvif.adapter import GenericOnvifCollector
 from cam_scanner.cameras.preauth import (
     ManufacturerResolver,
@@ -13,19 +14,17 @@ from cam_scanner.cameras.preauth import (
 )
 from cam_scanner.cameras.registry import AdapterRegistry
 from cam_scanner.domain.enums import CollectionStatus
-from cam_scanner.domain.errors import normalize_collection_error
 from cam_scanner.domain.models import (
     CameraResult,
     CameraTarget,
     CollectionAttempt,
     CollectionReport,
     EvidenceRecord,
-    is_valid_evidence_value,
 )
 
 
 class VendorFirstCollector(CameraCollector):
-    """Keep one registered vendor path and one generic ONVIF path evidence-aware."""
+    """Select at most one identified vendor adapter, then use ONVIF as a controlled fallback."""
 
     def __init__(
         self,
@@ -39,305 +38,220 @@ class VendorFirstCollector(CameraCollector):
         self._registry = registry or AdapterRegistry()
         self._discoverer = discoverer or OnvifPreAuthDiscoverer()
         self._resolver = resolver or ManufacturerResolver()
+        self._normalizer = ManufacturerNormalizer()
         self._logger = logger or logging.getLogger("cam_scanner")
 
     def collect(self, target: CameraTarget) -> CameraResult:
         return self.collect_report(target).to_camera_result(target.ip)
 
     def collect_report(self, target: CameraTarget) -> CollectionReport:
-        self._cached_evidence = PreAuthEvidence()
-        report = self._discover(target)
-        evidence = self._discovery_evidence(target)
-        resolution = self._resolver.resolve_with_evidence(
-            None, evidence, sensitive_values=(target.username, target.password)
-        )
-        if report.status is CollectionStatus.CANCELLED:
-            return self._finalize(report)
-
-        if resolution.conflicts:
-            self._logger.warning(
-                "Conflicting strong manufacturer evidence; native adapter selection skipped"
-            )
-
-        adapter = (
-            self._registry.get(resolution.selected)
-            if resolution.selected is not None and not resolution.conflicts
-            else None
-        )
-        if adapter is not None:
-            vendor_report = self._collect_source(adapter, target, source="VENDOR")
-            report = report.merged(vendor_report)
-            if report.status is CollectionStatus.SUCCESS or self._stopped_after_auth_failure(
-                report
-            ):
-                return self._finalize(report)
-
-        if report.status is CollectionStatus.CANCELLED or self._stopped_after_auth_failure(report):
-            return self._finalize(report)
-
-        generic_report = self._collect_source(self._onvif, target, source="ONVIF")
-        report = report.merged(generic_report)
-        if report.conflicts:
-            self._logger.warning("Conflicting collection evidence retained in report")
-        return self._finalize(report)
-
-    @staticmethod
-    def _finalize(report: CollectionReport) -> CollectionReport:
-        return report.with_attempt(
-            CollectionAttempt(
-                stage="MERGE",
-                operation="aggregate_collection_report",
-                outcome="SUCCESS",
-            )
-        )
-
-    def _discover(self, target: CameraTarget) -> CollectionReport:
-        method = getattr(self._discoverer, "discover_with_report", None)
-        if callable(method):
-            try:
-                result = method(target)
-            except KeyboardInterrupt:
-                return CollectionReport().with_attempt(
-                    CollectionAttempt(
-                        stage="DISCOVERY",
-                        operation="ONVIF pre-authentication discovery",
-                        protocol="ONVIF",
-                        outcome="CANCELLED",
-                    )
-                )
-            except Exception as exception:  # noqa: BLE001 - sanitized typed failure.
-                return self._exception_report(
-                    exception, "DISCOVERY", "ONVIF pre-authentication discovery"
-                )
-            if (
-                isinstance(result, tuple)
-                and len(result) == 2
-                and isinstance(result[0], PreAuthEvidence)
-                and isinstance(result[1], CollectionReport)
-            ):
-                self._cached_evidence = self._validated_discovery_evidence(result[0], target)
-                return result[1]
-
+        report = CollectionReport()
+        report = CollectionReport()
         try:
-            evidence = self._discoverer.discover(target)
+            discover_with_report = getattr(self._discoverer, "discover_with_report", None)
+            if callable(discover_with_report):
+                preauth, preauth_report = discover_with_report(target)
+                if isinstance(preauth_report, CollectionReport):
+                    report = report.merged(preauth_report).validated_for_target(
+                        (target.username, target.password)
+                    )
+            else:
+                preauth = self._discoverer.discover(target)
         except KeyboardInterrupt:
-            self._cached_evidence = PreAuthEvidence()
-            return CollectionReport().with_attempt(
+            return report.with_attempt(
                 CollectionAttempt(
                     stage="DISCOVERY",
-                    operation="ONVIF pre-authentication discovery",
+                    operation="discover",
                     protocol="ONVIF",
                     outcome="CANCELLED",
                 )
             )
-        except Exception as exception:  # noqa: BLE001 - don't erase earlier report evidence.
-            self._cached_evidence = PreAuthEvidence()
-            return self._exception_report(
-                exception, "DISCOVERY", "ONVIF pre-authentication discovery"
-            )
+        except Exception:  # noqa: BLE001 - discovery failure permits generic ONVIF collection.
+            preauth = PreAuthEvidence()
+        if preauth is None:
+            preauth = PreAuthEvidence()
 
-        self._cached_evidence = self._validated_discovery_evidence(evidence, target)
-        report = CollectionReport()
-        if self._cached_evidence.has_evidence:
+        resolution = self._resolver.resolve_with_evidence(
+            None,
+            preauth,
+            sensitive_values=(target.username, target.password),
+        )
+        manufacturer = resolution.selected
+        for value in resolution.observed_values:
             report = report.with_evidence(
                 EvidenceRecord(
-                    field="onvif_reachable",
-                    value="REACHABLE",
+                    field="manufacturer",
+                    value=value,
                     source="ONVIF_PREAUTH",
                     confidence="STRONG",
                     protocol="ONVIF",
-                    operation="discover",
+                    operation="GetCapabilities",
                 )
             )
-        resolution = self._resolver.resolve_with_evidence(
-            None,
-            self._cached_evidence,
-            sensitive_values=(target.username, target.password),
-        )
-        for value in resolution.observed_values:
-            if is_valid_evidence_value(
-                "manufacturer", value, sensitive_values=(target.username, target.password)
-            ):
-                report = report.with_evidence(
-                    EvidenceRecord(
-                        field="manufacturer",
-                        value=value,
-                        source="ONVIF_PREAUTH",
-                        confidence="STRONG",
-                        protocol="ONVIF",
-                        operation="GetCapabilities",
-                    )
-                )
         for value in resolution.weak_values:
-            if is_valid_evidence_value(
-                "manufacturer_signal", value, sensitive_values=(target.username, target.password)
-            ):
-                report = report.with_evidence(
-                    EvidenceRecord(
-                        field="manufacturer_signal",
-                        value=value,
-                        source="ONVIF_PREAUTH",
-                        confidence="WEAK",
-                        protocol="ONVIF",
-                        operation="GetCapabilities",
-                    )
-                )
-        return report
-
-    def _discovery_evidence(self, target: CameraTarget) -> PreAuthEvidence:
-        # discover_with_report results are cached by the discovery step to avoid a second request.
-        del target
-        evidence = getattr(self, "_cached_evidence", None)
-        return evidence if isinstance(evidence, PreAuthEvidence) else PreAuthEvidence()
-
-    def _validated_discovery_evidence(
-        self, evidence: PreAuthEvidence, target: CameraTarget
-    ) -> PreAuthEvidence:
-        """Drop raw discovery payloads after extracting safe structured signals."""
-        if not isinstance(evidence, PreAuthEvidence):
-            return PreAuthEvidence()
-        resolution = self._resolver.resolve_with_evidence(
-            None,
-            evidence,
-            sensitive_values=(target.username, target.password),
-        )
-        safe_capabilities: dict[str, tuple[str, ...]] = {}
-        if resolution.observed_values:
-            safe_capabilities["Manufacturer"] = resolution.observed_values
-        if resolution.weak_values:
-            safe_capabilities["Server"] = resolution.weak_values
-        return PreAuthEvidence(capabilities=safe_capabilities)
-
-    def _collect_source(
-        self, collector: CameraCollector, target: CameraTarget, *, source: str
-    ) -> CollectionReport:
-        report_method = getattr(collector, "collect_report", None)
-        if callable(report_method):
-            try:
-                report = report_method(target)
-            except KeyboardInterrupt:
-                return CollectionReport().with_attempt(
-                    CollectionAttempt(
-                        stage="SOAP",
-                        operation="collect",
-                        protocol="ONVIF" if source == "ONVIF" else None,
-                        outcome="CANCELLED",
-                    )
-                )
-            except Exception as exception:  # noqa: BLE001 - report unexpected failure safely.
-                return self._exception_report(exception, "SOAP", "collect", source=source)
-            if isinstance(report, CollectionReport):
-                return report.validated_for_target((target.username, target.password))
-            return CollectionReport().with_attempt(
-                CollectionAttempt(
-                    stage="PARSE",
-                    operation="collect_report",
-                    protocol="ONVIF" if source == "ONVIF" else None,
-                    outcome="FAILED",
-                    error_category="INVALID_RESPONSE",
+            report = report.with_evidence(
+                EvidenceRecord(
+                    field="manufacturer_signal",
+                    value=value,
+                    source="ONVIF_PREAUTH",
+                    confidence="WEAK",
+                    protocol="ONVIF",
+                    operation="GetCapabilities",
                 )
             )
+        report = report.validated_for_target((target.username, target.password))
+        adapter = self._registry.get(manufacturer) if manufacturer else None
+        if adapter is not None:
+            try:
+                collect_report = getattr(adapter, "collect_report", None)
+                if callable(collect_report):
+                    vendor_report = collect_report(target)
+                    if isinstance(vendor_report, CollectionReport):
+                        report = report.merged(vendor_report).validated_for_target(
+                            (target.username, target.password)
+                        )
+                    else:
+                        result = adapter.collect(target)
+                        if isinstance(result, CameraResult):
+                            report = report.merged(
+                                CollectionReport.from_camera_result(
+                                    result,
+                                    source="VENDOR",
+                                    sensitive_values=(target.username, target.password),
+                                )
+                            )
+                else:
+                    result = adapter.collect(target)
+                    if isinstance(result, CameraResult):
+                        report = report.merged(
+                            CollectionReport.from_camera_result(
+                                result,
+                                source="VENDOR",
+                                sensitive_values=(target.username, target.password),
+                            )
+                        )
+            except Exception:  # noqa: BLE001 - raw vendor exceptions are never retained.
+                self._logger.warning("Registered vendor adapter failed; using controlled ONVIF fallback")
+            else:
+                if _authentication_rejected(report):
+                    return report
+                if report.to_camera_result(target.ip).status is CollectionStatus.SUCCESS:
+                    return report
 
-        started = time.monotonic()
         try:
-            result = collector.collect(target)
+            collect_report = getattr(self._onvif, "collect_report", None)
+            if callable(collect_report):
+                onvif_report = collect_report(target)
+                if isinstance(onvif_report, CollectionReport):
+                    combined = report.merged(onvif_report).validated_for_target(
+                        (target.username, target.password)
+                    )
+                    _log_conflicts(self._logger, combined)
+                    return combined
+                raise TypeError("ONVIF collector returned an unsupported report")
+            result = self._onvif.collect(target)
         except KeyboardInterrupt:
-            return CollectionReport().with_attempt(
+            return report.with_attempt(
                 CollectionAttempt(
                     stage="SOAP",
-                    operation="collect",
-                    protocol="ONVIF" if source == "ONVIF" else None,
+                    operation="GetDeviceInformation",
+                    protocol="ONVIF",
                     outcome="CANCELLED",
-                    duration=self._elapsed(started),
                 )
             )
-        except Exception as exception:  # noqa: BLE001
-            return self._exception_report(
-                exception, "SOAP", "collect", source=source, started=started
-            )
+        except Exception as exception:  # noqa: BLE001 - retain only a bounded failure category.
+            category = _failure_category(exception)
+            return report.with_attempt(
+                CollectionAttempt(
+                    stage="AUTH" if category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED"} else "SOAP",
+                    operation="GetDeviceInformation",
+                    protocol="ONVIF",
+                    outcome="FAILED",
+                    error_category=category,
+                    authentication_mechanism="WS_SECURITY_USERNAME_TOKEN",
+                )
+            ).validated_for_target((target.username, target.password))
 
         if not isinstance(result, CameraResult):
-            return CollectionReport().with_attempt(
+            return report.with_attempt(
                 CollectionAttempt(
-                    stage="PARSE",
-                    operation="collect_result",
-                    protocol="ONVIF" if source == "ONVIF" else None,
+                    stage="SOAP",
+                    operation="GetDeviceInformation",
+                    protocol="ONVIF",
                     outcome="FAILED",
-                    duration=self._elapsed(started),
-                    error_category="INVALID_RESPONSE",
+                    error_category="UNEXPECTED",
                 )
             )
-        report = CollectionReport.from_camera_result(
+        onvif_report = CollectionReport.from_camera_result(
             result,
-            source=source,
+            source="ONVIF_AUTHENTICATED",
             sensitive_values=(target.username, target.password),
         )
-        return report.merged(
-            CollectionReport(
-                attempts=(
-                    CollectionAttempt(
-                        stage="SOAP",
-                        operation="collect",
-                        protocol="ONVIF" if source == "ONVIF" else None,
-                        outcome=(
-                            "CANCELLED"
-                            if result.status is CollectionStatus.CANCELLED
-                            else "FAILED"
-                            if result.status is CollectionStatus.FAILED
-                            else "SUCCESS"
-                        ),
-                        duration=self._elapsed(started),
-                    ),
-                ),
-                cancelled=result.status is CollectionStatus.CANCELLED,
+        if result.status in {CollectionStatus.SUCCESS, CollectionStatus.PARTIAL_SUCCESS}:
+            onvif_report = onvif_report.with_attempt(
+                CollectionAttempt(
+                    stage="SOAP",
+                    operation="GetDeviceInformation",
+                    protocol="ONVIF",
+                    outcome="SUCCESS",
+                    duration=result.duration,
+                    authentication_mechanism="WS_SECURITY_USERNAME_TOKEN",
+                )
             )
+        combined = report.merged(onvif_report).validated_for_target(
+            (target.username, target.password)
         )
+        _log_conflicts(self._logger, combined)
+        return combined
 
-    def _exception_report(
-        self,
-        exception: BaseException,
-        stage: str,
-        operation: str,
-        *,
-        source: str = "ONVIF",
-        started: float | None = None,
-    ) -> CollectionReport:
-        category, http_status, protocol_code = normalize_collection_error(exception, stage=stage)
-        attempt_stage = self._stage_for(category, stage)
-        return CollectionReport().with_attempt(
-            CollectionAttempt(
-                stage=attempt_stage,
-                operation=operation,
-                protocol="ONVIF" if source == "ONVIF" else None,
-                outcome="FAILED",
-                duration=self._elapsed(started) if started is not None else 0.0,
-                http_status=http_status,
-                protocol_code=protocol_code,
-                error_category=category,
-            )
+
+def _authentication_rejected(report: CollectionReport) -> bool:
+    return any(
+        attempt.error_category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED"}
+        for attempt in report.attempts
+    )
+
+
+def _failure_category(exception: Exception) -> str:
+    chain: list[BaseException] = []
+    current: BaseException | None = exception
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        chain.append(current)
+        original = getattr(current, "original_exception", None)
+        current = original if isinstance(original, BaseException) else current.__cause__ or current.__context__
+    if any(getattr(getattr(item, "response", None), "status_code", None) == 403 for item in chain):
+        return "AUTHORIZATION_DENIED"
+    if any(
+        getattr(getattr(item, "response", None), "status_code", None) == 401
+        or any(
+            marker in str(item).casefold().replace("_", "")
+            for marker in ("notauthorized", "unauthorized", "authentication failed", "invalid credentials")
         )
+        for item in chain
+    ):
+        return "AUTH_REJECTED"
+    if any(isinstance(item, TimeoutError) or type(item).__name__ in {"ConnectTimeout", "ReadTimeout", "Timeout"} for item in chain):
+        return "READ_TIMEOUT"
+    if any(
+        type(item).__name__ in {"ConnectionError", "ConnectError"} or isinstance(item, OSError)
+        for item in chain
+    ):
+        return "CONNECTION_REFUSED"
+    if any(type(item).__module__.startswith(("zeep", "onvif")) for item in chain):
+        return "SOAP_FAULT"
+    return "UNEXPECTED"
 
-    @staticmethod
-    def _elapsed(started: float) -> float:
-        return max(0.0, float(time.monotonic() - started))
 
-    @staticmethod
-    def _stage_for(category: str, default: str) -> str:
-        if category in {"CONNECT_TIMEOUT", "CONNECTION_REFUSED", "TLS_ERROR"}:
-            return "CONNECT"
-        if category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED", "AUTH_MECHANISM_UNSUPPORTED"}:
-            return "AUTH"
-        if category in {"READ_TIMEOUT", "HTTP_ERROR", "ENDPOINT_UNSUPPORTED"}:
-            return "HTTP"
-        if category == "SOAP_FAULT":
-            return "SOAP"
-        if category == "INVALID_RESPONSE":
-            return "PARSE"
-        return default
 
-    @staticmethod
-    def _stopped_after_auth_failure(report: CollectionReport) -> bool:
-        return any(
-            item.error_category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED"}
-            for item in report.attempts
-        )
+
+
+
+
+
+
+
+def _log_conflicts(logger: logging.Logger, report: CollectionReport) -> None:
+    if report.conflicts:
+        logger.warning("Conflicting collection evidence retained in report")
