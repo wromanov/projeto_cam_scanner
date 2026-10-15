@@ -7,7 +7,7 @@ import pytest
 import requests
 from requests.adapters import BaseAdapter
 
-from cam_scanner.cameras.manufacturers.hikvision import HikvisionAdapter
+from cam_scanner.cameras.manufacturers.hikvision import HikvisionAdapter, _parse_device_info
 from cam_scanner.cameras.preauth import PreAuthEvidence
 from cam_scanner.cameras.registry import AdapterRegistry
 from cam_scanner.cameras.strategy import VendorFirstCollector
@@ -87,6 +87,7 @@ def test_digest_handshake_reads_only_approved_identity_endpoint_and_parses_xml()
     assert result.status is CollectionStatus.SUCCESS
     assert result.collection_method is CollectionMethod.HIKVISION_ISAPI
     assert result.manufacturer == "Hikvision"
+    assert result.hostname is None
     assert result.model == "DS-KD8003"
     assert result.serial == "serial-123"
     assert result.firmware == "3.7.1"
@@ -245,6 +246,39 @@ def test_xml_parser_rejects_non_device_xml_dtd_and_oversized_content(body: bytes
 
     assert not report.evidence
     assert report.attempts[-1].error_category == "INVALID_RESPONSE"
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-16le", "utf-16be"])
+def test_xml_parser_rejects_dtd_before_entity_expansion_in_supported_encodings(
+    encoding: str,
+) -> None:
+    document = (
+        "<?xml version='1.0' encoding='UTF-8'?>"
+        "<!DOCTYPE DeviceInfo [<!ENTITY x SYSTEM 'file:///private/data'>]>"
+        "<DeviceInfo><manufacturer>&x;</manufacturer></DeviceInfo>"
+    )
+    if encoding == "utf-8":
+        body = document.encode("utf-8")
+    else:
+        declaration = document.replace("UTF-8", "UTF-16")
+        marker = b"\xff\xfe" if encoding == "utf-16le" else b"\xfe\xff"
+        body = marker + declaration.encode(encoding)
+
+    with pytest.raises(ValueError):
+        _parse_device_info(body)
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-16le", "utf-16be"])
+def test_xml_parser_preserves_valid_xml_in_supported_encodings(encoding: str) -> None:
+    document = "<?xml version='1.0' encoding='UTF-8'?><DeviceInfo><model>DS 東京</model></DeviceInfo>"
+    if encoding == "utf-8":
+        body = document.encode("utf-8")
+    else:
+        declaration = document.replace("UTF-8", "UTF-16")
+        marker = b"\xff\xfe" if encoding == "utf-16le" else b"\xfe\xff"
+        body = marker + declaration.encode(encoding)
+
+    assert _parse_device_info(body) == {"model": "DS 東京"}
 
 
 def test_target_credentials_are_not_kept_when_echoed_in_device_fields() -> None:

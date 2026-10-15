@@ -11,7 +11,7 @@ from cam_scanner.cameras.registry import build_default_registry
 from cam_scanner.cameras.strategy import VendorFirstCollector
 from cam_scanner.config.loader import load_settings
 from cam_scanner.logging.sanitize import sanitized_traceback
-from cam_scanner.logging.setup import configure_logging
+from cam_scanner.logging.setup import close_logging, configure_logging
 from cam_scanner.snapshot.service import SnapshotService
 from cam_scanner.terminal.ui import TerminalUI
 
@@ -22,10 +22,12 @@ def main() -> int:
     logger = logging.getLogger("cam_scanner")
 
     try:
-        logger = configure_logging()
-        registry = build_default_registry()
-        inventory_service = InventoryService(VendorFirstCollector(registry=registry), logger=logger)
         settings = load_settings()
+        logger = configure_logging(config=settings)
+        registry = build_default_registry()
+        inventory_service = InventoryService(
+            VendorFirstCollector(registry=registry), logger=logger, config=settings
+        )
         snapshot_service = SnapshotService()
         controller = ApplicationController(
             ui,
@@ -41,6 +43,8 @@ def main() -> int:
         logger.error("Unexpected application diagnostic (sanitized):\n%s", diagnostic)
         ui.show_unexpected_error()
         return 1
+    finally:
+        close_logging()
     return 0
 
 

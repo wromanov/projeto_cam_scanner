@@ -5,7 +5,7 @@ import io
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Protocol
+from typing import Any, Protocol
 
 from cam_scanner.domain.models import CameraTarget
 
@@ -77,6 +77,10 @@ class SnapshotService:
         rtsp_provider: SnapshotProvider | None = None,
         image_processor: Callable[[bytes], tuple[bytes, int, int]] | None = None,
     ) -> None:
+        self._all_providers_injected = all(
+            provider is not None for provider in
+            (onvif_provider, manufacturer_provider, rtsp_provider)
+        )
         if onvif_provider is None:
             from cam_scanner.snapshot.onvif import OnvifSnapshotProvider
 
@@ -101,21 +105,40 @@ class SnapshotService:
         target: CameraTarget,
         manufacturer: str | None = None,
         model: str | None = None,
+        *,
+        context: Any = None,
     ) -> SnapshotResult:
+        if context is None and not self._all_providers_injected:
+            return SnapshotResult(failure=SnapshotFailure.TARGET_REJECTED)
+        if context is not None and not (
+            context.snapshot_eligible("ONVIF") or context.snapshot_eligible("VENDOR_HIKVISION")
+        ):
+            return SnapshotResult(failure=SnapshotFailure.AUTH_REJECTED)
         attempts: list[SnapshotAttempt] = []
         last_failure = SnapshotFailure.UNSUPPORTED
         for method, provider in self._providers:
+            source = "RTSP_OPEN" if method is SnapshotMethod.RTSP_FRAME else "SNAPSHOT_HTTP"
+            family = "VENDOR_HIKVISION" if method is SnapshotMethod.VENDOR_HTTP else "ONVIF"
+            if context is not None:
+                try:
+                    context.check(source)
+                except Exception:  # noqa: BLE001 - cancellation and exhaustion stop image I/O.
+                    return SnapshotResult(attempts=tuple(attempts), failure=SnapshotFailure.TIMEOUT)
+                if not context.snapshot_eligible(family):
+                    continue
             if method is SnapshotMethod.VENDOR_HTTP and not _supports_hikvision_snapshot(
                 manufacturer, model
             ):
                 continue
             try:
                 if method is SnapshotMethod.VENDOR_HTTP:
-                    raw_image = provider.capture(
-                        target, manufacturer=manufacturer, model=model
-                    )
+                    options = {"manufacturer": manufacturer, "model": model}
+                    if context is not None:
+                        options["context"] = context
+                    raw_image = provider.capture(target, **options)
                 else:
-                    raw_image = provider.capture(target)
+                    raw_image = (provider.capture(target, context=context)
+                                 if context is not None else provider.capture(target))
                 if not isinstance(raw_image, bytes) or not raw_image:
                     raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
                 thumbnail, width, height = self._image_processor(raw_image)

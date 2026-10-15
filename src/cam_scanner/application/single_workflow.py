@@ -27,22 +27,39 @@ class SingleWorkflow:
         target: CameraTarget = self._ui.prompt_camera_target()
         target_ip = target.ip
         started = time.monotonic()
-        collect_report = getattr(self._inventory_service, "collect_report", None)
-        report = collect_report(target) if callable(collect_report) else None
-        result = (
-            report.to_camera_result(target_ip)
-            if report is not None
-            else self._inventory_service.collect_one(target)
-        )
-        duration = max(0.0, float(time.monotonic() - started))
-        snapshot: SnapshotResult | None = None
-        if self._snapshot_service is not None and result.status.value != "FAILED":
-            try:
-                snapshot = self._snapshot_service.capture_one(
-                    target, manufacturer=result.manufacturer, model=result.model
-                )
-            except Exception:  # noqa: BLE001 - snapshot failure must not alter identity results.
-                snapshot = SnapshotResult(failure=SnapshotFailure.UNEXPECTED)
+        collect_execution = getattr(self._inventory_service, "collect_execution", None)
+        context = None
+        try:
+            if callable(collect_execution):
+                report, context = collect_execution(target)
+            else:
+                collect_report = getattr(self._inventory_service, "collect_report", None)
+                report = collect_report(target) if callable(collect_report) else None
+            result = (
+                report.to_camera_result(target_ip)
+                if report is not None
+                else self._inventory_service.collect_one(target)
+            )
+            duration = max(0.0, float(time.monotonic() - started))
+            snapshot: SnapshotResult | None = None
+            if self._snapshot_service is not None:
+                try:
+                    if context is None:
+                        snapshot = self._snapshot_service.capture_one(
+                            target, manufacturer=result.manufacturer, model=result.model
+                        )
+                    else:
+                        snapshot = self._snapshot_service.capture_one(
+                            target,
+                            manufacturer=result.manufacturer,
+                            model=result.model,
+                            context=context,
+                        )
+                except Exception:  # noqa: BLE001 - snapshot failure must not alter identity results.
+                    snapshot = SnapshotResult(failure=SnapshotFailure.UNEXPECTED)
+        finally:
+            if context is not None:
+                context.close()
         del target
         if report is not None:
             self._ui.render_report(

@@ -17,6 +17,7 @@ from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException, S
 from cam_scanner.cameras.manufacturers._http_utils import (
     DeadlineExceeded,
     bounded_timeout,
+    managed_vendor_session,
     read_limited_until,
     remaining_budget,
 )
@@ -51,10 +52,10 @@ class DahuaAdapter:
         self.session_factory = session_factory or requests.Session
         self.timeout, self.budget = timeout, budget
 
-    def collect(self, target: CameraTarget) -> CameraResult:
-        return self.collect_report(target).to_camera_result(target.ip)
+    def collect(self, target: CameraTarget, *, context: Any = None) -> CameraResult:
+        return self.collect_report(target, context=context).to_camera_result(target.ip)
 
-    def collect_report(self, target: CameraTarget) -> CollectionReport:
+    def collect_report(self, target: CameraTarget, *, context: Any = None) -> CollectionReport:
         report = CollectionReport()
         started = time.monotonic()
         try:
@@ -67,7 +68,7 @@ class DahuaAdapter:
         origin = f"https://{host}"
         auth = _BoundedDigestAuth(target.username, target.password)
         try:
-            with self.session_factory() as session:
+            with managed_vendor_session(context, "vendor_dahua", self.session_factory) as session:
                 session.trust_env = False
                 for path, operation, mapping in (
                     (
@@ -82,8 +83,10 @@ class DahuaAdapter:
                     except DeadlineExceeded:
                         return attempt(report, operation, started, "HTTP", "FAILED", "DEADLINE_EXCEEDED")
                     try:
+                        url = (context.transport.endpoint("vendor_dahua", path=path)
+                               if context is not None else origin + path)
                         response = session.get(
-                            origin + path, auth=auth, allow_redirects=False,
+                            url, auth=auth, allow_redirects=False,
                             stream=True, timeout=timeout, verify=True,
                         )
                         try:
@@ -101,6 +104,7 @@ class DahuaAdapter:
                                 MAX_RESPONSE_BYTES,
                                 started,
                                 self.budget,
+                                context=context,
                             )
                         finally:
                             response.close()

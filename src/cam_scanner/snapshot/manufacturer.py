@@ -15,6 +15,7 @@ from requests.exceptions import (
     Timeout,
 )
 
+from cam_scanner.cameras.transport import TargetRejected
 from cam_scanner.domain.models import CameraTarget
 from cam_scanner.snapshot.onvif import _read_limited
 from cam_scanner.snapshot.service import SnapshotCaptureError, SnapshotFailure
@@ -39,7 +40,13 @@ class ManufacturerSnapshotProvider:
         target: CameraTarget,
         manufacturer: str | None = None,
         model: str | None = None,
+        *,
+        context: Any = None,
     ) -> bytes:
+        if context is None and self._session_factory is requests.Session:
+            raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
+        if context is not None and not context.snapshot_eligible("VENDOR_HIKVISION"):
+            raise SnapshotCaptureError(SnapshotFailure.AUTH_REJECTED)
         if (
             not isinstance(manufacturer, str)
             or manufacturer.casefold().strip() != "hikvision"
@@ -52,8 +59,18 @@ class ManufacturerSnapshotProvider:
             host = f"[{address.compressed}]" if address.version == 6 else address.compressed
         except ValueError:
             raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED) from None
-        url = f"http://{host}:80{_ENDPOINT}"
+        url = (context.transport.endpoint("snapshot_vendor", path=_ENDPOINT)
+               if context is not None else f"http://{host}:80{_ENDPOINT}")
         try:
+            if context is not None:
+                response = context.transport.request(
+                    "snapshot_vendor", "GET", url, source="SNAPSHOT_HTTP",
+                    auth=HTTPDigestAuth(target.username, target.password),
+                )
+                try:
+                    return _read_response(response, context=context)
+                finally:
+                    response.close()
             with self._session_factory() as session:
                 session.trust_env = False
                 response = session.get(
@@ -65,25 +82,31 @@ class ManufacturerSnapshotProvider:
                     verify=True,
                 )
                 try:
-                    status = response.status_code
-                    if status == 401:
-                        raise SnapshotCaptureError(SnapshotFailure.AUTH_REJECTED)
-                    if status == 403:
-                        raise SnapshotCaptureError(SnapshotFailure.AUTHORIZATION_DENIED)
-                    if status in {404, 405}:
-                        raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
-                    if 300 <= status < 400:
-                        raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
-                    if status != 200:
-                        raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
-                    return _read_limited(response.iter_content(chunk_size=65536))
+                    return _read_response(response)
                 finally:
                     response.close()
         except SnapshotCaptureError:
             raise
+        except TargetRejected:
+            raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED) from None
         except (ConnectTimeout, ReadTimeout, Timeout):
             raise SnapshotCaptureError(SnapshotFailure.TIMEOUT) from None
         except ConnectionError:
             raise SnapshotCaptureError(SnapshotFailure.NETWORK_ERROR) from None
         except RequestException:
             raise SnapshotCaptureError(SnapshotFailure.NETWORK_ERROR) from None
+
+
+def _read_response(response: Any, *, context: Any = None) -> bytes:
+    status = response.status_code
+    if status == 401:
+        raise SnapshotCaptureError(SnapshotFailure.AUTH_REJECTED)
+    if status == 403:
+        raise SnapshotCaptureError(SnapshotFailure.AUTHORIZATION_DENIED)
+    if status in {404, 405}:
+        raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
+    if 300 <= status < 400:
+        raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
+    if status != 200:
+        raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
+    return _read_limited(response.iter_content(chunk_size=65536), context=context)

@@ -352,8 +352,7 @@ def test_preauth_discovery_uses_no_target_credentials_and_calls_only_read_method
             return {"Manufacturer": "Hikvision"}
 
         def GetSystemDateAndTime(self) -> dict[str, str]:
-            calls.append("GetSystemDateAndTime")
-            return {"Time": "read-only"}
+            raise AssertionError("diagnostic operation is not needed for normal discovery")
 
     class Client:
         def __init__(self, **kwargs: object) -> None:
@@ -366,7 +365,7 @@ def test_preauth_discovery_uses_no_target_credentials_and_calls_only_read_method
 
     assert "username" not in options
     assert "password" not in options
-    assert calls == ["GetCapabilities", "GetSystemDateAndTime"]
+    assert calls == ["GetCapabilities"]
     assert evidence.has_evidence
 
 

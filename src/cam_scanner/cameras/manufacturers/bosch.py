@@ -7,6 +7,8 @@ RCP+ command; report the vendor gap so the caller can continue with ONVIF.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from cam_scanner.domain.models import (
     CameraResult,
     CameraTarget,
@@ -18,12 +20,13 @@ from cam_scanner.domain.models import (
 class BoschAdapter:
     """Report the absence of documented vendor identity collection, without I/O."""
 
-    def collect(self, target: CameraTarget) -> CameraResult:
-        return self.collect_report(target).to_camera_result(target.ip)
+    def collect(self, target: CameraTarget, *, context: Any = None) -> CameraResult:
+        return self.collect_report(target, context=context).to_camera_result(target.ip)
 
-    def collect_report(self, target: CameraTarget) -> CollectionReport:
+    def collect_report(self, target: CameraTarget, *, context: Any = None) -> CollectionReport:
         """Return a skipped vendor attempt; VendorFirstCollector then uses ONVIF."""
         del target  # no endpoint is called and no target data is retained
+        del context
         return CollectionReport().with_attempt(
             CollectionAttempt(
                 stage="VALIDATE",

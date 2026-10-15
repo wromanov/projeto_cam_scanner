@@ -16,6 +16,7 @@ from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException, S
 from cam_scanner.cameras.manufacturers._http_utils import (
     DeadlineExceeded,
     bounded_timeout,
+    managed_vendor_session,
     read_limited_until,
     remaining_budget,
 )
@@ -50,10 +51,10 @@ class AxisAdapter:
         self._timeout = timeout
         self._budget = budget
 
-    def collect(self, target: CameraTarget) -> CameraResult:
-        return self.collect_report(target).to_camera_result(target.ip)
+    def collect(self, target: CameraTarget, *, context: Any = None) -> CameraResult:
+        return self.collect_report(target, context=context).to_camera_result(target.ip)
 
-    def collect_report(self, target: CameraTarget) -> CollectionReport:
+    def collect_report(self, target: CameraTarget, *, context: Any = None) -> CollectionReport:
         started = time.monotonic()
         report = CollectionReport()
         auth = _BoundedDigestAuth(target.username, target.password)
@@ -63,11 +64,13 @@ class AxisAdapter:
         except ValueError:
             return self._failure(report, started, "INVALID_INPUT", "VALIDATE")
         try:
-            with self._session_factory() as session:
+            with managed_vendor_session(context, "vendor_axis", self._session_factory) as session:
                 session.trust_env = False
                 timeout = bounded_timeout(self._timeout, started, self._budget)
+                url = (context.transport.endpoint("vendor_axis", path=_PATH)
+                       if context is not None else f"https://{host}{_PATH}")
                 response = session.post(
-                    f"https://{host}{_PATH}", data=_BODY,
+                    url, data=_BODY,
                     headers={"Content-Type": "application/json"}, auth=auth,
                     allow_redirects=False, stream=True, timeout=timeout, verify=True,
                 )
@@ -80,7 +83,8 @@ class AxisAdapter:
                     if declared and int(declared) > _MAX_BODY:
                         return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
                     body = read_limited_until(
-                        response.iter_content(chunk_size=8192), _MAX_BODY, started, self._budget
+                        response.iter_content(chunk_size=8192), _MAX_BODY, started, self._budget,
+                        context=context,
                     )
                 finally:
                     response.close()

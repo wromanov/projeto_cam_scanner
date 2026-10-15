@@ -68,32 +68,19 @@ def test_generic_collector_does_not_preserve_unsafe_original_manufacturer_text()
     assert "camera.local" not in repr(result)
 
 
-def test_default_client_disables_disk_cache_and_uses_request_timeout(monkeypatch) -> None:
-    from onvif import CacheMode
-
-    captured: dict[str, object] = {}
-
-    class FakeDeviceService:
-        def GetDeviceInformation(self) -> dict[str, str]:
-            return {}
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured.update(kwargs)
-
-        def devicemgmt(self) -> FakeDeviceService:
-            return FakeDeviceService()
-
+def test_default_client_requires_shared_context_before_network_io(monkeypatch) -> None:
     import onvif
 
-    monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
-    GenericOnvifCollector().collect(
+    def forbidden_client(**_kwargs: object) -> object:
+        raise AssertionError("legacy ONVIF constructor must not run")
+
+    monkeypatch.setattr(onvif, "ONVIFClient", forbidden_client)
+    report = GenericOnvifCollector().collect_report(
         CameraTarget(ip="192.0.2.10", username="operator", password="secret")
     )
 
-    assert captured["cache"] is CacheMode.NONE
-    assert captured["timeout"] == 7
-    assert captured["port"] == 80
+    assert report.attempts[0].outcome == "FAILED"
+    assert not report.evidence
 
 
 def test_dependency_logs_are_suppressed_before_collection(monkeypatch) -> None:

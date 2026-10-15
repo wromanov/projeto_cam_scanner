@@ -8,6 +8,7 @@ from typing import Any
 
 from cam_scanner.cameras.manufacturer import ManufacturerNormalizer
 from cam_scanner.cameras.onvif.adapter import _suppress_dependency_logs
+from cam_scanner.cameras.transport import ControlledOnvifClient
 from cam_scanner.domain.errors import normalize_collection_error
 from cam_scanner.domain.models import (
     CameraTarget,
@@ -61,13 +62,13 @@ class OnvifPreAuthDiscoverer:
         self._client_factory = client_factory
         self._timeout_seconds = timeout_seconds
 
-    def discover(self, target: CameraTarget) -> PreAuthEvidence:
+    def discover(self, target: CameraTarget, *, context: Any = None) -> PreAuthEvidence:
         """Compatibility API; canonical collection uses discover_with_report."""
-        evidence, _ = self.discover_with_report(target)
+        evidence, _ = self.discover_with_report(target, context=context)
         return evidence
 
     def discover_with_report(
-        self, target: CameraTarget
+        self, target: CameraTarget, *, context: Any = None
     ) -> tuple[PreAuthEvidence, CollectionReport]:
         _suppress_dependency_logs()
         report = CollectionReport()
@@ -77,15 +78,18 @@ class OnvifPreAuthDiscoverer:
             "port": 80,
             "timeout": self._timeout_seconds,
         }
-        if client_factory is None:
-            from onvif import CacheMode, ONVIFClient
-
-            client_factory = ONVIFClient
-            client_options["cache"] = CacheMode.NONE
+        if client_factory is None and context is None:
+            return PreAuthEvidence(), CollectionReport().with_attempt(CollectionAttempt(
+                stage="CONNECT", operation="create_onvif_client", protocol="ONVIF",
+                outcome="FAILED", error_category="INVALID_INPUT",
+            ))
 
         started = time.monotonic()
         try:
-            client = client_factory(**client_options)
+            if context is not None:
+                context.check("ONVIF")
+            client = (ControlledOnvifClient(context, authenticated=False)
+                      if client_factory is None else client_factory(**client_options))
             service = client.devicemgmt()
         except KeyboardInterrupt:
             attempt = CollectionAttempt(
@@ -113,10 +117,7 @@ class OnvifPreAuthDiscoverer:
             return PreAuthEvidence(), report.with_attempt(attempt)
 
         values: dict[str, object | None] = {}
-        for operation, kwargs in (
-            ("GetCapabilities", {"Category": "All"}),
-            ("GetSystemDateAndTime", {}),
-        ):
+        for operation, kwargs in (("GetCapabilities", {"Category": "All"}),):
             method = getattr(service, operation, None)
             if not callable(method):
                 report = report.with_attempt(
@@ -134,6 +135,8 @@ class OnvifPreAuthDiscoverer:
 
             started = time.monotonic()
             try:
+                if context is not None:
+                    context.check("ONVIF")
                 value = method(**kwargs)
             except KeyboardInterrupt:
                 attempt = CollectionAttempt(

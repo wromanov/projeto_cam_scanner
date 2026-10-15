@@ -2,16 +2,43 @@
 import importlib
 import logging
 
-import onvif
+
+
+def _install_controlled_client(monkeypatch, factory) -> None:
+    """Replace only the controlled client boundary; keep routing and workflows real."""
+    monkeypatch.setattr("cam_scanner.cameras.preauth.ControlledOnvifClient", factory)
+    monkeypatch.setattr("cam_scanner.cameras.onvif.adapter.ControlledOnvifClient", factory)
+
+
+def _install_unsupported_snapshots(monkeypatch, main_module) -> None:
+    from cam_scanner.snapshot.service import SnapshotCaptureError, SnapshotFailure, SnapshotService
+
+    class UnsupportedProvider:
+        def capture(self, _target, **_kwargs):
+            raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
+
+    monkeypatch.setattr(
+        main_module,
+        "SnapshotService",
+        lambda: SnapshotService(UnsupportedProvider(), UnsupportedProvider(), UnsupportedProvider()),
+    )
 
 
 def test_cli_entrypoint_runs_single_flow_without_printing_password(monkeypatch, capsys) -> None:
     calls: list[str] = []
-    client_options: dict[str, object] = {}
+    client_options: list[dict[str, object]] = []
 
     class FakeDeviceService:
+        def __init__(self, context) -> None:
+            self.context = context
+
+        def GetCapabilities(self, **_kwargs: object) -> dict[str, str]:
+            calls.append("GetCapabilities")
+            return {"Manufacturer": "Example Cameras"}
+
         def GetDeviceInformation(self) -> dict[str, str]:
             calls.append("GetDeviceInformation")
+            self.context.auth.observe_http(200, "ONVIF", authenticated=True)
             return {
                 "Manufacturer": "Example Cameras",
                 "Model": "Model A",
@@ -20,15 +47,19 @@ def test_cli_entrypoint_runs_single_flow_without_printing_password(monkeypatch, 
             }
 
     class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            client_options.update(kwargs)
+        def __init__(self, context, *, authenticated: bool) -> None:
+            self.context = context
+            client_options.append({"authenticated": authenticated,
+                                   "username": context.target.username if authenticated else None,
+                                   "password": context.target.password if authenticated else None})
 
         def devicemgmt(self) -> FakeDeviceService:
-            return FakeDeviceService()
+            return FakeDeviceService(self.context)
 
     main_module = importlib.import_module("cam_scanner.main")
-    monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
-    monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli"))
+    _install_controlled_client(monkeypatch, FakeClient)
+    _install_unsupported_snapshots(monkeypatch, main_module)
+    monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli"))
     answers = iter(["1", "192.0.2.10", "operator", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
@@ -36,9 +67,11 @@ def test_cli_entrypoint_runs_single_flow_without_printing_password(monkeypatch, 
     assert main_module.main() == 0
 
     output = capsys.readouterr().out
-    assert calls == ["GetDeviceInformation"]
-    assert client_options["password"] == "private-password"
-    assert client_options["cache"] is onvif.CacheMode.NONE
+    assert calls == ["GetCapabilities", "GetDeviceInformation"]
+    assert client_options[0]["authenticated"] is False
+    assert client_options[0]["password"] is None
+    assert client_options[1]["authenticated"] is True
+    assert client_options[1]["password"] == "private-password"
     assert "Example Cameras" in output
     assert "serial-1" in output
     assert "private-password" not in output
@@ -50,19 +83,27 @@ def test_cli_handles_authentication_failure_without_a_traceback(monkeypatch, cap
     from zeep.exceptions import Fault
 
     class FakeDeviceService:
+        def __init__(self, context) -> None:
+            self.context = context
+
+        def GetCapabilities(self, **_kwargs: object) -> None:
+            return None
+
         def GetDeviceInformation(self) -> dict[str, str]:
+            self.context.auth.observe_soap("NotAuthorized", authenticated=True)
             raise Fault("NotAuthorized")
 
     class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            pass
+        def __init__(self, context, *, authenticated: bool) -> None:
+            self.context = context
 
         def devicemgmt(self) -> FakeDeviceService:
-            return FakeDeviceService()
+            return FakeDeviceService(self.context)
 
     main_module = importlib.import_module("cam_scanner.main")
-    monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
-    monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-auth"))
+    _install_controlled_client(monkeypatch, FakeClient)
+    _install_unsupported_snapshots(monkeypatch, main_module)
+    monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-auth"))
     answers = iter(["1", "192.0.2.10", "operator", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
@@ -96,14 +137,19 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     class AuthDevice:
         def GetDeviceInformation(self) -> dict[str, str]:
             calls.append("GetDeviceInformation")
+            _AUTH_CONTEXT.auth.observe_soap("NotAuthorized", authenticated=True)
             raise Fault("NotAuthorized")
 
     class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            clients.append(kwargs)
+        def __init__(self, context, *, authenticated: bool) -> None:
+            global _AUTH_CONTEXT
+            _AUTH_CONTEXT = context
+            clients.append({"username": context.target.username if authenticated else None,
+                            "password": context.target.password if authenticated else None,
+                            "authenticated": authenticated})
 
         def devicemgmt(self) -> PreAuthDevice | AuthDevice:
-            if "password" in clients[-1]:
+            if clients[-1]["authenticated"]:
                 return AuthDevice()
             return PreAuthDevice()
 
@@ -129,8 +175,9 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     registry = AdapterRegistry()
     registry.register("Hikvision", UnsupportedHikvisionAdapter())
     monkeypatch.setattr(main_module, "build_default_registry", lambda: registry)
-    monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
-    monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-partial"))
+    _install_controlled_client(monkeypatch, FakeClient)
+    _install_unsupported_snapshots(monkeypatch, main_module)
+    monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-partial"))
     answers = iter(["1", "192.0.2.10", "operator", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
@@ -138,13 +185,13 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     assert main_module.main() == 0
 
     output = capsys.readouterr().out
-    assert calls == ["GetCapabilities", "GetSystemDateAndTime", "GetDeviceInformation"]
+    assert calls == ["GetCapabilities", "GetDeviceInformation"]
     assert "Status: PARTIAL_SUCCESS" in output
     assert "Fabricante: Hikvision" in output
     assert "A câmera forneceu evidência pré-autenticação" in output
     assert "Conflitos preservados:" not in output
     assert "private-password" not in output
-    assert "username" not in clients[0] and "password" not in clients[0]
+    assert clients[0]["username"] is None and clients[0]["password"] is None
     assert clients[1]["password"] == "private-password"
 
 
@@ -152,20 +199,28 @@ def test_post_query_menu_repeats_single_and_routes_multi_to_controller(monkeypat
     calls: list[str] = []
 
     class FakeDeviceService:
+        def __init__(self, context) -> None:
+            self.context = context
+
+        def GetCapabilities(self, **_kwargs: object) -> dict[str, str]:
+            return {"Manufacturer": "Example"}
+
         def GetDeviceInformation(self) -> dict[str, str]:
             calls.append("GetDeviceInformation")
+            self.context.auth.observe_http(200, "ONVIF", authenticated=True)
             return {"Manufacturer": "Example", "Model": "Model A"}
 
     class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            pass
+        def __init__(self, context, *, authenticated: bool) -> None:
+            self.context = context
 
         def devicemgmt(self) -> FakeDeviceService:
-            return FakeDeviceService()
+            return FakeDeviceService(self.context)
 
     main_module = importlib.import_module("cam_scanner.main")
-    monkeypatch.setattr(onvif, "ONVIFClient", FakeClient)
-    monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-nav"))
+    _install_controlled_client(monkeypatch, FakeClient)
+    _install_unsupported_snapshots(monkeypatch, main_module)
+    monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-nav"))
     multi_calls: list[str] = []
 
     class FakeMultiWorkflow:
@@ -212,21 +267,23 @@ def test_cli_single_success_includes_offline_snapshot_without_printing_password(
     monkeypatch, capsys
 ) -> None:
     from cam_scanner.domain.enums import CollectionStatus
-    from cam_scanner.domain.models import CameraResult
+    from cam_scanner.domain.models import CameraResult, CollectionReport
     from cam_scanner.snapshot.service import SnapshotService
 
     snapshot_targets: list[str] = []
 
     class FakeCollector:
-        def collect(self, target):
-            return CameraResult(
+        def collect_report(self, target, *, context):
+            context.auth.begin("ONVIF", "initial")
+            context.auth.observe_http(200, "ONVIF", authenticated=True)
+            return CollectionReport.from_camera_result(CameraResult(
                 ip=target.ip,
                 status=CollectionStatus.SUCCESS,
                 manufacturer="Example Cameras",
                 model="Model A",
                 serial="serial-1",
                 duration=0.0,
-            )
+            ))
 
     class SnapshotProvider:
         def capture(self, target, **_context):
@@ -253,7 +310,7 @@ def test_cli_single_success_includes_offline_snapshot_without_printing_password(
             image_processor=lambda _raw: (b"processed-jpeg", 320, 160),
         ),
     )
-    monkeypatch.setattr(main_module, "configure_logging", lambda: logging.getLogger("test-cli-snapshot"))
+    monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-snapshot"))
     answers = iter(["1", "192.0.2.10", "operator", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")

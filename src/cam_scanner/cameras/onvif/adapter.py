@@ -8,6 +8,7 @@ from typing import Any
 
 from cam_scanner.cameras.collector import CameraCollector
 from cam_scanner.cameras.manufacturer import ManufacturerNormalizer
+from cam_scanner.cameras.transport import ControlledOnvifClient
 from cam_scanner.domain.errors import normalize_collection_error
 from cam_scanner.domain.models import (
     CameraResult,
@@ -31,10 +32,10 @@ class GenericOnvifCollector(CameraCollector):
         self._timeout_seconds = timeout_seconds
         self._manufacturer_normalizer = ManufacturerNormalizer()
 
-    def collect(self, target: CameraTarget) -> CameraResult:
-        return self.collect_report(target).to_camera_result(target.ip)
+    def collect(self, target: CameraTarget, *, context: Any = None) -> CameraResult:
+        return self.collect_report(target, context=context).to_camera_result(target.ip)
 
-    def collect_report(self, target: CameraTarget) -> CollectionReport:
+    def collect_report(self, target: CameraTarget, *, context: Any = None) -> CollectionReport:
         _suppress_dependency_logs()
         client_factory = self._client_factory
         client_options: dict[str, object] = {
@@ -44,16 +45,18 @@ class GenericOnvifCollector(CameraCollector):
             "password": target.password,
             "timeout": self._timeout_seconds,
         }
-        if client_factory is None:
-            from onvif import CacheMode, ONVIFClient
-
-            client_factory = ONVIFClient
-            client_options["cache"] = CacheMode.NONE
+        if client_factory is None and context is None:
+            return CollectionReport().with_attempt(self._failed_attempt(
+                ValueError("context required"), "CONNECT", "create_onvif_client", time.monotonic()
+            ))
 
         report = CollectionReport()
         started = time.monotonic()
         try:
-            client = client_factory(**client_options)
+            if context is not None:
+                context.check("ONVIF")
+            client = (ControlledOnvifClient(context, authenticated=True)
+                      if client_factory is None else client_factory(**client_options))
             device_service = client.devicemgmt()
         except KeyboardInterrupt:
             return report.with_attempt(
@@ -72,6 +75,8 @@ class GenericOnvifCollector(CameraCollector):
 
         started = time.monotonic()
         try:
+            if context is not None:
+                context.check("ONVIF")
             device_info = device_service.GetDeviceInformation()
         except KeyboardInterrupt:
             return report.with_attempt(

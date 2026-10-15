@@ -1,13 +1,40 @@
-# Scaffold PyInstaller ONEDIR. Datas and hidden imports will be defined after
-# implementation and validation of the modules that need them.
-block_cipher = None
+"""Offline ONEDIR collection manifest; validation/build is intentionally deferred to P12."""
+from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+
+PROJECT_ROOT = Path(SPECPATH).resolve().parent.parent
+datas = collect_data_files("onvif", includes=["wsdl/**/*.wsdl"])
+datas += collect_data_files("certifi")
+datas.append((str(PROJECT_ROOT / "config" / "settings.example.toml"), "config"))
+
+# These packages load native libraries dynamically; collect their declared runtime DLLs.
+binaries = collect_dynamic_libs("av")
+binaries += collect_dynamic_libs("lxml")
+binaries += collect_dynamic_libs("PIL")
+
+hiddenimports = [
+    "onvif.client",
+    "zeep.transports",
+    "zeep.wsse.username",
+    "requests",
+    "lxml.etree",
+    "av",
+    "PIL.Image",
+    "PIL.ImageOps",
+    "openpyxl",
+    "openpyxl.styles",
+    "openpyxl.drawing.image",
+    "rich.progress",
+]
+
+block_cipher = None
 a = Analysis(
-    ["../src/cam_scanner/__main__.py"],
-    pathex=["../src"],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
+    [str(PROJECT_ROOT / "src" / "cam_scanner" / "__main__.py")],
+    pathex=[str(PROJECT_ROOT / "src")],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -16,4 +43,4 @@ a = Analysis(
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="cam-scanner", console=True)
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=True, name="cam-scanner")
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="cam-scanner")

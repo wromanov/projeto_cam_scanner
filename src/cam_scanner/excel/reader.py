@@ -6,6 +6,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from cam_scanner.domain.models import is_safe_xml_text
+
 _REQUIRED_HEADERS = ("ip", "username", "password")
 
 
@@ -90,7 +92,10 @@ def _header_map(rows) -> dict[str, int]:
     header_row = next(iter(rows), None)
     if header_row is None:
         raise ExcelInputError("A planilha está vazia; informe IP, USERNAME e PASSWORD.")
-    normalized = [_cell_text(value).strip().casefold() for value in header_row]
+    texts = [_cell_text(value) for value in header_row]
+    if any(not is_safe_xml_text(value) for value in texts):
+        raise ExcelInputError("Os cabeçalhos da planilha contêm texto inválido.")
+    normalized = [value.strip().casefold() for value in texts]
     mapping: dict[str, int] = {}
     for required in _REQUIRED_HEADERS:
         matches = [index for index, value in enumerate(normalized) if value == required]
@@ -101,9 +106,16 @@ def _header_map(rows) -> dict[str, int]:
 
 
 def _parse_row(row_id: int, values: tuple[object, ...], header_map: dict[str, int]) -> ExcelInputRow:
-    ip = _cell_text(_get_cell(values, header_map["ip"])).strip()
-    username = _cell_text(_get_cell(values, header_map["username"])).strip()
-    password = _cell_text(_get_cell(values, header_map["password"]))
+    raw_ip = _cell_text(_get_cell(values, header_map["ip"]))
+    raw_username = _cell_text(_get_cell(values, header_map["username"]))
+    raw_password = _cell_text(_get_cell(values, header_map["password"]))
+    if any(not is_safe_xml_text(value) for value in (raw_ip, raw_username, raw_password)):
+        return ExcelInputRow(
+            row_id, _safe_ip(raw_ip, raw_username, raw_password), "", "", "invalid_cell_value"
+        )
+    ip = raw_ip.strip()
+    username = raw_username.strip()
+    password = raw_password
     if not ip or not username or not password.strip():
         return ExcelInputRow(row_id, _safe_ip(ip, username, password), "", "", "missing_required_value")
     try:

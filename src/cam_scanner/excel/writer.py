@@ -8,7 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from cam_scanner.domain.models import CameraResult
+from cam_scanner.domain.models import CameraResult, is_safe_xml_text
 
 if TYPE_CHECKING:
     from cam_scanner.snapshot.service import SnapshotResult
@@ -78,12 +78,12 @@ class ExcelWriter:
         snapshot_count = 0
 
         for row_number, output_row in enumerate(rows, start=2):
-            result = output_row.result
-            snapshot = output_row.snapshot
-            has_snapshot = snapshot is not None and snapshot.successful
-            snapshot_label = "Incluído" if has_snapshot else "N/A"
-            inventory.append(
-                (
+            try:
+                result = output_row.result
+                snapshot = output_row.snapshot
+                has_snapshot = snapshot is not None and snapshot.successful
+                snapshot_label = "Incluído" if has_snapshot else "N/A"
+                values = (
                     output_row.source_row,
                     _cell(result.ip),
                     _cell(result.hostname),
@@ -101,7 +101,10 @@ class ExcelWriter:
                     result.duration,
                     snapshot_label,
                 )
-            )
+                inventory.append(values)
+            except Exception:  # noqa: BLE001 - isolate malformed legacy rows.
+                inventory.append((output_row.source_row, *("Dado inválido",) * 15))
+                continue
             if has_snapshot:
                 if SpreadsheetImage is None:
                     inventory.cell(row=row_number, column=16, value="Não incorporado")
@@ -182,6 +185,9 @@ class ExcelWriter:
 def _cell(value: str | None) -> str:
     if value is None or not value.strip():
         return "N/A"
+    if not is_safe_xml_text(value):
+        return "Dado inválido"
+    # Formula detection runs after validation, including leading whitespace.
     if value.lstrip().startswith(("=", "+", "-", "@")):
         return f"'{value}"
     return value

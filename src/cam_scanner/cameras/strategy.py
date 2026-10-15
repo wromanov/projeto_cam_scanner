@@ -1,6 +1,7 @@
 """Vendor-first collection routing over the canonical domain evidence contracts."""
 from __future__ import annotations
 
+import inspect
 import logging
 from builtins import TimeoutError
 
@@ -44,19 +45,19 @@ class VendorFirstCollector(CameraCollector):
     def collect(self, target: CameraTarget) -> CameraResult:
         return self.collect_report(target).to_camera_result(target.ip)
 
-    def collect_report(self, target: CameraTarget) -> CollectionReport:
-        report = CollectionReport()
+    def collect_report(self, target: CameraTarget, *, context: object | None = None) -> CollectionReport:
         report = CollectionReport()
         try:
             discover_with_report = getattr(self._discoverer, "discover_with_report", None)
             if callable(discover_with_report):
-                preauth, preauth_report = discover_with_report(target)
+                preauth, preauth_report = _call_with_context(discover_with_report, target, context)
                 if isinstance(preauth_report, CollectionReport):
                     report = report.merged(preauth_report).validated_for_target(
                         (target.username, target.password)
                     )
             else:
-                preauth = self._discoverer.discover(target)
+                discover = self._discoverer.discover
+                preauth = _call_with_context(discover, target, context)
         except KeyboardInterrupt:
             return report.with_attempt(
                 CollectionAttempt(
@@ -103,15 +104,23 @@ class VendorFirstCollector(CameraCollector):
         adapter = self._registry.get(manufacturer) if manufacturer else None
         if adapter is not None:
             try:
+                if context is not None:
+                    context.check("NATIVE")
+                    vendor_family = _vendor_auth_family(manufacturer)
+                    # Bosch currently has no native authenticated request.
+                    if vendor_family is not None and not context.auth.begin(
+                        vendor_family, "initial"
+                    ):
+                        return report
                 collect_report = getattr(adapter, "collect_report", None)
                 if callable(collect_report):
-                    vendor_report = collect_report(target)
+                    vendor_report = _call_with_context(collect_report, target, context)
                     if isinstance(vendor_report, CollectionReport):
                         report = report.merged(vendor_report).validated_for_target(
                             (target.username, target.password)
                         )
                     else:
-                        result = adapter.collect(target)
+                        result = _call_with_context(adapter.collect, target, context)
                         if isinstance(result, CameraResult):
                             report = report.merged(
                                 CollectionReport.from_camera_result(
@@ -121,7 +130,7 @@ class VendorFirstCollector(CameraCollector):
                                 )
                             )
                 else:
-                    result = adapter.collect(target)
+                    result = _call_with_context(adapter.collect, target, context)
                     if isinstance(result, CameraResult):
                         report = report.merged(
                             CollectionReport.from_camera_result(
@@ -133,15 +142,25 @@ class VendorFirstCollector(CameraCollector):
             except Exception:  # noqa: BLE001 - raw vendor exceptions are never retained.
                 self._logger.warning("Registered vendor adapter failed; using controlled ONVIF fallback")
             else:
-                if _authentication_rejected(report):
+                if _authentication_rejected(report) or _authentication_blocked(context):
                     return report
                 if report.to_camera_result(target.ip).status is CollectionStatus.SUCCESS:
                     return report
 
         try:
+            if context is not None:
+                if context.cancelled or _authentication_blocked(context):
+                    return report
+                context.check("ONVIF")
+                missing_fields = _missing_identity_fields(report, target.ip)
+                reason = "missing_identity" if context.auth.logical_attempts else "initial"
+                if not context.auth.begin(
+                    "ONVIF", reason, missing_identity_fields=missing_fields
+                ):
+                    return report
             collect_report = getattr(self._onvif, "collect_report", None)
             if callable(collect_report):
-                onvif_report = collect_report(target)
+                onvif_report = _call_with_context(collect_report, target, context)
                 if isinstance(onvif_report, CollectionReport):
                     combined = report.merged(onvif_report).validated_for_target(
                         (target.username, target.password)
@@ -149,7 +168,7 @@ class VendorFirstCollector(CameraCollector):
                     _log_conflicts(self._logger, combined)
                     return combined
                 raise TypeError("ONVIF collector returned an unsupported report")
-            result = self._onvif.collect(target)
+            result = _call_with_context(self._onvif.collect, target, context)
         except KeyboardInterrupt:
             return report.with_attempt(
                 CollectionAttempt(
@@ -209,6 +228,54 @@ def _authentication_rejected(report: CollectionReport) -> bool:
     return any(
         attempt.error_category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED"}
         for attempt in report.attempts
+    )
+
+
+def _call_with_context(method: object, target: CameraTarget, context: object | None) -> object:
+    """Keep injected legacy test collectors compatible while forwarding production context."""
+    if context is not None and callable(method):
+        try:
+            parameters = inspect.signature(method).parameters
+        except (TypeError, ValueError):
+            parameters = {}
+        if "context" in parameters:
+            return method(target, context=context)
+    return method(target)  # type: ignore[operator]
+
+
+def _authentication_blocked(context: object | None) -> bool:
+    if context is None:
+        return False
+    return context.auth.state in {
+        context.auth.AUTH_REJECTED_FINAL,
+        context.auth.AUTHORIZATION_DENIED,
+    }
+
+
+def _vendor_auth_family(manufacturer: str | None) -> str | None:
+    normalized = (manufacturer or "").casefold().replace("/", " ").replace("-", " ")
+    if "bosch" in normalized:
+        return None
+    for marker, family in (
+        ("axis", "VENDOR_AXIS"),
+        ("hikvision", "VENDOR_HIKVISION"),
+        ("dahua", "VENDOR_DAHUA"),
+        ("panasonic", "VENDOR_PANASONIC"),
+        ("i-pro", "VENDOR_PANASONIC"),
+        ("hanwha", "VENDOR_SAMSUNG/HANWHA"),
+        ("samsung", "VENDOR_SAMSUNG/HANWHA"),
+    ):
+        if marker in normalized:
+            return family
+    return None
+
+
+def _missing_identity_fields(report: CollectionReport, ip: str) -> tuple[str, ...]:
+    result = report.to_camera_result(ip)
+    return tuple(
+        field
+        for field in ("manufacturer", "model", "serial")
+        if not getattr(result, field, None)
     )
 
 

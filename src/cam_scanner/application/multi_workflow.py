@@ -1,6 +1,7 @@
 """Concurrent MULTI workflow reusing canonical services and ordered XLSX output."""
 from __future__ import annotations
 
+import threading
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 
@@ -59,13 +60,18 @@ class MultiWorkflow:
         self._progress.start(batch.total_rows)
         executor = ThreadPoolExecutor(max_workers=self._max_workers)
         pending: dict[Future[InventoryOutputRow], tuple[int, int, str]] = {}
+        cancel_event = threading.Event()
         rows = iter(batch.rows)
         position = 0
         exhausted = False
         try:
             while pending or not exhausted:
                 # Keep at most 2x workers submitted; 2,300 rows never create 2,300 futures.
-                while len(pending) < self._max_workers * 2 and not exhausted:
+                while (
+                    len(pending) < self._max_workers * 2
+                    and not exhausted
+                    and not cancel_event.is_set()
+                ):
                     try:
                         input_row = next(rows)
                     except StopIteration:
@@ -74,11 +80,13 @@ class MultiWorkflow:
                     current_position = position
                     position += 1
                     if not input_row.valid:
-                        output_row = self._process_row(input_row)
+                        output_row = self._process_row(input_row, cancel_event=cancel_event)
                         output_rows[current_position] = output_row
                         self._progress.advance(output_row.result.ip, output_row.result.status.value)
                         continue
-                    pending[executor.submit(self._process_row, input_row)] = (
+                    pending[executor.submit(
+                        self._process_row, input_row, cancel_event=cancel_event
+                    )] = (
                         current_position,
                         input_row.row_id,
                         input_row.ip,
@@ -99,6 +107,8 @@ class MultiWorkflow:
                         self._progress.advance(output_row.result.ip, output_row.result.status.value)
 
             executor.shutdown(wait=True)
+            if cancel_event.is_set():
+                raise ExcelInputError("O lote foi cancelado antes da exportação.")
             if position != batch.total_rows or any(row is None for row in output_rows):
                 raise ExcelInputError("A quantidade de linhas da planilha mudou durante a leitura.")
             ordered_rows = [row for row in output_rows if row is not None]
@@ -109,21 +119,35 @@ class MultiWorkflow:
             )
             self._ui.show_multi_complete(output_file, len(output_rows), failed=failed)
         except KeyboardInterrupt:
+            cancel_event.set()
+            for future in pending:
+                future.cancel()
             executor.shutdown(wait=True, cancel_futures=True)
             raise
         except ExcelInputError as error:
+            cancel_event.set()
+            for future in pending:
+                future.cancel()
             executor.shutdown(wait=True, cancel_futures=True)
             self._ui.show_multi_error(str(error))
         except ExcelOutputError as error:
+            cancel_event.set()
+            for future in pending:
+                future.cancel()
             executor.shutdown(wait=True, cancel_futures=True)
             self._ui.show_multi_error(str(error))
         except Exception:  # noqa: BLE001 - batch errors stay at the application boundary.
+            cancel_event.set()
+            for future in pending:
+                future.cancel()
             executor.shutdown(wait=True, cancel_futures=True)
             self._ui.show_multi_error("O lote foi interrompido por uma falha local inesperada.")
         finally:
             self._progress.finish()
 
-    def _process_row(self, row: ExcelInputRow) -> InventoryOutputRow:
+    def _process_row(
+        self, row: ExcelInputRow, *, cancel_event: threading.Event | None = None
+    ) -> InventoryOutputRow:
         if not row.valid:
             return InventoryOutputRow(
                 row.row_id,
@@ -131,8 +155,14 @@ class MultiWorkflow:
             )
 
         target = CameraTarget(row.ip, row.username, row.password)
+        context = None
         try:
-            result = self._inventory_service.collect_one(target)
+            collect_execution = getattr(self._inventory_service, "collect_execution", None)
+            if callable(collect_execution):
+                report, context = collect_execution(target, cancel_event=cancel_event)
+                result = report.to_camera_result(target.ip)
+            else:
+                result = self._inventory_service.collect_one(target)
         except Exception:  # noqa: BLE001 - a single camera cannot abort the batch.
             result = CameraResult(
                 ip=row.ip,
@@ -143,15 +173,25 @@ class MultiWorkflow:
             )
 
         snapshot: SnapshotResult | None = None
-        if result.status is not CollectionStatus.FAILED:
-            try:
+        try:
+            if context is None:
                 snapshot = self._snapshot_service.capture_one(
                     target,
                     manufacturer=result.manufacturer,
                     model=result.model,
                 )
-            except Exception:  # noqa: BLE001 - snapshot failure preserves collected identity.
-                snapshot = SnapshotResult(failure=SnapshotFailure.UNEXPECTED)
+            else:
+                snapshot = self._snapshot_service.capture_one(
+                    target,
+                    manufacturer=result.manufacturer,
+                    model=result.model,
+                    context=context,
+                )
+        except Exception:  # noqa: BLE001 - snapshot failure preserves collected identity.
+            snapshot = SnapshotResult(failure=SnapshotFailure.UNEXPECTED)
+        finally:
+            if context is not None:
+                context.close()
         del target
         return InventoryOutputRow(row.row_id, result, snapshot)
 

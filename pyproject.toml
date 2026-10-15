@@ -8,13 +8,21 @@ version = "0.1.0"
 description = "CLI Windows para inventário de câmeras IP, conforme o escopo governado do projeto."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
-dependencies = ["onvif-python", "httpx", "openpyxl", "Pillow", "rich", "av"]
+dependencies = [
+    "av==19.0.1",
+    "onvif-python==0.4.4",
+    "openpyxl==3.1.5",
+    "Pillow==12.3.0",
+    "requests==2.34.2",
+    "rich==15.0.0",
+    "zeep==4.3.3",
+]
 
 [project.scripts]
 cam-scanner = "cam_scanner.main:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "pyinstaller"]
+dev = ["pytest==9.1.1", "ruff==0.16.10", "pyinstaller==6.22.3"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

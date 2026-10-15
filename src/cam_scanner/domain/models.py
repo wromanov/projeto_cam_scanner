@@ -12,6 +12,7 @@ from types import MappingProxyType
 from cam_scanner.domain.enums import CollectionMethod, CollectionStatus, ErrorCode
 
 _IDENTITY_FIELDS = ("manufacturer", "model", "serial")
+_MAX_TEXT_LENGTH = 32_767  # Excel's maximum cell text length.
 _VALID_CONFIDENCE = {"STRONG", "WEAK"}
 _VALID_STAGES = {"DISCOVERY", "CONNECT", "HTTP", "AUTH", "SOAP", "PARSE", "MERGE", "VALIDATE"}
 _VALID_OUTCOMES = {"SUCCESS", "FAILED", "CANCELLED", "SKIPPED"}
@@ -114,6 +115,8 @@ def is_valid_evidence_value(
     """Reject empty, secret-bearing, URL-shaped, or placeholder values at ingress."""
     if not isinstance(value, str):
         return False
+    if not is_safe_xml_text(value):
+        return False
     cleaned = " ".join(value.split())
     if cleaned.casefold() in _PLACEHOLDERS:
         return False
@@ -128,6 +131,23 @@ def is_valid_evidence_value(
     if field_name == "mac":
         return bool(re.fullmatch(r"(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}", cleaned))
     return bool(cleaned)
+
+
+def is_safe_xml_text(value: str) -> bool:
+    """Return whether text can cross XML/XLSX and terminal boundaries safely."""
+    if len(value) > _MAX_TEXT_LENGTH:
+        return False
+    for char in value:
+        codepoint = ord(char)
+        if codepoint == 0x1B or 0x80 <= codepoint <= 0x9F:
+            return False
+        if codepoint in {0x09, 0x0A, 0x0D}:
+            continue
+        if codepoint < 0x20 or 0xD800 <= codepoint <= 0xDFFF:
+            return False
+        if 0xFDD0 <= codepoint <= 0xFDEF or (codepoint & 0xFFFF) in {0xFFFE, 0xFFFF}:
+            return False
+    return True
 
 
 def _error_code_for_category(category: str | None) -> ErrorCode:
@@ -682,6 +702,23 @@ class CameraResult:
             raise TypeError("error_code must use ErrorCode")
         if self.error_message is not None and not isinstance(self.error_message, str):
             raise TypeError("error_message must be text")
+        for name in (
+            "ip",
+            "hostname",
+            "manufacturer",
+            "manufacturer_original",
+            "model",
+            "serial",
+            "firmware",
+            "hardware_id",
+            "mac",
+            "error_message",
+        ):
+            value = getattr(self, name)
+            if value is not None and (
+                not isinstance(value, str) or not is_safe_xml_text(value)
+            ):
+                raise ValueError(f"{name} must be bounded XML-safe text")
         if self.collection_method is not None and not isinstance(
             self.collection_method, CollectionMethod
         ):

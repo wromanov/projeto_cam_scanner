@@ -17,6 +17,7 @@ from requests.exceptions import (
     Timeout,
 )
 
+from cam_scanner.cameras.transport import ControlledOnvifClient, TargetRejected
 from cam_scanner.domain.models import CameraTarget
 from cam_scanner.snapshot.service import SnapshotCaptureError, SnapshotFailure
 
@@ -37,13 +38,21 @@ class OnvifSnapshotProvider:
         self._session_factory = session_factory or requests.Session
         self._timeout = timeout_seconds
 
-    def capture(self, target: CameraTarget) -> bytes:
+    def capture(self, target: CameraTarget, *, context: Any = None) -> bytes:
+        if context is None and self._client_factory is None:
+            raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
+        if context is not None and not context.snapshot_eligible("ONVIF"):
+            raise SnapshotCaptureError(SnapshotFailure.AUTH_REJECTED)
         _suppress_onvif_logs()
         try:
-            client = self._create_client(target)
+            if context is not None:
+                context.check("ONVIF")
+            client = self._create_client(target, context=context)
             media = client.media()
             address = getattr(getattr(media, "operator", None), "address", None)
-            if not _target_http_url(address, target.ip, allowed_port=80):
+            if context is not None:
+                context.transport.authorize("onvif_media", address)
+            elif not _target_http_url(address, target.ip, allowed_port=80):
                 raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
             profiles = media.GetProfiles()
             token = _profile_token(profiles)
@@ -51,14 +60,27 @@ class OnvifSnapshotProvider:
                 raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
             uri_response = media.GetSnapshotUri(ProfileToken=token)
             snapshot_uri = _read_field(uri_response, "Uri")
-            if not _target_http_url(snapshot_uri, target.ip, allowed_port=80):
+            if context is not None:
+                context.transport.authorize("snapshot_onvif", snapshot_uri)
+            elif not _target_http_url(snapshot_uri, target.ip, allowed_port=80):
                 raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
         except SnapshotCaptureError:
             raise
         except Exception as error:  # noqa: BLE001 - dependency details can contain credentials/URLs.
             raise _normalize_onvif_error(error) from None
 
+        if context is None and self._session_factory is requests.Session:
+            raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
         try:
+            if context is not None:
+                response = context.transport.request(
+                    "snapshot_onvif", "GET", snapshot_uri, source="SNAPSHOT_HTTP",
+                    auth=HTTPDigestAuth(target.username, target.password),
+                )
+                try:
+                    return _snapshot_response(response, context=context)
+                finally:
+                    response.close()
             with self._session_factory() as session:
                 session.trust_env = False
                 response = session.get(
@@ -70,25 +92,13 @@ class OnvifSnapshotProvider:
                     verify=True,
                 )
                 try:
-                    status = response.status_code
-                    if status == 401:
-                        raise SnapshotCaptureError(SnapshotFailure.AUTH_REJECTED)
-                    if status == 403:
-                        raise SnapshotCaptureError(SnapshotFailure.AUTHORIZATION_DENIED)
-                    if status in {404, 405}:
-                        raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
-                    if 300 <= status < 400:
-                        raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
-                    if status != 200:
-                        raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
-                    length = response.headers.get("content-length")
-                    if length is not None and int(length) > _MAX_IMAGE_BYTES:
-                        raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
-                    return _read_limited(response.iter_content(chunk_size=65536))
+                    return _snapshot_response(response)
                 finally:
                     response.close()
         except SnapshotCaptureError:
             raise
+        except TargetRejected:
+            raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED) from None
         except (ConnectTimeout, ReadTimeout, Timeout):
             raise SnapshotCaptureError(SnapshotFailure.TIMEOUT) from None
         except ConnectionError:
@@ -98,7 +108,9 @@ class OnvifSnapshotProvider:
         except (OSError, ValueError):
             raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE) from None
 
-    def _create_client(self, target: CameraTarget) -> Any:
+    def _create_client(self, target: CameraTarget, *, context: Any = None) -> Any:
+        if self._client_factory is None:
+            return ControlledOnvifClient(context, authenticated=True)
         client_factory = self._client_factory
         options: dict[str, object] = {
             "host": target.ip,
@@ -109,12 +121,25 @@ class OnvifSnapshotProvider:
             "timeout": self._timeout,
             "use_https": False,
         }
-        if client_factory is None:
-            from onvif import CacheMode, ONVIFClient
-
-            client_factory = ONVIFClient
-            options["cache"] = CacheMode.NONE
         return client_factory(**options)
+
+
+def _snapshot_response(response: Any, *, context: Any = None) -> bytes:
+    status = response.status_code
+    if status == 401:
+        raise SnapshotCaptureError(SnapshotFailure.AUTH_REJECTED)
+    if status == 403:
+        raise SnapshotCaptureError(SnapshotFailure.AUTHORIZATION_DENIED)
+    if status in {404, 405}:
+        raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
+    if 300 <= status < 400:
+        raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
+    if status != 200:
+        raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
+    length = response.headers.get("content-length")
+    if length is not None and int(length) > _MAX_IMAGE_BYTES:
+        raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
+    return _read_limited(response.iter_content(chunk_size=65536), context=context)
 
 
 def _target_http_url(value: object, target_ip: str, allowed_port: int) -> bool:
@@ -138,9 +163,11 @@ def _target_http_url(value: object, target_ip: str, allowed_port: int) -> bool:
     )
 
 
-def _read_limited(response_chunks) -> bytes:
+def _read_limited(response_chunks, *, context: Any = None) -> bytes:
     body = bytearray()
     for chunk in response_chunks:
+        if context is not None:
+            context.check("SNAPSHOT_HTTP")
         if not isinstance(chunk, bytes):
             continue
         body.extend(chunk)

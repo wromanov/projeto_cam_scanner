@@ -6,6 +6,7 @@ import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable
 from typing import Any
+from xml.parsers import expat
 
 import requests
 from requests.auth import HTTPDigestAuth
@@ -26,11 +27,16 @@ from cam_scanner.domain.models import (
     CollectionReport,
     EvidenceRecord,
 )
+from cam_scanner.cameras.manufacturers._http_utils import (
+    managed_vendor_session,
+    read_limited_until,
+)
 
 _OPERATION = "GET /ISAPI/System/deviceInfo"
 _MAX_XML_BYTES = 64 * 1024
 _MAX_FIELD_LENGTH = 256
 _TIMEOUT = (3.0, 7.0)
+_NATIVE_BUDGET = 10.0
 
 
 class HikvisionAdapter:
@@ -40,20 +46,27 @@ class HikvisionAdapter:
         self._session_factory = session_factory or requests.Session
         self._timeout = timeout
 
-    def collect(self, target: CameraTarget) -> CameraResult:
-        return self.collect_report(target).to_camera_result(target.ip)
+    def collect(self, target: CameraTarget, *, context: Any = None) -> CameraResult:
+        return self.collect_report(target, context=context).to_camera_result(target.ip)
 
-    def collect_report(self, target: CameraTarget) -> CollectionReport:
+    def collect_report(self, target: CameraTarget, *, context: Any = None) -> CollectionReport:
         report = CollectionReport()
         started = time.monotonic()
         auth = _BoundedDigestAuth(target.username, target.password)
         try:
+            if context is not None:
+                context.check("NATIVE")
             address = ipaddress.ip_address(target.ip)
             host = f"[{address.compressed}]" if address.version == 6 else address.compressed
-            with self._session_factory() as session:
+            with managed_vendor_session(context, "vendor_hikvision", self._session_factory) as session:
                 session.trust_env = False
+                url = (
+                    context.transport.endpoint("vendor_hikvision", path="/ISAPI/System/deviceInfo")
+                    if context is not None
+                    else f"https://{host}/ISAPI/System/deviceInfo"
+                )
                 response = session.get(
-                    f"https://{host}/ISAPI/System/deviceInfo",
+                    url,
                     auth=auth,
                     allow_redirects=False,
                     stream=True,
@@ -76,7 +89,10 @@ class HikvisionAdapter:
                     declared = response.headers.get("content-length")
                     if declared and int(declared) > _MAX_XML_BYTES:
                         return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
-                    body = _read_limited(response.iter_content(chunk_size=8192), _MAX_XML_BYTES)
+                    body = read_limited_until(
+                        response.iter_content(chunk_size=8192), _MAX_XML_BYTES,
+                        started, _NATIVE_BUDGET, context=context,
+                    )
                 finally:
                     response.close()
         except ConnectTimeout:
@@ -208,12 +224,9 @@ def _split_challenges(value: str) -> list[str]:
 def _parse_device_info(body: bytes) -> dict[str, str]:
     if not body or len(body) > _MAX_XML_BYTES:
         raise ValueError("invalid response length")
-    upper = body.upper()
-    if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
-        raise ValueError("DTD is not allowed")
+    _validate_xml_without_dtd(body)
     root = ET.fromstring(body)
     names = {
-        "devicename": "hostname",
         "model": "model",
         "serialnumber": "serial",
         "firmwareversion": "firmware",
@@ -227,3 +240,22 @@ def _parse_device_info(body: bytes) -> dict[str, str]:
         if field_name and value and len(value) <= _MAX_FIELD_LENGTH and field_name not in values:
             values[field_name] = value
     return values
+
+
+def _validate_xml_without_dtd(body: bytes) -> None:
+    """Preflight with Expat so declarations are rejected before entity expansion."""
+    parser = expat.ParserCreate()
+
+    def reject_declaration(*_args) -> None:
+        raise ValueError("DTD and entity declarations are not allowed")
+
+    parser.StartDoctypeDeclHandler = reject_declaration
+    parser.EntityDeclHandler = reject_declaration
+    parser.ExternalEntityRefHandler = lambda *_args: 0
+    parser.SetParamEntityParsing(expat.XML_PARAM_ENTITY_PARSING_NEVER)
+    try:
+        parser.Parse(body, True)
+    except ValueError:
+        raise
+    except expat.ExpatError:
+        raise ValueError("malformed XML") from None

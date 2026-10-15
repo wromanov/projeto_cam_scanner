@@ -6,7 +6,8 @@ import pytest
 
 openpyxl = pytest.importorskip("openpyxl")
 
-from cam_scanner.excel.reader import ExcelReader
+from cam_scanner.domain.models import is_safe_xml_text
+from cam_scanner.excel.reader import ExcelReader, _parse_row
 
 
 def test_row_with_only_extra_column_is_ignored(tmp_path: Path) -> None:
@@ -66,3 +67,29 @@ def test_malformed_rows_clear_credentials_and_redact_ip_overlap(tmp_path: Path) 
     assert not url_credentials.valid
     assert url_credentials.ip == "<invalid>"
     assert "embedded-secret" not in repr(url_credentials)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["bad\x01text", "bad\x1b[31m", "bad\x85text", "bad\ud800", "x" * 32_768],
+)
+def test_domain_text_validation_rejects_xml_controls_surrogates_and_oversize(text: str) -> None:
+    assert not is_safe_xml_text(text)
+
+
+@pytest.mark.parametrize("text", ["Câmera – 東京", "linha 1\nlinha 2", "tab\tpermitido"])
+def test_domain_text_validation_preserves_valid_unicode_and_xml_whitespace(text: str) -> None:
+    assert is_safe_xml_text(text)
+
+
+def test_invalid_input_cell_isolated_and_credentials_cleared() -> None:
+    row = _parse_row(
+        7,
+        ("192.0.2.7", "operator", "secret\x01"),
+        {"ip": 0, "username": 1, "password": 2},
+    )
+
+    assert row.row_id == 7
+    assert not row.valid
+    assert row.validation_error == "invalid_cell_value"
+    assert row.username == row.password == ""
