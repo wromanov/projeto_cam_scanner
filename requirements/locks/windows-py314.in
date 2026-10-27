@@ -1,0 +1,18 @@
+# Candidate full environment for CPython 3.14 / Windows x64.
+# Runtime and dev pins mirror pyproject.toml; packaging tool pins are proposed
+# solely for this candidate lock and do not change the build-system manifest.
+av==19.0.1
+onvif-python==0.4.4
+openpyxl==3.1.5
+Pillow==12.3.0
+requests==2.34.2
+rich==15.0.0
+zeep==4.3.3
+
+pytest==9.1.1
+ruff==0.16.10
+pyinstaller==6.22.3
+
+pip==25.2
+setuptools==84.0.0
+wheel==0.48.0

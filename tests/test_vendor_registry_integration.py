@@ -50,27 +50,31 @@ class _Discoverer:
 
 
 class _RecordingAdapter:
-    def __init__(self, manufacturer: str) -> None:
-        self.manufacturer = manufacturer
-        self.calls: list[CameraTarget] = []
+    def __new__(cls, manufacturer: str):
+        adapter_type = AxisAdapter if manufacturer == "Axis" else DahuaAdapter
+        adapter = adapter_type(session_factory=lambda: None)
+        adapter.calls = []
 
-    def collect_report(self, target: CameraTarget) -> CollectionReport:
-        self.calls.append(target)
-        return CollectionReport(
-            evidence=(
-                EvidenceRecord("manufacturer", self.manufacturer, "VENDOR", protocol="HTTP"),
-                EvidenceRecord("model", f"{self.manufacturer}-Model", "VENDOR", protocol="HTTP"),
-                EvidenceRecord("serial", f"SERIAL-{target.ip}", "VENDOR", protocol="HTTP"),
-            ),
-            attempts=(
-                CollectionAttempt(
-                    stage="PARSE",
-                    operation="collect_report",
-                    protocol="HTTP",
-                    outcome="SUCCESS",
+        def collect_report(target: CameraTarget) -> CollectionReport:
+            adapter.calls.append(target)
+            return CollectionReport(
+                evidence=(
+                    EvidenceRecord("manufacturer", manufacturer, "VENDOR", protocol="HTTP"),
+                    EvidenceRecord("model", f"{manufacturer}-Model", "VENDOR", protocol="HTTP"),
+                    EvidenceRecord("serial", f"SERIAL-{target.ip}", "VENDOR", protocol="HTTP"),
                 ),
-            ),
-        )
+                attempts=(
+                    CollectionAttempt(
+                        stage="PARSE",
+                        operation="collect_report",
+                        protocol="HTTP",
+                        outcome="SUCCESS",
+                    ),
+                ),
+            )
+
+        adapter.collect_report = collect_report
+        return adapter
 
 
 class _UnusedOnvif:

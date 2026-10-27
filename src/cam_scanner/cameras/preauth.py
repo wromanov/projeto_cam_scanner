@@ -15,6 +15,7 @@ from cam_scanner.domain.models import (
     CollectionAttempt,
     CollectionReport,
     EvidenceRecord,
+    ManufacturerResolution,
     is_valid_evidence_value,
 )
 
@@ -33,22 +34,6 @@ class PreAuthEvidence:
     @property
     def has_evidence(self) -> bool:
         return self.capabilities is not None or self.system_date_time is not None
-
-
-@dataclass(frozen=True, slots=True)
-class ManufacturerResolution:
-    """Declared hint, observed signals, resolution, and safe routing candidate."""
-
-    selected: str | None
-    detected: str | None
-    mismatch: bool
-    declared: str | None = None
-    observed: str | None = None
-    resolved: str | None = None
-    confidence: str = "UNKNOWN"
-    conflicts: tuple[str, ...] = ()
-    observed_values: tuple[str, ...] = ()
-    weak_values: tuple[str, ...] = ()
 
 
 class OnvifPreAuthDiscoverer:
@@ -92,6 +77,8 @@ class OnvifPreAuthDiscoverer:
                       if client_factory is None else client_factory(**client_options))
             service = client.devicemgmt()
         except KeyboardInterrupt:
+            if context is not None:
+                context.cancel_event.set()
             attempt = CollectionAttempt(
                 stage="CONNECT",
                 operation="create_onvif_client",
@@ -101,8 +88,16 @@ class OnvifPreAuthDiscoverer:
             )
             return PreAuthEvidence(), report.with_attempt(attempt)
         except Exception as exception:  # noqa: BLE001 - diagnostics never retain exception text.
+            if context is not None and context.cancelled:
+                return PreAuthEvidence(), report.with_attempt(CollectionAttempt(
+                    stage="CONNECT",
+                    operation="create_onvif_client",
+                    protocol="ONVIF",
+                    outcome="CANCELLED",
+                    duration=self._elapsed(started),
+                ))
             category, http_status, protocol_code = normalize_collection_error(
-                exception, stage="CONNECT"
+                exception, stage="CONNECT", authenticated=False
             )
             attempt = CollectionAttempt(
                 stage=self._stage_for(category, "CONNECT"),
@@ -117,7 +112,8 @@ class OnvifPreAuthDiscoverer:
             return PreAuthEvidence(), report.with_attempt(attempt)
 
         values: dict[str, object | None] = {}
-        for operation, kwargs in (("GetCapabilities", {"Category": "All"}),):
+        operations = [("GetCapabilities", {"Category": "All"})]
+        for operation, kwargs in operations:
             method = getattr(service, operation, None)
             if not callable(method):
                 report = report.with_attempt(
@@ -139,6 +135,8 @@ class OnvifPreAuthDiscoverer:
                     context.check("ONVIF")
                 value = method(**kwargs)
             except KeyboardInterrupt:
+                if context is not None:
+                    context.cancel_event.set()
                 attempt = CollectionAttempt(
                     stage="DISCOVERY",
                     operation=operation,
@@ -150,8 +148,18 @@ class OnvifPreAuthDiscoverer:
                 report = report.with_attempt(attempt)
                 return self._finish(values, report, (target.username, target.password))
             except Exception as exception:  # noqa: BLE001 - preserve a typed failure per call.
+                if context is not None and context.cancelled:
+                    report = report.with_attempt(CollectionAttempt(
+                        stage="DISCOVERY",
+                        operation=operation,
+                        protocol="ONVIF",
+                        authentication_mechanism="NONE",
+                        outcome="CANCELLED",
+                        duration=self._elapsed(started),
+                    ))
+                    return self._finish(values, report, (target.username, target.password))
                 category, http_status, protocol_code = normalize_collection_error(
-                    exception, stage="DISCOVERY"
+                    exception, stage="DISCOVERY", authenticated=False
                 )
                 report = report.with_attempt(
                     CollectionAttempt(
@@ -167,6 +175,8 @@ class OnvifPreAuthDiscoverer:
                     )
                 )
                 values[operation] = None
+                if operation == "GetCapabilities" and category == "READ_TIMEOUT":
+                    operations.append(("GetSystemDateAndTime", {}))
                 continue
 
             values[operation] = value if value is not None else None
@@ -211,7 +221,7 @@ class OnvifPreAuthDiscoverer:
             )
         except Exception as exception:  # noqa: BLE001 - preserve prior reachability evidence.
             category, http_status, protocol_code = normalize_collection_error(
-                exception, stage="PARSE"
+                exception, stage="PARSE", authenticated=False
             )
             return PreAuthEvidence(), report.with_attempt(
                 CollectionAttempt(
@@ -292,7 +302,17 @@ class ManufacturerResolver:
         strong_values, weak_values = self._manufacturer_signals(
             evidence.capabilities, sensitive_values=sensitive_values
         )
-        declared = self._normalizer.normalize(hint)
+        declared = None
+        normalized_hint = None
+        if isinstance(hint, str) and is_valid_evidence_value(
+            "manufacturer", hint, sensitive_values=sensitive_values
+        ):
+            # Keep the sanitized declaration visible even when it is not a
+            # supported family; only its recognized normalization may route.
+            declared = hint
+            candidate = self._normalizer.normalize(hint)
+            if candidate in _KNOWN_FAMILIES:
+                normalized_hint = candidate
         strong_by_fold: dict[str, str] = {}
         for value in strong_values:
             key = value.casefold()
@@ -324,11 +344,11 @@ class ManufacturerResolver:
         )
         mismatch = (
             resolved is not None
-            and declared is not None
-            and resolved.casefold() != declared.casefold()
+            and normalized_hint is not None
+            and resolved.casefold() != normalized_hint.casefold()
         )
         # A declared hint may guide a registered adapter only when no strong conflict exists.
-        selected = None if conflicts else resolved or declared
+        selected = None if conflicts else resolved or normalized_hint
         observed = resolved or (weak[0] if len(weak) == 1 else None)
         return ManufacturerResolution(
             selected=selected,

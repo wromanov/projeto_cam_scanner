@@ -23,10 +23,12 @@ class SnapshotMethod(StrEnum):
 
 class SnapshotFailure(StrEnum):
     UNSUPPORTED = "UNSUPPORTED"
+    CANCELLED = "CANCELLED"
     AUTH_REJECTED = "AUTH_REJECTED"
     AUTHORIZATION_DENIED = "AUTHORIZATION_DENIED"
     TIMEOUT = "TIMEOUT"
     NETWORK_ERROR = "NETWORK_ERROR"
+    TLS_ERROR = "TLS_ERROR"
     INVALID_RESPONSE = "INVALID_RESPONSE"
     TARGET_REJECTED = "TARGET_REJECTED"
     UNEXPECTED = "UNEXPECTED"
@@ -108,11 +110,22 @@ class SnapshotService:
         *,
         context: Any = None,
     ) -> SnapshotResult:
+        if context is not None and context.cancelled:
+            return SnapshotResult(failure=SnapshotFailure.CANCELLED)
+        if context is not None and getattr(context, "tls_failed", False):
+            return SnapshotResult(failure=SnapshotFailure.TLS_ERROR)
         if context is None and not self._all_providers_injected:
             return SnapshotResult(failure=SnapshotFailure.TARGET_REJECTED)
         if context is not None and not (
             context.snapshot_eligible("ONVIF") or context.snapshot_eligible("VENDOR_HIKVISION")
         ):
+            if context.cancelled:
+                return SnapshotResult(failure=SnapshotFailure.CANCELLED)
+            if (
+                context.budget.remaining("SNAPSHOT_HTTP") <= 0
+                and context.budget.remaining("RTSP_OPEN") <= 0
+            ):
+                return SnapshotResult(failure=SnapshotFailure.TIMEOUT)
             return SnapshotResult(failure=SnapshotFailure.AUTH_REJECTED)
         attempts: list[SnapshotAttempt] = []
         last_failure = SnapshotFailure.UNSUPPORTED
@@ -123,7 +136,12 @@ class SnapshotService:
                 try:
                     context.check(source)
                 except Exception:  # noqa: BLE001 - cancellation and exhaustion stop image I/O.
-                    return SnapshotResult(attempts=tuple(attempts), failure=SnapshotFailure.TIMEOUT)
+                    failure = (
+                        SnapshotFailure.CANCELLED
+                        if context.cancelled
+                        else SnapshotFailure.TIMEOUT
+                    )
+                    return SnapshotResult(attempts=tuple(attempts), failure=failure)
                 if not context.snapshot_eligible(family):
                     continue
             if method is SnapshotMethod.VENDOR_HTTP and not _supports_hikvision_snapshot(
@@ -139,9 +157,23 @@ class SnapshotService:
                 else:
                     raw_image = (provider.capture(target, context=context)
                                  if context is not None else provider.capture(target))
+                if context is not None and context.cancelled:
+                    attempts.append(
+                        SnapshotAttempt(method, False, SnapshotFailure.CANCELLED)
+                    )
+                    return SnapshotResult(
+                        attempts=tuple(attempts), failure=SnapshotFailure.CANCELLED
+                    )
                 if not isinstance(raw_image, bytes) or not raw_image:
                     raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
                 thumbnail, width, height = self._image_processor(raw_image)
+                if context is not None and context.cancelled:
+                    attempts.append(
+                        SnapshotAttempt(method, False, SnapshotFailure.CANCELLED)
+                    )
+                    return SnapshotResult(
+                        attempts=tuple(attempts), failure=SnapshotFailure.CANCELLED
+                    )
                 if (
                     not thumbnail
                     or len(thumbnail) > _MAX_IMAGE_BYTES
@@ -152,17 +184,32 @@ class SnapshotService:
                 ):
                     raise SnapshotCaptureError(SnapshotFailure.INVALID_RESPONSE)
             except SnapshotCaptureError as error:
+                if context is not None and context.cancelled:
+                    attempts.append(
+                        SnapshotAttempt(method, False, SnapshotFailure.CANCELLED)
+                    )
+                    return SnapshotResult(
+                        attempts=tuple(attempts), failure=SnapshotFailure.CANCELLED
+                    )
                 last_failure = error.failure
                 attempts.append(SnapshotAttempt(method, False, error.failure))
                 if error.failure in {
                     SnapshotFailure.AUTH_REJECTED,
                     SnapshotFailure.AUTHORIZATION_DENIED,
+                    SnapshotFailure.TLS_ERROR,
                     SnapshotFailure.TARGET_REJECTED,
                     SnapshotFailure.UNEXPECTED,
                 }:
                     break
                 continue
             except Exception:  # noqa: BLE001 - raw provider and decoder details are never exposed.
+                if context is not None and context.cancelled:
+                    attempts.append(
+                        SnapshotAttempt(method, False, SnapshotFailure.CANCELLED)
+                    )
+                    return SnapshotResult(
+                        attempts=tuple(attempts), failure=SnapshotFailure.CANCELLED
+                    )
                 last_failure = SnapshotFailure.INVALID_RESPONSE
                 attempts.append(
                     SnapshotAttempt(method, False, SnapshotFailure.INVALID_RESPONSE)

@@ -4,6 +4,7 @@ from dataclasses import fields
 from io import StringIO
 
 import pytest
+from zeep.exceptions import Fault
 
 from cam_scanner.application.inventory_service import InventoryService
 from cam_scanner.cameras.preauth import (
@@ -392,6 +393,29 @@ def test_f03_transport_and_protocol_errors_keep_discriminating_categories(
 ) -> None:
     category, _http_status, _protocol_code = normalize_collection_error(exception, stage=stage)
     assert category == expected
+
+
+def test_soap_not_authorized_remains_an_uncertain_soap_fault() -> None:
+    category, http_status, protocol_code = normalize_collection_error(
+        Fault("NotAuthorized"), stage="SOAP"
+    )
+
+    assert category == "SOAP_FAULT"
+    assert http_status is None
+    assert protocol_code == "NotAuthorized"
+
+
+def test_anonymous_http_401_is_not_reported_as_final_auth_rejection() -> None:
+    class HttpFailure(Exception):
+        response = type("Response", (), {"status_code": 401})()
+
+    category, http_status, protocol_code = normalize_collection_error(
+        HttpFailure(), stage="DISCOVERY", authenticated=False
+    )
+
+    assert category == "HTTP_ERROR"
+    assert http_status == 401
+    assert protocol_code is None
 
 
 @pytest.mark.parametrize(

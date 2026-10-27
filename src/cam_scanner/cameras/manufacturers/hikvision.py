@@ -20,16 +20,16 @@ from requests.exceptions import (
 )
 from requests.utils import parse_dict_header
 
+from cam_scanner.cameras.manufacturers._http_utils import (
+    managed_vendor_session,
+    read_limited_until,
+)
 from cam_scanner.domain.models import (
     CameraResult,
     CameraTarget,
     CollectionAttempt,
     CollectionReport,
     EvidenceRecord,
-)
-from cam_scanner.cameras.manufacturers._http_utils import (
-    managed_vendor_session,
-    read_limited_until,
 )
 
 _OPERATION = "GET /ISAPI/System/deviceInfo"
@@ -182,15 +182,11 @@ class _BoundedDigestAuth(HTTPDigestAuth):
         self.mechanism_unsupported = False
         self._challenge_seen = False
 
+    def supports_challenge(self, response: requests.Response) -> bool:
+        return not self._challenge_seen and _supported_digest_challenge(response)
+
     def handle_401(self, response, **kwargs):
-        challenges = response.headers.get("www-authenticate", "")
-        digest = next(
-            (item for item in _split_challenges(challenges) if item.casefold().startswith("digest ")),
-            None,
-        )
-        parsed = parse_dict_header(digest[7:]) if digest else {}
-        qop = {item.strip().casefold() for item in parsed.get("qop", "").split(",")}
-        supported = bool(parsed.get("nonce")) and (not qop or "auth" in qop) and parsed.get("algorithm", "MD5").casefold() in {"md5", "md5-sess"}
+        supported = _supported_digest_challenge(response)
         if response.status_code != 401:
             return response
         if self._challenge_seen or not supported:
@@ -219,6 +215,27 @@ def _split_challenges(value: str) -> list[str]:
                 start = index + 1
     chunks.append(value[start:].strip())
     return [chunk for chunk in chunks if chunk]
+
+
+def _supported_digest_challenge(response: requests.Response) -> bool:
+    challenges = response.headers.get("www-authenticate", "")
+    digest = next(
+        (item for item in _split_challenges(challenges) if item.casefold().startswith("digest ")),
+        None,
+    )
+    parsed = parse_dict_header(digest[7:]) if digest else {}
+    qop_value = parsed.get("qop")
+    qop = (
+        {item.strip().casefold() for item in qop_value.split(",")}
+        if qop_value
+        else set()
+    )
+    return (
+        bool(parsed.get("realm"))
+        and bool(parsed.get("nonce"))
+        and (not qop or "auth" in qop)
+        and parsed.get("algorithm", "MD5").casefold() in {"md5", "md5-sess"}
+    )
 
 
 def _parse_device_info(body: bytes) -> dict[str, str]:

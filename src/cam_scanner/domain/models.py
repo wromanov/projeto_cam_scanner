@@ -75,6 +75,8 @@ _VALID_OPERATIONS = {
     "resolve_preauth_manufacturer",
     "aggregate_collection_report",
     "discover",
+    "preauth_discovery",
+    "vendor_adapter",
     "ONVIF pre-authentication discovery",
     "GET /ISAPI/System/deviceInfo",
     "POST /axis-cgi/basicdeviceinfo.cgi getAllProperties",
@@ -133,6 +135,28 @@ def is_valid_evidence_value(
     return bool(cleaned)
 
 
+def _manufacturer_resolution_is_safe(
+    resolution: ManufacturerResolution, sensitive_values: tuple[str, ...]
+) -> bool:
+    values = (
+        resolution.selected,
+        resolution.detected,
+        resolution.declared,
+        resolution.observed,
+        resolution.resolved,
+        *resolution.conflicts,
+        *resolution.observed_values,
+        *resolution.weak_values,
+    )
+    return all(
+        value is None
+        or is_valid_evidence_value(
+            "manufacturer", value, sensitive_values=sensitive_values
+        )
+        for value in values
+    )
+
+
 def is_safe_xml_text(value: str) -> bool:
     """Return whether text can cross XML/XLSX and terminal boundaries safely."""
     if len(value) > _MAX_TEXT_LENGTH:
@@ -169,6 +193,41 @@ class CameraTarget:
     ip: str
     username: str
     password: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ManufacturerResolution:
+    """Typed, non-identity routing decision and its declared/observed signals."""
+
+    selected: str | None = field(repr=False)
+    detected: str | None = field(repr=False)
+    mismatch: bool
+    declared: str | None = field(default=None, repr=False)
+    observed: str | None = field(default=None, repr=False)
+    resolved: str | None = field(default=None, repr=False)
+    confidence: str = "UNKNOWN"
+    conflicts: tuple[str, ...] = field(default=(), repr=False)
+    observed_values: tuple[str, ...] = field(default=(), repr=False)
+    weak_values: tuple[str, ...] = field(default=(), repr=False)
+
+    def __post_init__(self) -> None:
+        if type(self.mismatch) is not bool:
+            raise TypeError("manufacturer resolution mismatch must be boolean")
+        if not isinstance(self.confidence, str) or self.confidence not in {
+            "STRONG",
+            "WEAK",
+            "CONFLICTING",
+            "UNKNOWN",
+        }:
+            raise ValueError("manufacturer resolution confidence is unsupported")
+        for name in ("selected", "detected", "declared", "observed", "resolved"):
+            value = getattr(self, name)
+            if value is not None and not isinstance(value, str):
+                raise TypeError(f"manufacturer resolution {name} must be text or None")
+        for name in ("conflicts", "observed_values", "weak_values"):
+            values = getattr(self, name)
+            if not isinstance(values, tuple) or any(not isinstance(value, str) for value in values):
+                raise TypeError(f"manufacturer resolution {name} must be a tuple of text")
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,6 +360,7 @@ class CollectionReport:
     attempts: tuple[CollectionAttempt, ...] = ()
     required_fields: tuple[str, ...] = _IDENTITY_FIELDS
     cancelled: bool = False
+    manufacturer_resolution: ManufacturerResolution | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "evidence", tuple(self.evidence))
@@ -310,6 +370,10 @@ class CollectionReport:
             raise TypeError("report evidence must contain EvidenceRecord values")
         if any(not isinstance(item, CollectionAttempt) for item in self.attempts):
             raise TypeError("report attempts must contain CollectionAttempt values")
+        if self.manufacturer_resolution is not None and not isinstance(
+            self.manufacturer_resolution, ManufacturerResolution
+        ):
+            raise TypeError("manufacturer resolution must use ManufacturerResolution")
         if self.required_fields != _IDENTITY_FIELDS:
             raise ValueError("CollectionReport currently implements only IDENTITY_V1")
         if type(self.cancelled) is not bool:
@@ -385,6 +449,11 @@ class CollectionReport:
 
     def merged(self, other: CollectionReport) -> CollectionReport:
         """Append evidence and attempts; no write can erase an earlier valid value."""
+        resolution = self.manufacturer_resolution
+        if other.manufacturer_resolution is not None:
+            if resolution is not None and resolution != other.manufacturer_resolution:
+                raise ValueError("cannot merge different manufacturer resolutions")
+            resolution = other.manufacturer_resolution
         if self.required_fields != other.required_fields:
             required = tuple(dict.fromkeys((*self.required_fields, *other.required_fields)))
         else:
@@ -394,6 +463,7 @@ class CollectionReport:
             attempts=self.attempts + other.attempts,
             required_fields=required,
             cancelled=self.cancelled or other.cancelled,
+            manufacturer_resolution=resolution,
         )
 
     def with_attempt(self, attempt: CollectionAttempt) -> CollectionReport:
@@ -401,6 +471,18 @@ class CollectionReport:
 
     def with_evidence(self, *records: EvidenceRecord) -> CollectionReport:
         return replace(self, evidence=self.evidence + tuple(records))
+
+    def with_manufacturer_resolution(
+        self, resolution: ManufacturerResolution
+    ) -> CollectionReport:
+        """Attach the typed routing decision without treating it as identity evidence."""
+        if not isinstance(resolution, ManufacturerResolution):
+            raise TypeError("manufacturer resolution must use ManufacturerResolution")
+        if self.manufacturer_resolution is not None:
+            if self.manufacturer_resolution != resolution:
+                raise ValueError("cannot replace a different manufacturer resolution")
+            return self
+        return replace(self, manufacturer_resolution=resolution)
 
     def validated_for_target(self, sensitive_values: tuple[str, ...]) -> CollectionReport:
         """Apply target-scoped secret checks before reports cross an application boundary."""
@@ -411,20 +493,28 @@ class CollectionReport:
                 item.field, item.value, sensitive_values=sensitive_values
             )
         )
-        if len(safe_evidence) == len(self.evidence):
+        resolution = self.manufacturer_resolution
+        if resolution is not None and not _manufacturer_resolution_is_safe(
+            resolution, sensitive_values
+        ):
+            resolution = None
+        if len(safe_evidence) == len(self.evidence) and resolution is self.manufacturer_resolution:
             return self
-        return replace(
-            self,
-            evidence=safe_evidence,
-            attempts=self.attempts
-            + (
+        attempts = self.attempts
+        if len(safe_evidence) != len(self.evidence):
+            attempts += (
                 CollectionAttempt(
                     stage="PARSE",
                     operation="parse_device_information",
                     outcome="FAILED",
                     error_category="INVALID_RESPONSE",
                 ),
-            ),
+            )
+        return replace(
+            self,
+            evidence=safe_evidence,
+            manufacturer_resolution=resolution,
+            attempts=attempts,
         )
 
     def to_camera_result(self, ip: str, *, duration: float = 0.0) -> CameraResult:

@@ -37,7 +37,11 @@ class InventoryService:
         self._config = config or EffectiveConfig()
 
     def create_context(
-        self, target: CameraTarget, *, cancel_event: threading.Event | None = None
+        self,
+        target: CameraTarget,
+        *,
+        cancel_event: threading.Event | None = None,
+        manufacturer_hint: str | None = None,
     ) -> CollectionContext:
         """Create the one per-row context before pre-auth and keep it through cleanup."""
         from cam_scanner.cameras.transport import TargetTransportPolicy
@@ -47,6 +51,7 @@ class InventoryService:
             self._config,
             cancel_event=cancel_event,
             transport_factory=TargetTransportPolicy,
+            manufacturer_hint=manufacturer_hint,
         )
 
     def collect_execution(
@@ -55,9 +60,14 @@ class InventoryService:
         *,
         context: CollectionContext | None = None,
         cancel_event: threading.Event | None = None,
+        manufacturer_hint: str | None = None,
     ) -> tuple[CollectionReport, CollectionContext]:
         """Collect into one context, returning it for snapshot and final cleanup."""
-        execution_context = context or self.create_context(target, cancel_event=cancel_event)
+        execution_context = context or self.create_context(
+            target,
+            cancel_event=cancel_event,
+            manufacturer_hint=manufacturer_hint,
+        )
         return self.collect_report(target, context=execution_context), execution_context
 
     def collect_one(self, target: CameraTarget) -> CameraResult:
@@ -112,7 +122,9 @@ class InventoryService:
                     else report_method(target)
                 )
             except KeyboardInterrupt:
-                cancelled = CollectionReport().with_attempt(
+                if context is not None:
+                    context.cancel_event.set()
+                cancelled = CollectionReport(cancelled=True).with_attempt(
                     CollectionAttempt(
                         stage="MERGE",
                         operation="collect_one",
@@ -141,7 +153,9 @@ class InventoryService:
         try:
             result = self._collector.collect(target)
         except KeyboardInterrupt:
-            cancelled = CollectionReport().with_attempt(
+            if context is not None:
+                context.cancel_event.set()
+            cancelled = CollectionReport(cancelled=True).with_attempt(
                 CollectionAttempt(
                     stage="MERGE",
                     operation="collect_one",

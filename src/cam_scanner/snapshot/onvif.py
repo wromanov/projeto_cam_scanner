@@ -14,6 +14,7 @@ from requests.exceptions import (
     ConnectTimeout,
     ReadTimeout,
     RequestException,
+    SSLError,
     Timeout,
 )
 
@@ -101,6 +102,10 @@ class OnvifSnapshotProvider:
             raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED) from None
         except (ConnectTimeout, ReadTimeout, Timeout):
             raise SnapshotCaptureError(SnapshotFailure.TIMEOUT) from None
+        except SSLError:
+            if context is not None:
+                context.mark_tls_failure()
+            raise SnapshotCaptureError(SnapshotFailure.TLS_ERROR) from None
         except ConnectionError:
             raise SnapshotCaptureError(SnapshotFailure.NETWORK_ERROR) from None
         except RequestException:
@@ -196,6 +201,8 @@ def _read_field(value: object, name: str) -> Any:
 
 
 def _normalize_onvif_error(error: Exception) -> SnapshotCaptureError:
+    if isinstance(error, TargetRejected):
+        return SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
     chain: list[BaseException] = []
     current: BaseException | None = error
     seen: set[int] = set()
@@ -208,6 +215,13 @@ def _normalize_onvif_error(error: Exception) -> SnapshotCaptureError:
             if isinstance(original, BaseException)
             else current.__cause__ or current.__context__
         )
+    if any(
+        isinstance(item, SSLError)
+        or "ssl" in type(item).__name__.casefold()
+        or "tls" in type(item).__name__.casefold()
+        for item in chain
+    ):
+        return SnapshotCaptureError(SnapshotFailure.TLS_ERROR)
     for item in chain:
         folded = "".join(
             char

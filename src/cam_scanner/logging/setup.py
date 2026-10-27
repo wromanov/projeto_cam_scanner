@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import stat
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -15,6 +17,29 @@ from cam_scanner.config.models import EffectiveConfig
 _LOG_FILE_PREFIX = "cam_scanner_"
 _PRODUCT_LOG = re.compile(r"^cam_scanner_[0-9]{8}_[0-9]{6}_[0-9a-f]{8}\.log(?:\.[0-9]+)?$")
 _ROTATION_BACKUPS = 3
+
+
+class _ProductFileHandler(RotatingFileHandler):
+    """Identify only the application-owned handler for safe reconfiguration."""
+
+    def shouldRollover(self, record: logging.LogRecord) -> bool:
+        """Roll over using the encoded size of the next formatted record."""
+        if self.maxBytes <= 0:
+            return False
+        if self.stream is None:
+            self.stream = self._open()
+
+        # Text-stream tell() values are not a reliable byte count for UTF-8.
+        # Flush before stat so the on-disk size includes all previous records.
+        self.stream.flush()
+        current_size = os.fstat(self.stream.fileno()).st_size
+        # TextIOWrapper translates the StreamHandler's "\n" to os.linesep on
+        # Windows, which is also the newline budget reserved by the formatter.
+        incoming = (self.format(record) + os.linesep).encode(
+            self.encoding or "utf-8",
+            errors=self.errors or "strict",
+        )
+        return current_size + len(incoming) > self.maxBytes
 
 
 class _RunIdFilter(logging.Filter):
@@ -30,7 +55,8 @@ class _RunIdFilter(logging.Filter):
 class _BoundedFormatter(logging.Formatter):
     def __init__(self, max_bytes: int) -> None:
         super().__init__("%(asctime)s %(levelname)s RUN_ID=%(run_id)s %(message)s")
-        self._record_limit = max_bytes - 1  # reserve one byte for the handler's line terminator
+        terminator_bytes = len(os.linesep.encode("utf-8"))
+        self._record_limit = max_bytes - terminator_bytes
 
     def format(self, record: logging.LogRecord) -> str:
         rendered = super().format(record)
@@ -60,7 +86,7 @@ def configure_logging(
     run_id = uuid4().hex[:8]
     timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
     log_path = log_directory / f"{_LOG_FILE_PREFIX}{timestamp}_{run_id}.log"
-    handler = RotatingFileHandler(
+    handler = _ProductFileHandler(
         log_path,
         maxBytes=effective.log_max_file_size_mb * 1024 * 1024,
         backupCount=_ROTATION_BACKUPS,
@@ -82,10 +108,12 @@ def close_logging() -> None:
 
 def _close_handlers(logger: logging.Logger) -> None:
     for existing_handler in logger.handlers[:]:
+        if not isinstance(existing_handler, _ProductFileHandler):
+            continue
         logger.removeHandler(existing_handler)
-        try:
+        with suppress(Exception):
             existing_handler.flush()
-        finally:
+        with suppress(Exception):
             existing_handler.close()
 
 

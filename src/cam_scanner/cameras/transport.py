@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import ipaddress
-import time
+import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import parse_qsl, quote, urlsplit
 
 import requests
 from requests.adapters import HTTPAdapter
+from requests.utils import parse_dict_header
+
+from cam_scanner.domain.errors import normalize_collection_error
 
 if TYPE_CHECKING:
     from cam_scanner.application.collection_context import CollectionContext
@@ -26,6 +30,26 @@ _BODY_LIMITS = {
     "vendor_dahua": 16 * 1024, "vendor_panasonic": 16 * 1024,
     "vendor_hikvision": 64 * 1024,
 }
+_HTTP_AUTH_COMPONENTS = frozenset({
+    "snapshot_onvif", "snapshot_vendor", "vendor_axis", "vendor_dahua",
+    "vendor_hanwha", "vendor_panasonic", "vendor_hikvision",
+})
+_SNAPSHOT_COMPONENTS = frozenset({"snapshot_onvif", "snapshot_vendor"})
+_AUTH_FAMILIES = {
+    "onvif_device": "ONVIF",
+    "onvif_media": "ONVIF",
+    "snapshot_onvif": "ONVIF",
+    "snapshot_vendor": "VENDOR_HIKVISION",
+    "vendor_axis": "VENDOR_AXIS",
+    "vendor_dahua": "VENDOR_DAHUA",
+    "vendor_hanwha": "VENDOR_SAMSUNG/HANWHA",
+    "vendor_panasonic": "VENDOR_PANASONIC",
+    "vendor_hikvision": "VENDOR_HIKVISION",
+}
+_RETRYABLE_HTTP_STATUSES = frozenset({502, 503, 504})
+_RETRYABLE_SOAP_OPERATIONS = frozenset({
+    "GetDeviceInformation", "GetProfiles", "GetSnapshotUri", "GetStreamUri",
+})
 
 
 class TargetRejected(ValueError):
@@ -36,25 +60,110 @@ class ResponseTooLarge(ValueError):
     """A bounded network response exceeded its approved limit."""
 
 
+def _discard_auth_challenge_body(response: requests.Response, limit: int) -> None:
+    """Discard irrelevant challenge bytes without letting Requests buffer them."""
+    declared = response.headers.get("content-length")
+    if declared is not None:
+        try:
+            length = int(declared)
+        except ValueError as error:
+            response.close()
+            raise ResponseTooLarge("invalid authentication challenge content length") from error
+        if length < 0 or length > limit:
+            response.close()
+            raise ResponseTooLarge("authentication challenge body too large")
+    response.close()
+    response._content = b""
+    response._content_consumed = True
+
+
+def _digest_challenge_supported(
+    request: requests.PreparedRequest, response: requests.Response
+) -> bool:
+    """Accept only Digest challenges this request's auth hook can replay."""
+    digest_handler = False
+    for hook in request.hooks.get("response", ()):
+        owner = getattr(hook, "__self__", None)
+        supports_challenge = getattr(owner, "supports_challenge", None)
+        if callable(supports_challenge):
+            return bool(supports_challenge(response))
+        if isinstance(owner, requests.auth.HTTPDigestAuth):
+            digest_handler = True
+    if not digest_handler:
+        return False
+
+    raw_headers = getattr(response.raw, "headers", None)
+    getlist = getattr(raw_headers, "getlist", None)
+    values = getlist("www-authenticate") if callable(getlist) else None
+    if not values:
+        value = response.headers.get("www-authenticate")
+        values = [value] if isinstance(value, str) else []
+    supported_algorithms = {"MD5", "MD5-SESS", "SHA", "SHA-256", "SHA-512"}
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        scheme, separator, parameters = value.strip().partition(" ")
+        if not separator or scheme.casefold() != "digest":
+            continue
+        challenge = parse_dict_header(parameters)
+        algorithm = str(challenge.get("algorithm", "MD5")).upper()
+        qop_value = challenge.get("qop")
+        qop = (
+            {part.strip().casefold() for part in str(qop_value).split(",")}
+            if qop_value
+            else set()
+        )
+        if (
+            challenge.get("realm")
+            and challenge.get("nonce")
+            and algorithm in supported_algorithms
+            and (not qop or "auth" in qop)
+        ):
+            return True
+    return False
+
+
+def _retryable_operation(
+    component: str, method: str, options: dict[str, Any]
+) -> bool:
+    if method == "GET":
+        return component in _BODY_LIMITS
+    if method != "POST" or component not in {"onvif_device", "onvif_media"}:
+        return False
+    return _soap_operation_name(options.get("data")) in _RETRYABLE_SOAP_OPERATIONS
+
+
+def _soap_operation_name(payload: object) -> str | None:
+    if not isinstance(payload, (bytes, str)):
+        return None
+    try:
+        root = ET.fromstring(payload)
+    except (ET.ParseError, TypeError, ValueError):
+        return None
+    body = next(
+        (element for element in root.iter()
+         if isinstance(element.tag, str) and element.tag.rsplit("}", 1)[-1] == "Body"),
+        None,
+    )
+    if body is None:
+        return None
+    operation = next((item for item in body if isinstance(item.tag, str)), None)
+    return operation.tag.rsplit("}", 1)[-1] if operation is not None else None
+
+
 class _BoundedResponse:
     """Enforce the same limit for streamed and eager callers; charge body time."""
 
     def __init__(self, response: requests.Response, context: CollectionContext,
-                 source: str, limit: int) -> None:
+                 source: str, limit: int,
+                 retry: Callable[[Exception], requests.Response | None] | None = None) -> None:
         self._response = response
         self._context = context
         self._source = source
         self._limit = limit
+        self._retry = retry
         self._cached: bytes | None = None
-        declared = response.headers.get("content-length")
-        if declared is not None:
-            try:
-                if int(declared) > limit:
-                    response.close()
-                    raise ResponseTooLarge("response too large")
-            except ValueError as error:
-                response.close()
-                raise ResponseTooLarge("invalid content length") from error
+        self._validate_declared_length(response)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._response, name)
@@ -66,24 +175,73 @@ class _BoundedResponse:
         return self._cached
 
     def iter_content(self, chunk_size: int = 65536, **kwargs: Any) -> Any:
-        if self._cached is not None:
-            for offset in range(0, len(self._cached), chunk_size):
-                yield self._cached[offset:offset + chunk_size]
-            return
+        if self._cached is None:
+            self._load_body(chunk_size, kwargs)
+        assert self._cached is not None
+        for offset in range(0, len(self._cached), chunk_size):
+            yield self._cached[offset:offset + chunk_size]
+
+    def _load_body(self, chunk_size: int, kwargs: dict[str, Any]) -> None:
         body = bytearray()
-        started = time.monotonic()
-        try:
-            for chunk in self._response.iter_content(chunk_size=chunk_size, **kwargs):
-                self._context.check(self._source)
-                if not isinstance(chunk, bytes):
-                    raise ResponseTooLarge("invalid response chunk")
-                body.extend(chunk)
-                if len(body) > self._limit:
-                    raise ResponseTooLarge("response too large")
-                yield chunk
+        while True:
+            response = self._response
+            self._validate_declared_length(response)
+            last_charged = self._context.monotonic()
+            try:
+                for chunk in response.iter_content(chunk_size=chunk_size, **kwargs):
+                    now = self._context.monotonic()
+                    self._context.charge_operation(
+                        self._source, max(0.0, now - last_charged)
+                    )
+                    last_charged = now
+                    self._context.check(self._source)
+                    if not isinstance(chunk, bytes):
+                        raise ResponseTooLarge("invalid response chunk")
+                    body.extend(chunk)
+                    if len(body) > self._limit:
+                        raise ResponseTooLarge("response too large")
+            except requests.exceptions.SSLError:
+                self._context.mark_tls_failure()
+                self._charge_tail(last_charged)
+                response.close()
+                raise
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as error:
+                self._charge_tail(last_charged)
+                response.close()
+                if self._retry is None:
+                    raise
+                replacement = self._retry(error)
+                if replacement is None:
+                    raise
+                self._response = replacement
+                body.clear()
+                continue
+            except BaseException:
+                self._charge_tail(last_charged)
+                response.close()
+                raise
+            self._charge_tail(last_charged)
             self._cached = bytes(body)
-        finally:
-            self._context.charge_operation(self._source, max(0.0, time.monotonic() - started))
+            return
+
+    def _charge_tail(self, last_charged: float) -> None:
+        now = self._context.monotonic()
+        self._context.charge_operation(
+            self._source, max(0.0, now - last_charged)
+        )
+
+    def _validate_declared_length(self, response: requests.Response) -> None:
+        declared = response.headers.get("content-length")
+        if declared is None:
+            return
+        try:
+            length = int(declared)
+        except (TypeError, ValueError) as error:
+            response.close()
+            raise ResponseTooLarge("invalid content length") from error
+        if length < 0 or length > self._limit:
+            response.close()
+            raise ResponseTooLarge("response too large")
 
     def close(self) -> None:
         self._response.close()
@@ -102,10 +260,13 @@ class _GuardedAdapter(HTTPAdapter):
         context = self.policy.context
         context.check(self.source)
         self.policy.authorize(self.component, request.url or "")
-        if context.auth.state in {
-            context.auth.AUTH_REJECTED_FINAL, context.auth.AUTHORIZATION_DENIED,
-        } and self.authenticated:
-            raise TargetRejected("authentication stopped")
+        if self.authenticated:
+            family = _AUTH_FAMILIES.get(self.component)
+            if family is None or not context.auth.allows_authenticated_attempt(family):
+                raise TargetRejected("authenticated attempt was not authorized")
+            if (self.component in _SNAPSHOT_COMPONENTS
+                    and not context.auth.allows_authenticated_request(family)):
+                raise TargetRejected("snapshot requires an accepted authentication scope")
         if request.method not in {"GET", "POST"}:
             raise TargetRejected("unsupported method")
         if self.component.startswith("onvif_") and request.method != "POST":
@@ -117,24 +278,37 @@ class _GuardedAdapter(HTTPAdapter):
         kwargs["timeout"] = (connect, read)
         kwargs["verify"] = True
         kwargs["proxies"] = {}
-        started = time.monotonic()
+        started = context.monotonic()
         context.auth.record_physical_exchange()
         try:
             response = super().send(request, **kwargs)
-            family = ({"onvif_device": "ONVIF", "onvif_media": "ONVIF",
-                       "snapshot_onvif": "ONVIF", "snapshot_vendor": "VENDOR_HIKVISION",
-                       "vendor_hanwha": "VENDOR_SAMSUNG/HANWHA"}
-                      .get(self.component, self.component.upper()))
+            family = _AUTH_FAMILIES.get(self.component, self.component.upper())
+            digest_challenge = (
+                self.authenticated
+                and self.component in _HTTP_AUTH_COMPONENTS
+                and response.status_code == 401
+                and "Authorization" not in request.headers
+                and _digest_challenge_supported(request, response)
+            )
+            if digest_challenge:
+                try:
+                    _discard_auth_challenge_body(response, _BODY_LIMITS[self.component])
+                except ResponseTooLarge:
+                    context.auth.observe_http(
+                        response.status_code, family, authenticated=self.authenticated
+                    )
+                    raise
             context.auth.observe_http(
                 response.status_code, family,
                 authenticated=self.authenticated,
-                challenge=(self.authenticated and response.status_code == 401
-                           and "Authorization" not in request.headers
-                           and "www-authenticate" in response.headers),
+                challenge=digest_challenge,
             )
             return response
+        except requests.exceptions.SSLError:
+            context.mark_tls_failure()
+            raise
         finally:
-            context.charge_operation(self.source, max(0.0, time.monotonic() - started))
+            context.charge_operation(self.source, max(0.0, context.monotonic() - started))
 
 
 class TargetTransportPolicy:
@@ -254,11 +428,71 @@ class TargetTransportPolicy:
         options["verify"] = True
         options["stream"] = True
         options["proxies"] = {}
-        options["timeout"] = self.context.request_timeout(source)
-        response = self._session(component, source, authenticated).request(
-            method, url, **options
-        )
-        return _BoundedResponse(response, self.context, source, _BODY_LIMITS[component])
+        request_method = method.upper()
+        request_options = dict(options)
+        retry_eligible = _retryable_operation(component, request_method, request_options)
+        operation_id = object()
+        session = self._session(component, source, authenticated)
+        while True:
+            self.context.check(source)
+            request_options["timeout"] = self.context.request_timeout(source)
+            try:
+                response = session.request(request_method, url, **request_options)
+            except requests.exceptions.SSLError:
+                self.context.mark_tls_failure()
+                raise
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if not self._retry(source, retry_eligible, operation_id):
+                    raise
+                continue
+            if response.status_code in _RETRYABLE_HTTP_STATUSES:
+                response.close()
+                if self._retry(source, retry_eligible, operation_id):
+                    continue
+            bounded = _BoundedResponse(
+                response, self.context, source, _BODY_LIMITS[component],
+                retry=(
+                    lambda error: self._retry_after_body(
+                        session, request_method, url, request_options, source,
+                        retry_eligible, operation_id, error,
+                    )
+                ),
+            )
+            # Resolve any streaming retry while status and headers are still hidden
+            # from callers, so they classify the final response consistently.
+            _ = bounded.content
+            return bounded
+
+    def _retry_after_body(
+        self,
+        session: requests.Session,
+        method: str,
+        url: str,
+        options: dict[str, Any],
+        source: str,
+        eligible: bool,
+        operation_id: object,
+        error: Exception,
+    ) -> requests.Response | None:
+        if isinstance(error, requests.exceptions.SSLError) or not isinstance(
+            error, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)
+        ):
+            return None
+        if not self._retry(source, eligible, operation_id):
+            return None
+        request_options = dict(options)
+        request_options["timeout"] = self.context.request_timeout(source)
+        return session.request(method, url, **request_options)
+
+    def _retry(self, source: str, eligible: bool, operation_id: object) -> bool:
+        budget = self.context.budget
+        if not budget.retry_allowed(source, eligible=eligible, operation_id=operation_id):
+            return False
+        delay = getattr(self.context.config, "retry_backoff_seconds", 1)
+        if not self.context.wait_for_retry(source, delay):
+            return False
+        budget.record_retry(source, operation_id=operation_id)
+        return True
 
     def zeep_transport(self, component: str, *, authenticated: bool) -> Any:
         from zeep.transports import Transport
@@ -343,7 +577,12 @@ class ControlledOnvifClient:
                             component, authenticated=self.authenticated),
                         settings=settings, wsse=token)
         service = client.create_service(binding, address)
-        return _RestrictedService(service, component, self.context)
+        return _RestrictedService(
+            service,
+            component,
+            self.context,
+            authenticated=self.authenticated,
+        )
 
 
 class _RestrictedService:
@@ -351,10 +590,18 @@ class _RestrictedService:
                                            "GetDeviceInformation"}),
                 "onvif_media": frozenset({"GetProfiles", "GetSnapshotUri", "GetStreamUri"})}
 
-    def __init__(self, service: Any, component: str, context: CollectionContext) -> None:
+    def __init__(
+        self,
+        service: Any,
+        component: str,
+        context: CollectionContext,
+        *,
+        authenticated: bool,
+    ) -> None:
         self._service = service
         self._component = component
         self._context = context
+        self._authenticated = authenticated
         self.operator = type("Operator", (), {"address": getattr(service, "_binding_options", {}).get("address")})()
 
     def __getattr__(self, name: str) -> Any:
@@ -367,8 +614,11 @@ class _RestrictedService:
             try:
                 result = operation(*args, **kwargs)
             except Exception as error:
-                self._context.auth.observe_soap(getattr(error, "code", None),
-                                                authenticated=name != "GetCapabilities")
+                _, _, protocol_code = normalize_collection_error(error, stage="SOAP")
+                self._context.auth.observe_soap(
+                    protocol_code or getattr(error, "code", None),
+                    authenticated=self._authenticated,
+                )
                 raise
             if name == "GetCapabilities":
                 media = getattr(result, "Media", None)

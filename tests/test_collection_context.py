@@ -65,10 +65,9 @@ def test_measure_charges_source_budget_even_when_operation_raises() -> None:
     clock = FakeClock()
     budget = CollectionBudget(_config(), started_at=clock(), clock=clock)
 
-    with pytest.raises(RuntimeError):
-        with budget.measure("NATIVE"):
-            clock.advance(2.5)
-            raise RuntimeError("synthetic failure")
+    with pytest.raises(RuntimeError), budget.measure("NATIVE"):
+        clock.advance(2.5)
+        raise RuntimeError("synthetic failure")
 
     assert budget.remaining("NATIVE") == 7.5
 
@@ -106,6 +105,14 @@ def test_auth_ledger_counts_digest_challenge_physically_but_not_logically() -> N
     assert not ledger.begin("VENDOR:AXIS", "MISSING_IDENTITY", missing_identity_fields=("serial",))
 
 
+def test_anonymous_401_does_not_block_the_planned_primary_authentication() -> None:
+    ledger = AuthenticationLedger()
+    ledger.observe_http(401, "ONVIF", authenticated=False)
+
+    assert ledger.state == ledger.AUTH_SCOPE_UNKNOWN
+    assert ledger.begin("ONVIF", "PRIMARY")
+
+
 def test_second_logical_attempt_requires_missing_identity_and_single_vendor_family() -> None:
     ledger = AuthenticationLedger()
     assert ledger.begin("ONVIF", "PRIMARY")
@@ -124,6 +131,29 @@ def test_soap_not_authorized_does_not_authorize_an_authentication_retry() -> Non
     ledger.observe_soap("ter:NotAuthorized", authenticated=False)
 
     assert ledger.state == ledger.AUTH_SCOPE_UNKNOWN
+    # The planned collection login remains available; the SOAP fault cannot
+    # justify a second, diagnostic login attempt.
+    assert not ledger.begin(
+        "VENDOR:AXIS", "MISSING_IDENTITY", missing_identity_fields=("serial",)
+    )
+    assert ledger.begin("ONVIF", "PRIMARY")
+    assert ledger.allows_authenticated_attempt("ONVIF")
+    assert not ledger.begin(
+        "VENDOR:AXIS", "MISSING_IDENTITY", missing_identity_fields=("serial",)
+    )
+
+
+def test_authenticated_soap_not_authorized_preserves_cause_and_blocks_scope() -> None:
+    ledger = AuthenticationLedger()
+    assert ledger.begin("ONVIF", "PRIMARY")
+    ledger.observe_http(200, "ONVIF", authenticated=True)
+
+    ledger.observe_soap("ter:NotAuthorized", authenticated=True)
+
+    assert ledger.state == ledger.AUTH_ACCEPTED
+    assert ledger.soap_access_blocked
+    assert not ledger.allows_authenticated_request("ONVIF")
+    assert not ledger.allows_authenticated_attempt("ONVIF")
     assert not ledger.begin("ONVIF", "PRIMARY")
 
 

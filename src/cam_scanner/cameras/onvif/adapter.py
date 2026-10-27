@@ -90,7 +90,9 @@ class GenericOnvifCollector(CameraCollector):
                 )
             )
         except Exception as exception:  # noqa: BLE001 - classify without storing exception text.
-            category, _, _ = normalize_collection_error(exception, stage="SOAP")
+            category, _, _ = normalize_collection_error(
+                exception, stage="SOAP", authenticated=True
+            )
             return report.with_attempt(
                 self._failed_attempt(
                     exception,
@@ -198,7 +200,10 @@ class GenericOnvifCollector(CameraCollector):
     def _failed_attempt(
         cls, exception: Exception, stage: str, operation: str, started: float
     ) -> CollectionAttempt:
-        category, http_status, protocol_code = normalize_collection_error(exception, stage=stage)
+        category, http_status, protocol_code = normalize_collection_error(
+            exception, stage=stage,
+            authenticated=operation == "GetDeviceInformation",
+        )
         return CollectionAttempt(
             stage=cls._stage_for(category) if stage in {"CONNECT", "SOAP"} else stage,
             operation=operation,

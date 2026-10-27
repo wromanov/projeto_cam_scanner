@@ -21,3 +21,6 @@ Os pins completos e hashes estão em `PROJECT_GOVERNANCE_BINDING.json`. A resolu
 ## Resolução dos bytes adotados — P0-A04
 
 Os arquivos extraídos neste computador não devem ser usados como fonte de hash dos pins. Os pins PM-00…PM-05 e VP-01 foram resolvidos exatamente em `../governanca_de_projetos/Matriz Unificada de Políticas.zip`, membros sob `Matriz Unificada de Políticas/` com os nomes indicados no binding. Opening e Continuity foram resolvidos em `../governanca_de_projetos/Protocolos para Projetos - Vigente/Remediacao Integridade Pacotes 3.0 - 2026-10-05/PROJECT_OPENING_3.0-REMEDIATED-MANIFEST-MATCHED.zip` e `CONTINUITY_3.0-REMEDIATED-MANIFEST-MATCHED.zip`, nos respectivos membros `OPENING_PROTOCOL.md` e `CONTINUITY_PROTOCOL.md`. Identidade, versão e SHA-256 continuam sendo os pins do binding; nenhuma migração foi realizada. A resolução em ZIP é localização alternativa dos mesmos bytes, não nova authority. Evidências: [`FOUNDATION_REVIEW_P0_A04.md`](FOUNDATION_REVIEW_P0_A04.md).
+## Atualização de authority — 2026-10-27
+
+O usuário aprovou os contratos Astra P0 V2, P1 V2 e TRANSPORT V1 e autorizou a próxima implementação somente offline. Esta aprovação não autoriza câmera real, HTTP operacional, RTSP, build de distribuição ou alteração de equipamentos.

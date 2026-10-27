@@ -1,5 +1,239 @@
 # Registro de continuidade
 
+## CAM_SCANNER_P12_WINDOWS_ONEDIR_BUILD_AND_VALIDATION — estado final (2026-10-19)
+
+O build P12 autorizado gerou e validou o pacote portátil CAM Scanner `1.0.0` para Windows 11 24H2 x64. `PREP12-09` foi satisfeito nesta etapa: ONEDIR, WSDL/XSD e recursos, DLLs, certificado, configuração externa, logs/temp, CLI sem Python no PATH, pasta protegida, falha controlada sem diretório gravável, destino local não sobrescrito e exportação XLSX/snapshot sintético passaram. O destino UNC/SMB não foi exercitado porque nenhum caminho autorizado foi fornecido. Veja [`PROJECT_STATE.md`](PROJECT_STATE.md) para status, hashes e limites; evidências do executável e do manifesto estão em `_tmp_P12_WINDOWS_ONEDIR_20261019`.
+
+O fixture de runtime usou somente `127.0.0.1`; GetCapabilities, GetDeviceInformation, GetProfiles, GetSnapshotUri e snapshot terminaram com uma linha `SUCCESS` e uma imagem embutida. Nenhuma câmera real, publicação, Git write ou homologação operacional foi executada. Os gates pré-P12 e a regressão completa de 373 testes foram preservados sem reexecução. Próximo passo: autorização separada de homologação READ_ONLY com câmera/modelo real.
+
+## Snapshot anterior — CAM_SCANNER_FINAL_STABILIZATION — estado final (2026-10-19; supersedido pelo build P12 abaixo)
+
+Gate V e os resultados finais estão registrados em [`PROJECT_STATE.md`](PROJECT_STATE.md) e no [relatório de submissão](../audit/CAM_SCANNER_FINAL_STABILIZATION_GATE_V_2026-10-19.md). O teste real de symlink passou em Windows/Python 3.14.0; a regressão terminou com 373 passed e zero failures, skips ou deselected. Gate 2, Gate 3 independente e Gate V passaram; Gate 4 concluiu `P12_READINESS=READY_FOR_P12`. PREP12-09/build-smoke ONEDIR, câmera real e Gate 5/publicação continuam posteriores. Nenhum pacote P12 foi gerado.
+
+## Snapshot anterior — CAM_SCANNER_FINAL_STABILIZATION (2026-10-19; supersedido acima)
+
+O estado factual e a submissão de evidências estão em [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`docs/audit/CAM_SCANNER_FINAL_STABILIZATION_GATE_V_2026-10-19.md`](../audit/CAM_SCANNER_FINAL_STABILIZATION_GATE_V_2026-10-19.md). O teste real criou o symlink, mas falhou com `NotImplementedError` em `os.utime(..., follow_symlinks=False)` antes das verificações de retenção. A regressão completa não foi executada; Gate 2 e Gate V não foram atendidos, Gate 3 permanece pendente e `P12_READINESS=BLOCKED`.
+
+Próximo passo: com autorização para ajustar o teste, remover a dependência da operação temporal não suportada sem enfraquecer o caso; repetir o teste focal e, somente após PASS, rodar regressão integral zero-skip, promover Gate 3 independentemente e reavaliar readiness. Nenhum build P12, acesso a câmera ou Git write ocorreu.
+
+## Recuperação de continuidade — CAM_CONTINUITY_RECOVERY_UNBLOCK_01 (2026-10-16)
+
+O estado atual de pins, origem de pacotes e PREP12-10 está em [`PROJECT_STATE.md`](PROJECT_STATE.md). Gate de authorities passou: 9 pins do binding correspondem aos bytes das entradas verificadas nos pacotes governados. Arquivos extraídos divergentes foram preservados e não usados como fonte. PyPI público foi autorizado pelo usuário; `PIP_NO_INDEX=1` foi preservado. O lock candidato fora do repo foi confirmado pelo SHA-256 registrado no estado; não houve instalação nem reprodução. Findings PREP12 permanecem abertos, Gate V não atendido e P12 bloqueada.
+
+## PRE-P12 — checkpoint de aceite e dependências (2026-10-16; fonte/lock superseded pela recuperação acima)
+
+O Architect independente formalizou as disposições em [`docs/audit/PRE_P12_ACCEPTANCE_REASSESSMENT_2026-10-16.md`](../audit/PRE_P12_ACCEPTANCE_REASSESSMENT_2026-10-16.md): PREP12-01/02/04/05 permanecem `OPEN` até Gate 2 sem skips; 01/02 também precisam do Gate 3. PREP12-10 = `BLOCKED_EXTERNAL_DEPENDENCY`; o usuário confirmou fonte aprovada não identificada e instruiu manter `PIP_NO_INDEX=1` sem contorno. `requirements/locks/windows-py314.in` já é o manifesto candidato; não alteramos versões, instalamos dependências, geramos hashes ou lock, nem reproduzimos ambiente. PREP12-11 = `OPEN_CONDITIONAL`; a sondagem temporária de capacidade symlink falhou com HRESULT `0x80070522` / WinError 1314 e os arquivos da sondagem foram removidos.
+
+Mantém-se a execução integral de referência 372 passed/1 skipped, logo `GATE_V = NOT_MET`, `P12_READINESS = BLOCKED`, `ACTIVITY_COMPLETE = NO` e progresso 96%. PREP12-09 continua diferido por contrato; CLEARED anteriores preservados. Nenhuma câmera, build P12 ou Git write.
+
+## PRE-P12 — evidência final e reavaliação de aceite (2026-10-16; vigente)
+
+Checkpoint final da atividade PRE_P12_UNIFIED_REMEDIATION, executado pelo agente em PowerShell Windows autorizado. Python 3.14.0 foi validado em `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner\.venv\Scripts\python.exe`; o import `cam_scanner` aponta para o target worktree. A suíte integral pós-delta, por harness autorizado que desabilita apenas tmpdir/cacheprovider e fornece `tmp_path` único por teste sob diretório preservado, terminou com 372 passed, 0 failed, 1 skipped, 0 deselected, 0 xfailed em 111.06s. O skip é do teste de symlink real em Windows (WinError 1314, privilégio ausente); nenhuma elevação ocorreu. Ruff `src tests`, `pip check` e `git diff --check` passaram; avisos LF/CRLF não são falhas. O caso focado das filas RTSP teve 2 passed e 12 deselected pelo filtro focado; a full run teve zero deselected.
+
+Parecer independente do Architect sobre o delta: PREP12-01/02 têm novas provas E/F para redirects 301/302/303/307/308 nos workflows, ambiente proxy/netrc hostil e Digest→307, sem defeito novo; permanecem para reavaliação formal, sem `CLEARED` nesta atualização. PREP12-04 demonstra deadline da cadeia, fila MULTI e fila RTSP que esgota budget antes do handshake (TIMEOUT, zero open). PREP12-05 tem evidência offline completa pela ficha de cancelamento dentro da fila RTSP e vendor/chunks/handshake/frame/close anteriores, sem defeito novo. PREP12-04/05 têm evidência offline completa pendente de aceite formal e não são marcados `CLEARED`. Gate V formal continua pendente por um skip.
+
+**Atualização da tentativa PREP12-10:** worktree `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_pre_p12_remediation`, branch `feature/pre-p12-unified-remediation`, HEAD `37bc8c4cc718559fc1e6f39a9b8a1145563a551e` confirmados. Python 3.14.0 AMD64. O venv isolado novo `_tmp_PREP12_10_venv_f7619b781f1b49719a7d236faa951a7d/resolver-venv` foi validado e pip 25.2 bootstrapped. `PIP_NO_INDEX=1`, herdado, impediu consultas a índices: `pip index` mostrou zero versões locais e `pip install pip-tools` não encontrou pacote. Nenhuma configuração foi removida/sobrescrita; nenhuma ferramenta ou dependência do produto foi instalada; não houve geração de lock/hash nem reprodução de ambiente/testes. O bloqueio atual é índice inacessível pela política/configuração efetiva, não evidência de ausência/incompatibilidade de `av==19.0.1`; PyPI oferece wheel `cp312-abi3 win_amd64` e SHA já registrado. A estratégia documental corrigida limita execução futura à área temporária da atividade, resolvedor separado e segundo venv limpo com requirements hasheado; não foi executada. PREP12-10 = `PENDING_VALIDATION/OPEN`.
+
+PREP12-11 segue OPEN_CONDITIONAL: retenção, arquivo bloqueado e redação passaram em filesystem Windows real; symlink real foi SKIPPED (WinError 1314). PREP12-09 segue DEFERRED_BY_CONTRACT ao build P12. PREP12-03/06/07/08/12/13/14 permanecem CLEARED conforme checkpoint anterior, sem reabertura. Nenhuma câmera, build P12 ou Git write; temporários, untracked e `docs/continuity.zip` foram preservados.
+
+Próximo gate: ambiente autorizado com índice permitido ou wheelhouse aprovado; gerar locks com hashes, reproduzir em ambiente limpo, executar checks e obter revisão Architect. Também executar teste real de symlink em Windows autorizado com capacidade de criação; depois regressão integral sem skip e nova avaliação formal. P12_READINESS=BLOCKED; ACTIVITY_COMPLETE=NO; progresso 96%.
+
+~~~text
+EVIDENCE_SOURCE = AGENT_EXECUTED_AUTHORIZED_WINDOWS_POWERSHELL
+PYTHON = 3.14.0 (validated executable: C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner\.venv\Scripts\python.exe)
+IMPORT_CAM_SCANNER = TARGET_WORKTREE
+FULL_PYTEST = 372 PASSED, 0 FAILED, 1 SKIPPED, 0 DESELECTED, 0 XFAILED (111.06s)
+PYTEST_HARNESS = TMPDIR_AND_CACHEPROVIDER_DISABLED_ONLY; UNIQUE_TMP_PATH_PER_TEST_UNDER_PRESERVED_DIRECTORY
+SYMLINK_TEST = SKIPPED (WinError 1314; no elevation)
+FOCUSED_RTSP_QUEUE = 2 PASSED, 12 DESELECTED (focused filter only)
+RUFF_SRC_TESTS = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS (LF/CRLF warnings only)
+ARCHITECT_DELTA_REVIEW = NO_NEW_DEFECT; PREP12_01_02_04_05_EVIDENCE_COMPLETE_PENDING_GLOBAL_GATE_FORMALITY
+PREP12_01_02 = OPEN_PENDING_FORMAL_REASSESSMENT (new E/F evidence complete; no auto-clear)
+PREP12_04_05 = EVIDENCE_COMPLETE_PENDING_FORMAL_ACCEPTANCE (not CLEARED)
+PREP12_03_06_07_08_12_13_14 = CLEARED (preserved; no reopening)
+PREP12_09 = DEFERRED_BY_CONTRACT
+PREP12_10 = PENDING_VALIDATION/OPEN (inherited PIP_NO_INDEX=1 blocked index; no lock/hash/reproduction/install)
+PREP12_11 = OPEN_CONDITIONAL (symlink skipped: WinError 1314)
+GATE_V = NOT_MET (one skipped)
+P12_READINESS = BLOCKED
+ACTIVITY_COMPLETION_PERCENT = 96%
+ACTIVITY_COMPLETE = NO
+PREP12_10_ATTEMPT = NEW_ISOLATED_VENV_VALIDATED; PIP_25.2_BOOTSTRAPPED; INDEX_ACCESS_BLOCKED; NO_PRODUCT_INSTALL; NO_LOCK_HASH_OR_REPRODUCTION
+NEXT_GATE = AUTHORIZED_INDEX_OR_APPROVED_WHEELHOUSE; LOCK_HASH_GENERATION; CLEAN_REPRODUCTION_AND_CHECKS; ARCHITECT_REVIEW; REAL_WINDOWS_SYMLINK_TEST; ZERO_SKIP_FULL_REGRESSION; FORMAL_READINESS_REASSESSMENT
+~~~
+
+## PRE-P12 — regressão e revisão final de aceite (2026-10-16; vigente)
+
+Esta atualização supersede o checkpoint 96% abaixo; checkpoints anteriores permanecem preservados como histórico. Evidência fornecida pelo usuário, origem Windows PowerShell local autorizado: Python 3.14.0; pytest 346 passed, 0 failed, 1 skipped em 30.11s; Ruff, `pip check` e `git diff --check` PASS. O Scribe não executou esses checks. ONVIF Zeep apresentou anteriormente falha intermitente `ConnectionAbortedError/WinError 10053`, mas passou isoladamente e na full run mais recente. O último resultado não mostra falha persistente; a causa da intermitência é desconhecida.
+
+Architect independente: `FINDINGS_STATUS=OPEN_ACCEPTANCE_GAPS`, `P12_READINESS=BLOCKED`; nenhuma nova falha material de runtime nem novo `CLEARED` baseado só na contagem. Pelo contrato §12/§14, GATE_V requer suíte completa Python 3.14 sem falha, skipped ou deselected. Logo 346/0/1 é execução concluída com um skipped, mas V/GATE_2 permanece `NOT_MET`.
+
+PREP12-01 = `OPEN_ACCEPTANCE` (HIGH inalterada): HTTPS real Zeep/Requests, preauth/inventory/snapshot em SINGLE/MULTI, TLS inválido sem downgrade, recursos e 14 campos têm evidência favorável. Lacunas E/F: somente redirect 302 exercitado; não encontrados 301/303/307/308 ou redirect em replay Digest; proxy/netrc/credenciais ambientais hostis não foram efetivamente configurados em teste, embora `trust_env=False` e proxies limpos sejam inspecionados/assertados. PREP12-02 = `OPEN_ACCEPTANCE`: snapshot HTTPS/no-downgrade e endpoints allowlist cobertos, mas matriz 30x incompleta deixa critério E pendente.
+
+PREP12-04 = `OPEN_PARTIAL_ACCEPTANCE`: deadline compartilhado por câmera, expiração no preauth, fila de executor + inventory/snapshot e bloqueio de envio RTSP após expiração cobertos; falta cadeia completa preauth→vendor→fallback→snapshot/RTSP e fila/handshake RTSP. `rtsp.py` mantém `_RTSP_CAPTURE_ENABLED=False`; fail-closed não comprova fila/handshake/frame ativo. PREP12-05 = `OPEN_PARTIAL_ACCEPTANCE`: cobertos cancelamento de preauth/inventory, provider/processamento de snapshot, MULTI futures ativos/pendentes, fechamento, preservação de resultados completos/parciais e ausência de export de lote cancelado; faltam vendor, chunks e fila RTSP ativa. Estas lacunas não são bugs de runtime comprovados.
+
+PREP12-10 = `OPEN`, sem lock transitivo/hashes/reprodução limpa; há estratégia e `requirements/locks/windows-py314.in`, mas resolução anterior falhou porque o índice não ofereceu `av==19.0.1`; nenhuma instalação ocorreu. PREP12-11 = `OPEN_CONDITIONAL`: rollover/retenção, arquivo bloqueado e sentinelas username/password passaram em filesystem Windows real; symlink real foi `SKIPPED` por WinError 1314. PREP12-09 = `DEFERRED_BY_CONTRACT` ao build P12. PREP12-03/06/07/08/12/13/14 permanecem `CLEARED`, sem reabertura; PREP12-13 segue offline e homologação real é separada.
+
+Rastreabilidade: `tests/test_pre_p12_transport_integration.py` (HTTPS SINGLE/MULTI, matriz 302, TLS/endpoints), `tests/test_pre_p12_budget_acceptance.py` (budget/cancel), `tests/test_target_transport.py`, `tests/test_logging_setup.py`. Próximo gate: `COMPLETE_TARGETED_ACCEPTANCE_EVIDENCE → ZERO_SKIP_FULL_REGRESSION_V → INDEPENDENT_SECURITY_ACCEPTANCE → READINESS_REASSESSMENT`. PREP12-01/02 impedem início de P12; 10/11 fazem parte do pacote e impedem conclusão da remediação; 09 continua diferido.
+
+~~~text
+EVIDENCE_SOURCE = USER_PROVIDED_AUTHORIZED_LOCAL_WINDOWS_POWERSHELL
+PYTHON = 3.14.0
+FULL_PYTEST = 346 PASSED, 0 FAILED, 1 SKIPPED (30.11s)
+ONVIF_ZEEP = PRIOR_INTERMITTENT_CONNECTIONABORTEDERROR_WINERROR_10053; PASSED_ISOLATED_AND_LATEST_FULL_RUN; CAUSE_UNKNOWN; NO_PERSISTENT_CURRENT_FAILURE_SHOWN
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS (user-provided run)
+ARCHITECT_REVIEW = OPEN_ACCEPTANCE_GAPS; NO_NEW_MATERIAL_RUNTIME_FAILURE
+GATE_V = NOT_MET (zero failures/skips/deselected required)
+ACTIVITY_COMPLETION_PERCENT = 96%
+ACTIVITY_COMPLETE = NO
+P12_READINESS = BLOCKED
+PROJECT_STATE_UPDATE = PASS
+~~~
+
+## PRE-P12 — retomada de aceites direcionados (2026-10-16)
+
+Este registro supersede o checkpoint 92% abaixo. O gate do workspace passou no worktree alvo (`feature/pre-p12-unified-remediation`, HEAD publicado `37bc8c4cc718559fc1e6f39a9b8a1145563a551e`). Alterações locais e arquivos não rastreados foram preservados; não houve operação Git destrutiva, stage, commit ou push.
+
+PREP12-01/02 têm evidência comportamental direta: HTTPS do produto com preauth nos workflows SINGLE e MULTI e seis cenários negativos em ambos, cobrindo TLS e redirect de preauth, endpoint Media não aprovado, snapshot URI não aprovado, redirect de snapshot e TLS de snapshot. As invocações diretas passaram. A revisão final Architect Sol/High foi favorável ao delta sem defeito material novo. O aceite formal V continua pendente.
+
+PREP12-04 demonstra por invocação direta um deadline único por câmera persistente na fila, inventário e snapshot, sem iniciar RTSP depois da expiração. PREP12-05 corrigiu cancelamento no limite de `InventoryService`, prioridade de cancelamento em `SnapshotService` e encerramento/drain de futures em `MultiWorkflow`; preserva resultados concluídos/parciais e não exporta workbook de lote incompleto após cancelamento. `tests/test_pre_p12_budget_acceptance.py` teve 8 passed. Architect Sol/High revisou o novo delta sem encontrar defeito material.
+
+PREP12-11: retenção/rollover, arquivo bloqueado e ausência de username/password-sentinela foram exercitados em filesystem Windows real e passaram. A tentativa de symlink real pulou com WinError 1314; o finding fica OPEN. PREP12-10 permanece OPEN: há estratégia e entrada candidata `requirements/locks/windows-py314.in`, mas `pip lock` não gerou lock com hashes porque o índice disponível/restrito não ofereceu `av==19.0.1`; nenhuma dependência foi instalada.
+
+Python 3.14.0 foi confirmado no executável validado. A suíte inteira pós-delta não concluiu devido a WinError 5 em basetemp/fixtures. A baseline histórica de 325 passed não foi repetida e não valida este delta. Ruff, compileall, `pip check` e `git diff --check` passaram. PREP12-03/06/07/08/12/13/14 permanecem CLEARED; PREP12-09 permanece `DEFERRED_BY_CONTRACT`. PREP12-10/11 permanecem OPEN, e o gate V/formal não foi aprovado. P12_READINESS=BLOCKED; ACTIVITY_COMPLETE=NO.
+
+~~~text
+PREP12_01_02 = DIRECT_BEHAVIORAL_EVIDENCE_PASS; FORMAL_V_ACCEPTANCE_PENDING
+PREP12_04 = DIRECT_INTEGRATED_DEADLINE_EVIDENCE_PASS
+PREP12_05 = FOCUSED_PYTEST_PASS (8 passed); ARCHITECT_REVIEW = FAVORABLE
+PREP12_10 = OPEN (lock/hash unavailable; restricted index lacks av==19.0.1)
+PREP12_11 = OPEN (real symlink skipped: WinError 1314)
+FULL_PYTEST = NOT_COMPLETED (post-delta WinError 5)
+HISTORICAL_BASELINE = 325 PASSED (not repeated)
+RUFF = PASS
+COMPILEALL = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+P12_READINESS = BLOCKED
+ACTIVITY_COMPLETE = NO
+~~~
+
+## PRE-P12 — revisão final direcionada após regressão local (2026-10-16; checkpoint 92%)
+
+Esta atualização supersede o checkpoint 88% logo abaixo. O usuário informou regressão completa em Windows PowerShell local autorizado, Python 3.14.0: 325 passed em 8.88s; Ruff full PASS com I001 corrigido; `pip check` e `git diff --check` PASS. A origem é evidência fornecida pelo usuário. Contagens de failed/errors/skipped/deselected/xfail não foram informadas. O Scribe não executou esses checks.
+
+O Architect concluiu revisão direcionada com `REVIEW=FINDINGS`, devido a lacunas de aceite, sem confirmar novo defeito material. PREP12-01 permanece OPEN: HTTPS Zeep/Requests + SnapshotService usa CA local restrita e `verify=True`, mas context/auth são preparados manualmente; falta preauth real por HTTPS em SINGLE/MULTI, cujos fluxos reais atuais usam HTTP e `EmptyDiscovery`. PREP12-02 está OPEN/PARTIAL: teste negativo verifica TLS_ERROR, tentativa única, `context.tls_failed` e zero HTTP vendor/RTSP; integração e matriz completa faltam. PREP12-04 segue OPEN: fake clock demonstra expiração no preauth e bloqueio de vendor/ONVIF, mas falta cadeia integrada até snapshot/RTSP/fila e deadline persistente entre clientes. PREP12-05 segue OPEN: cancelamento SINGLE após preauth impede aquisição/snapshot e fecha resource; faltam cancelamento durante vendor/ONVIF/chunks, fila e MULTI futures/export; decoder RTSP está fail-closed/desativado. PREP12-11 segue OPEN/CONDITIONAL: rollover, backupCount, RUN_ID, byte cap e retention em tmp_path; PermissionError e symlink são simulados com mocks, sem validação do filesystem Windows real. PREP12-10 continua OPEN por ausência de lock integral, hashes e reprodução limpa; `setuptools>=75` e `wheel` não estão fixados, e pip check no venv reutilizado não substitui essas provas.
+
+PREP12-03 permanece CLEARED, sem regressão observada; PREP12-09 permanece DEFERRED_BY_CONTRACT. PREP12-06/07/08/12/13/14 continuam CLEARED segundo a revisão. Atividade incompleta, 92%; P12_READINESS=BLOCKED pelos findings e aceites pendentes. Próximo gate: HTTPS preauth real em SINGLE/MULTI e matriz negativa; ampliar aceites 04/05; validar filesystem Windows para 11; decidir e autorizar artefatos de lock/hashes/reprodução.
+
+~~~text
+EVIDENCE_SOURCE = USER_PROVIDED_AUTHORIZED_LOCAL_WINDOWS_POWERSHELL
+PYTHON = 3.14.0
+FULL_PYTEST = 325 PASSED (8.88s)
+FAILED_ERRORS_SKIPPED_DESELECTED_XFAIL = NOT_REPORTED
+RUFF_FULL = PASS (I001 corrected)
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+ARCHITECT_REVIEW = FINDINGS (acceptance gaps; no new material defect confirmed)
+ACTIVITY_COMPLETION_PERCENT = 92%
+P12_READINESS = BLOCKED
+ACTIVITY_COMPLETE = NO
+~~~
+
+## PRE-P12 — targeted security fix and acceptance (2026-10-16; checkpoint 88%)
+
+Este checkpoint supersede o registro de 2026-10-15 abaixo, sem apagar o histórico. As correções direcionadas TLS, teste negativo, teste de transporte HTTPS local offline e testes de logging para arquivo bloqueado/symlink foram escritos. Sua execução pytest não foi concluída com resumo: a tentativa focada apresentou F/E parciais e falhou ao limpar `--basetemp` com `PermissionError: [WinError 5]` em `cleanup_dead_symlinks/root.iterdir/os.scandir`. Contagens exatas de passed, failed, errors, skipped, deselected e xfailed indisponíveis. Não repetir nem contornar pytest no sandbox atual. O baseline reportado anteriormente de 318 passed não valida o delta atual.
+
+Ruff 0.16.10 = PASS; `pip check` = PASS no venv Python 3.14 existente, sem instalar; `git diff --check` = PASS, com avisos LF/CRLF apenas. A revisão estática do Architect não confirmou novo defeito no delta, mas PREP12-01/02 continuam abertos enquanto faltam execução confiável, fluxo integrado SINGLE/MULTI com preauth e matriz negativa completa. PREP12-04/05 ainda carecem de evidência integrada de budget e cancelamento por fase/lote/espera cooperativa RTSP. PREP12-10 permanece aberto sem lock transitivo, hashes, tooling totalmente fixado e reprodução limpa. PREP12-11 tem testes com mocks para `PermissionError` e symlink ainda não executados; comportamento real em filesystem Windows não foi demonstrado, embora `backupCount >= 1` já tenha cobertura.
+
+**Atualização Ruff após o adendo de testes:** o resultado PASS acima precede a inclusão de `tests/test_pre_p12_budget_acceptance.py`. Ruff no conjunto focado reportou `I001` nesse arquivo; o estado atual é `FAIL/PENDING_FIX`. `ruff --fix` retornou `E902/WinError 5` ao escrever no worktree alvo. Nenhum outro método de escrita foi tentado para contornar o erro, ACL não foi alterada e pytest não foi repetido. `git diff --check` permanece PASS, com avisos LF/CRLF apenas.
+
+PREP12-03/06/07/08/12/13/14 permanecem CLEARED por ausência de regressão demonstrada; PREP12-09 permanece DEFERRED_BY_CONTRACT. HEAD continua `37bc8c4cc718559fc1e6f39a9b8a1145563a551e` na branch `feature/pre-p12-unified-remediation`. P12 segue BLOCKED, atividade não completa e progresso mantido em 88%. Nenhuma câmera real, build P12, instalação de dependências ou operação Git de publicação foi executada. Arquivos não rastreados e diretórios `.validator-tmp-*` foram preservados.
+
+Adendo: foi acrescentado `tests/test_pre_p12_budget_acceptance.py` com dois testes offline em nível de aplicação para interrupção da aquisição por budget por câmera expirado, cancelamento cooperativo interrompendo aquisição/snapshot e fechamento de recursos por `SingleWorkflow`. A suíte continua sem execução conclusiva; esses testes não foram executados e não alteram o estado de aceite PREP12-04/05.
+
+~~~text
+ACTIVITY = PRE_P12_UNIFIED_REMEDIATION / TARGETED_SECURITY_FIX_AND_ACCEPTANCE
+ACTIVITY_COMPLETION_PERCENT = 88% (mantido)
+ACTIVITY_STATUS = BLOCKED_ON_VALIDATION_AND_OPEN_ACCEPTANCE
+TEST_EXECUTION = INCOMPLETE (partial F/E; WinError 5 during pytest basetemp cleanup; no summary/counts)
+FULL_PYTEST = NOT_COMPLETED
+RUFF = PASS (0.16.10)
+PIP_CHECK = PASS (existing Python 3.14 venv; no installation)
+GIT_DIFF_CHECK = PASS (LF/CRLF warnings only)
+ARCHITECT_DELTA_REVIEW = NO_NEW_CONFIRMED_DEFECT; acceptance gaps remain
+PREP12_01_02_04_05_10_11 = OPEN
+PREP12_03_06_07_08_12_13_14 = CLEARED (no regression demonstrated)
+PREP12_09 = DEFERRED_BY_CONTRACT
+P12_READINESS = BLOCKED
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = NO
+NEXT_GATE = AUTHORIZED_WINDOWS_TEST_EXECUTION_AND_REASSESSMENT
+~~~
+
+## PRE-P12 Unified Remediation — revisão após regressão Windows (2026-10-15; checkpoint 88%)
+
+O contrato foi aprovado com ajustes e a autorização segue limitada à remediação offline. A atividade continua aberta. A revisão atualiza o checkpoint anterior de 84% após os resultados de regressão fornecidos pelo usuário e a revisão independente do Architect. O snapshot factual e a matriz dos 14 findings estão em [PROJECT_STATE.md](PROJECT_STATE.md).
+
+O usuário informou que uma execução autorizada em Windows PowerShell, Python 3.14.0, passou a importar o worktree correto, enumerar os.scandir e usar o ambiente temporário; 115 testes focados passaram em 9.20s e 318 testes completos passaram em 8.51s. Ruff, pip check e git diff check também foram reportados como PASS. Esses resultados são evidência fornecida pelo usuário; Root e Architect não executaram os testes nesta revisão. A comunicação recebida não detalha separadamente skipped/deselected nem inclui logs/manifesto de execução.
+
+A revisão direcionada do Architect encontrou PREP12-01/02 ainda sem integração real de HTTPS confiável. Confirmou também defeito em PREP12-02: SSLError nos providers de snapshot é classificado como erro de rede, permitindo continuação do fallback; com regra HTTP vendor explícita, pode ocorrer tentativa HTTP após falha TLS. Correção proposta, ainda não implementada: distinguir TLS de erro de rede, parar o fallback nessa condição e testar que uma falha de certificado não gera requisição HTTP.
+
+Estado final da matriz: sete CLEARED (03, 06, 07, 08, 12, 13, 14), seis OPEN (01, 02, 04, 05, 10, 11), e um DEFERRED_BY_CONTRACT (09). PREP12-03 passou no aceite offline por ledger, Digest/401/403 e integração SINGLE/MULTI 401. PREP12-04/05 ainda carecem do teste integrado completo de budget/cancelamento, particularmente envolvendo espera RTSP. PREP12-10 carece lock transitivo/hashes e reprodução em ambiente limpo. PREP12-11 carece dos cenários de log anterior bloqueado e symlink expressamente previstos no contrato. PREP12-13 está aceito somente no estágio offline; homologação com câmeras/modelos reais continua separada.
+
+PyAV RTSP segue fail-closed antes do decoder, pois o controle atual não autoriza cada conexão de redirect/SDP. PREP12-09 não foi validado por build: preparar paths/recursos offline é distinto do build e smoke ONEDIR, que pertencem à P12 e permanecem não executados. P12_READINESS = BLOCKED; nenhum teste com câmera real, build P12 ou instalação/atualização de dependências foi feito. Não houve stage, commit ou push; a publicação Git continua não autorizada. Artefatos não rastreados e diretórios temporários foram preservados.
+
+~~~text
+ACTIVITY = PRE_P12_UNIFIED_REMEDIATION
+ACTIVITY_COMPLETION_PERCENT = 88%
+ACTIVITY_STATUS = BLOCKED_ON_OPEN_ACCEPTANCE
+EVIDENCE_SOURCE = USER_PROVIDED_LOCAL_WINDOWS_POWERSHELL
+PYTHON = 3.14.0
+PROJECT_IMPORT = CORRECT_WORKTREE
+OS_SCANDIR = PASS
+TEMP_ENVIRONMENT = PASS
+FOCUSED_TESTS = 115 PASSED (9.20s)
+FULL_PYTEST = 318 PASSED (8.51s)
+RUFF = PASS
+PIP_CHECK = PASS
+GIT_DIFF_CHECK = PASS
+SKIPPED_DESELECTED_COUNTS = NOT_SEPARATELY_PROVIDED
+ROOT_OR_ARCHITECT_TEST_EXECUTION = NONE
+ARCHITECT_FINAL_REVIEW = COMPLETED_WITH_FINDINGS
+ALL_14_FINDINGS = 7_CLEARED; 6_OPEN; 1_DEFERRED_BY_CONTRACT
+PREP12_01 = OPEN
+PREP12_02 = OPEN; CONFIRMED_TLS_FALLBACK_DEFECT
+PREP12_03 = CLEARED
+PREP12_04 = OPEN
+PREP12_05 = OPEN
+PREP12_06 = CLEARED
+PREP12_07 = CLEARED
+PREP12_08 = CLEARED
+PREP12_09 = DEFERRED_BY_CONTRACT (P12_BUILD_NOT_RUN)
+PREP12_10 = OPEN
+PREP12_11 = OPEN
+PREP12_12 = CLEARED
+PREP12_13 = CLEARED_OFFLINE; REAL_CAMERA_HOMOLOGATION_SEPARATE
+PREP12_14 = CLEARED
+RTSP_PYAV_CAPTURE = CLOSED_FOR_SECURITY
+P12_READINESS = BLOCKED
+REAL_CAMERA_VALIDATION = NOT_RUN
+P12_BUILD = NOT_RUN
+DEPENDENCY_CHANGES = NONE
+GIT_PUBLICATION = NOT_AUTHORIZED; NOT_PERFORMED
+STAGE_COMMIT_PUSH = NONE
+PROJECT_STATE_UPDATE = PASS
+CONTINUITY_UPDATE = PASS
+ACTIVITY_COMPLETE = NO
+NEXT_GATE = TARGETED_PREP12_02_TLS_FIX_AND_NEGATIVE_TEST; COMPLETE_REMAINING_OPEN_ACCEPTANCE; REASSESS_P12
+STATUS = BLOCKED
+~~~
+
 ## BLOCO B — Final Hardening (2026-10-14)
 
 O adapter Hikvision agora chama somente `https://<IP>/ISAPI/System/deviceInfo`, valida o certificado (`verify=True`), mantém Digest limitado, `trust_env=False` e redirects desativados. Não há fallback para HTTP. Testes offline confirmam challenge Digest, endpoint, scheme, IPv6, TLS error sanitizado e ausência de downgrade. Dispositivos com certificados autoassinados/não confiáveis falharão fechado; CA/pinning não foi configurado por esta atividade.
@@ -490,3 +724,6 @@ GIT_ADD_COMMIT_PUSH = NONE
 NEXT_GATE = USER_APPROVAL_FOR_INTEGRATED_CHECKPOINT
 STATUS = COMPLETED
 ```
+## CAM_SCANNER_PRE_IMPLEMENTATION_CHECKPOINT_GIT_01 — 2026-10-27
+
+Baseline R2 confirmada em `feature/pre-p12-unified-remediation` / `37bc8c4`. Auditoria Astra: `CONDITIONAL_GO`; contratos P0 V2, P1 V2 e TRANSPORT V1 aprovados pelo usuário; P2/RTSP diferido; homologação Viewer não comprovada; implementação não iniciada. Próxima atividade: `CAM_SCANNER_ASTRA_P0_P1_TRANSPORT_IMPLEMENTATION`, exclusivamente offline.

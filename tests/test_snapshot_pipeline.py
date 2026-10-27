@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import threading
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -245,61 +244,24 @@ def test_vendor_provider_uses_only_documented_read_only_path_and_digest() -> Non
     assert seen["session_closed"] and seen["response_closed"]
 
 
-def test_rtsp_uses_validated_onvif_uri_without_credentials_in_url_and_one_frame() -> None:
-    seen: dict[str, object] = {}
+def test_rtsp_provider_fails_closed_before_onvif_or_pyav_io() -> None:
+    calls: list[str] = []
 
-    class FakeMedia:
-        operator = SimpleNamespace(address="http://192.0.2.10:80/onvif/media")
-
-        def GetProfiles(self):
-            return [SimpleNamespace(token="profile-1")]
-
-        def GetStreamUri(self, **kwargs):
-            assert kwargs["ProfileToken"] == "profile-1"
-            return SimpleNamespace(Uri="rtsp://192.0.2.10:554/live")
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
-
-        def media(self):
-            return FakeMedia()
-
-    class FakeFrameImage:
-        def save(self, output, **kwargs):
-            seen["frame_quality"] = kwargs["quality"]
-            output.write(b"raw-frame-jpeg")
-
-    class FakeFrame:
-        width = 640
-        height = 360
-
-        def to_image(self):
-            return FakeFrameImage()
-
-    class FakeContainer:
-        def decode(self, video):
-            assert video == 0
-            yield FakeFrame()
-
-        def close(self):
-            seen["container_closed"] = True
+    def forbidden_client(**_options: object) -> object:
+        calls.append("onvif")
+        raise AssertionError("RTSP target guard is not available")
 
     class FakeAv:
-        def open(self, url, **kwargs):
-            seen["stream_url"] = url
-            seen["av_options"] = kwargs
-            return FakeContainer()
+        def open(self, *_args: object, **_kwargs: object) -> object:
+            calls.append("pyav")
+            raise AssertionError("RTSP target guard is not available")
 
-    provider = RtspFrameProvider(client_factory=FakeClient, av_module=FakeAv())
-    image = provider.capture(_TARGET)
+    provider = RtspFrameProvider(client_factory=forbidden_client, av_module=FakeAv())
+    with pytest.raises(SnapshotCaptureError) as error:
+        provider.capture(_TARGET)
 
-    assert image == b"raw-frame-jpeg"
-    assert seen["stream_url"] == "rtsp://192.0.2.10:554/live"
-    assert "camera-secret" not in seen["stream_url"]
-    assert seen["av_options"]["options"]["password"] == "camera-secret"
-    assert seen["av_options"]["timeout"] == (8, 5)
-    assert seen["container_closed"]
+    assert error.value.failure is SnapshotFailure.TARGET_REJECTED
+    assert calls == []
 
 
 def test_rtsp_failed_authentication_fault_is_normalized_without_opening_stream() -> None:
@@ -328,153 +290,36 @@ def test_rtsp_failed_authentication_fault_is_normalized_without_opening_stream()
 
     assert events == ["onvif", "vendor"]
     assert av_calls == []
-    assert result.failure is SnapshotFailure.AUTH_REJECTED
+    assert result.failure is SnapshotFailure.TARGET_REJECTED
     assert result.attempts[-1].method is SnapshotMethod.RTSP_FRAME
-    assert result.attempts[-1].failure is SnapshotFailure.AUTH_REJECTED
+    assert result.attempts[-1].failure is SnapshotFailure.TARGET_REJECTED
 
 
-def test_rtsp_global_semaphore_limits_capture_and_releases_after_completion(monkeypatch) -> None:
-    state = {"active": 0, "maximum": 0}
-    state_lock = threading.Lock()
-    first_frame_started = threading.Event()
-    second_lock_attempted = threading.Event()
-    release_first_frame = threading.Event()
+def test_rtsp_context_path_fails_closed_before_lock_or_decoder(monkeypatch) -> None:
+    calls: list[str] = []
 
-    class ObservedSemaphore:
-        def __init__(self) -> None:
-            self._semaphore = threading.Semaphore(1)
-            self._attempts = 0
+    class ForbiddenLock:
+        def acquire(self, *_args, **_kwargs) -> bool:
+            calls.append("lock")
+            raise AssertionError("disabled RTSP must not acquire capture resources")
 
-        def __enter__(self):
-            with state_lock:
-                self._attempts += 1
-                if self._attempts == 2:
-                    second_lock_attempted.set()
-            self._semaphore.acquire()
-            return self
+        def release(self) -> None:
+            calls.append("release")
 
-        def __exit__(self, *_args) -> None:
-            self._semaphore.release()
+    class FakeAv:
+        def open(self, *_args, **_kwargs) -> object:
+            calls.append("pyav")
+            raise AssertionError("disabled RTSP must not open the stream")
 
     from cam_scanner.snapshot import rtsp as rtsp_module
 
-    monkeypatch.setattr(rtsp_module, "_RTSP_CAPTURE_LOCK", ObservedSemaphore())
+    monkeypatch.setattr(rtsp_module, "_RTSP_CAPTURE_LOCK", ForbiddenLock())
+    provider = RtspFrameProvider(av_module=FakeAv())
+    with pytest.raises(SnapshotCaptureError) as error:
+        provider.capture(_TARGET, context=object())
 
-    class FakeMedia:
-        operator = SimpleNamespace(address="http://192.0.2.10:80/onvif/media")
-
-        def GetProfiles(self):
-            return [SimpleNamespace(token="profile-1")]
-
-        def GetStreamUri(self, **kwargs):
-            return SimpleNamespace(Uri="rtsp://192.0.2.10:554/live")
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
-
-        def media(self):
-            return FakeMedia()
-
-    class FakeFrameImage:
-        def save(self, output, **kwargs):
-            output.write(b"jpeg")
-
-    class FakeFrame:
-        width = 16
-        height = 9
-
-        def to_image(self):
-            return FakeFrameImage()
-
-    class FakeContainer:
-        def decode(self, video):
-            with state_lock:
-                state["active"] += 1
-                state["maximum"] = max(state["maximum"], state["active"])
-            if state["maximum"] == 1 and not first_frame_started.is_set():
-                first_frame_started.set()
-                assert release_first_frame.wait(timeout=5)
-            try:
-                yield FakeFrame()
-            finally:
-                with state_lock:
-                    state["active"] -= 1
-
-        def close(self):
-            pass
-
-    class FakeAv:
-        def open(self, _url, **_kwargs):
-            return FakeContainer()
-
-    provider = RtspFrameProvider(client_factory=FakeClient, av_module=FakeAv())
-    workers = [threading.Thread(target=provider.capture, args=(_TARGET,)) for _ in range(2)]
-    workers[0].start()
-    assert first_frame_started.wait(timeout=2)
-    workers[1].start()
-    assert second_lock_attempted.wait(timeout=2)
-    release_first_frame.set()
-    for worker in workers:
-        worker.join(timeout=2)
-
-    assert all(not worker.is_alive() for worker in workers)
-    assert state["maximum"] == 1
-
-
-def test_rtsp_global_semaphore_is_released_after_capture_error(monkeypatch) -> None:
-    class FakeMedia:
-        operator = SimpleNamespace(address="http://192.0.2.10:80/onvif/media")
-
-        def GetProfiles(self):
-            return [SimpleNamespace(token="profile-1")]
-
-        def GetStreamUri(self, **kwargs):
-            return SimpleNamespace(Uri="rtsp://192.0.2.10:554/live")
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
-
-        def media(self):
-            return FakeMedia()
-
-    class FakeFrameImage:
-        def save(self, output, **kwargs):
-            output.write(b"jpeg")
-
-    class FakeFrame:
-        width = 16
-        height = 9
-
-        def to_image(self):
-            return FakeFrameImage()
-
-    calls = 0
-
-    class FakeContainer:
-        def decode(self, video):
-            nonlocal calls
-            calls += 1
-            if calls == 1:
-                raise RuntimeError("synthetic decoder error")
-            yield FakeFrame()
-
-        def close(self):
-            pass
-
-    class FakeAv:
-        def open(self, _url, **_kwargs):
-            return FakeContainer()
-
-    from cam_scanner.snapshot import rtsp as rtsp_module
-
-    monkeypatch.setattr(rtsp_module, "_RTSP_CAPTURE_LOCK", threading.Semaphore(1))
-    provider = RtspFrameProvider(client_factory=FakeClient, av_module=FakeAv())
-
-    with pytest.raises(SnapshotCaptureError):
-        provider.capture(_TARGET)
-    assert provider.capture(_TARGET) == b"jpeg"
+    assert error.value.failure is SnapshotFailure.TARGET_REJECTED
+    assert calls == []
 
 
 def test_thumbnail_preserves_aspect_and_strips_metadata_when_pillow_is_available() -> None:

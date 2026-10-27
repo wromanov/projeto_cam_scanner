@@ -22,6 +22,7 @@ class ExcelInputRow:
     username: str = field(repr=False)
     password: str = field(repr=False)
     validation_error: str | None = None
+    manufacturer_hint: str | None = field(default=None, repr=False)
 
     @property
     def valid(self) -> bool:
@@ -102,6 +103,11 @@ def _header_map(rows) -> dict[str, int]:
         if len(matches) != 1:
             raise ExcelInputError("A planilha deve conter exatamente uma coluna IP, USERNAME e PASSWORD.")
         mapping[required] = matches[0]
+    manufacturer_matches = [
+        index for index, value in enumerate(normalized) if value == "fabricante"
+    ]
+    if len(manufacturer_matches) == 1:
+        mapping["fabricante"] = manufacturer_matches[0]
     return mapping
 
 
@@ -109,20 +115,37 @@ def _parse_row(row_id: int, values: tuple[object, ...], header_map: dict[str, in
     raw_ip = _cell_text(_get_cell(values, header_map["ip"]))
     raw_username = _cell_text(_get_cell(values, header_map["username"]))
     raw_password = _cell_text(_get_cell(values, header_map["password"]))
+    manufacturer_hint = _safe_manufacturer_hint(
+        _cell_text(_get_cell(values, header_map["fabricante"]))
+        if "fabricante" in header_map
+        else ""
+    )
     if any(not is_safe_xml_text(value) for value in (raw_ip, raw_username, raw_password)):
         return ExcelInputRow(
-            row_id, _safe_ip(raw_ip, raw_username, raw_password), "", "", "invalid_cell_value"
+            row_id, _safe_ip(raw_ip, raw_username, raw_password), "", "", "invalid_cell_value",
+            manufacturer_hint,
         )
     ip = raw_ip.strip()
     username = raw_username.strip()
     password = raw_password
     if not ip or not username or not password.strip():
-        return ExcelInputRow(row_id, _safe_ip(ip, username, password), "", "", "missing_required_value")
+        return ExcelInputRow(
+            row_id, _safe_ip(ip, username, password), "", "", "missing_required_value",
+            manufacturer_hint,
+        )
     try:
         ipaddress.ip_address(ip)
     except ValueError:
-        return ExcelInputRow(row_id, _safe_ip(ip, username, password), "", "", "invalid_ip")
-    return ExcelInputRow(row_id, ip, username, password)
+        return ExcelInputRow(
+            row_id, _safe_ip(ip, username, password), "", "", "invalid_ip", manufacturer_hint
+        )
+    return ExcelInputRow(row_id, ip, username, password, manufacturer_hint=manufacturer_hint)
+
+
+def _safe_manufacturer_hint(value: str) -> str | None:
+    if not value.strip() or len(value) > 128 or not is_safe_xml_text(value):
+        return None
+    return value
 
 
 def _get_cell(values: tuple[object, ...], index: int) -> object:

@@ -35,10 +35,10 @@ class RaisingCollector:
             ONVIFOperationException("GetDeviceInformation", ConnectionError("wrapped connection")),
             ErrorCode.NETWORK_ERROR,
         ),
-        (Fault("NotAuthorized"), ErrorCode.AUTH_ERROR),
+        (Fault("NotAuthorized"), ErrorCode.ONVIF_ERROR),
         (
             ONVIFOperationException("GetDeviceInformation", Fault("NotAuthorized")),
-            ErrorCode.AUTH_ERROR,
+            ErrorCode.ONVIF_ERROR,
         ),
         (Fault("invalid SOAP response"), ErrorCode.ONVIF_ERROR),
         (

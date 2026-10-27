@@ -66,23 +66,28 @@ def load_settings(path: str | Path | None = None) -> EffectiveConfig:
     collection = merged["collection"]
     snapshot = merged["snapshot"]
     logging = merged["logging"]
-    return EffectiveConfig(
-        connect_timeout_seconds=collection["connect_timeout_seconds"],
-        request_timeout_seconds=collection["request_timeout_seconds"],
-        onvif_budget_seconds=collection["onvif_budget_seconds"],
-        manufacturer_budget_seconds=collection["manufacturer_budget_seconds"],
-        camera_soft_deadline_seconds=collection["camera_soft_deadline_seconds"],
-        default_max_workers=workers,
-        max_workers=workers,
-        max_retries=collection["max_retries"],
-        snapshot_http_timeout_seconds=snapshot["http_timeout_seconds"],
-        rtsp_open_timeout_seconds=snapshot["rtsp_open_timeout_seconds"],
-        rtsp_first_frame_timeout_seconds=snapshot["rtsp_first_frame_timeout_seconds"],
-        log_level=logging["level"],
-        log_retention_days=logging["retention_days"],
-        log_max_file_size_mb=logging["max_file_size_mb"],
-        transport_rules=rules,
-    )
+    try:
+        return EffectiveConfig(
+            connect_timeout_seconds=collection["connect_timeout_seconds"],
+            request_timeout_seconds=collection["request_timeout_seconds"],
+            onvif_budget_seconds=collection["onvif_budget_seconds"],
+            manufacturer_budget_seconds=collection["manufacturer_budget_seconds"],
+            camera_soft_deadline_seconds=collection["camera_soft_deadline_seconds"],
+            default_max_workers=workers,
+            max_workers=workers,
+            max_retries=collection["max_retries"],
+            snapshot_http_timeout_seconds=snapshot["http_timeout_seconds"],
+            rtsp_open_timeout_seconds=snapshot["rtsp_open_timeout_seconds"],
+            rtsp_first_frame_timeout_seconds=snapshot["rtsp_first_frame_timeout_seconds"],
+            log_level=logging["level"],
+            log_retention_days=logging["retention_days"],
+            log_max_file_size_mb=logging["max_file_size_mb"],
+            transport_rules=rules,
+        )
+    except ValueError:
+        raise ConfigurationError(
+            "A configuração contém valores fora dos limites aprovados."
+        ) from None
 
 
 def _merge_and_validate_schema(raw: dict[str, Any]) -> dict[str, dict[str, Any]]:

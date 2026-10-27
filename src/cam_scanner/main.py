@@ -40,7 +40,10 @@ def main() -> int:
         return 130
     except Exception as exception:  # noqa: BLE001 - keep unexpected CLI failures off the terminal.
         diagnostic = sanitized_traceback(exception, exception.__traceback__)
-        logger.error("Unexpected application diagnostic (sanitized):\n%s", diagnostic)
+        # If logging could not be initialized, Logger's last-resort handler would
+        # send this diagnostic to stderr, which is the operator's terminal.
+        if logger.handlers:
+            logger.error("Unexpected application diagnostic (sanitized):\n%s", diagnostic)
         ui.show_unexpected_error()
         return 1
     finally:

@@ -53,11 +53,7 @@ def test_bosch_vendor_gap_skips_io_and_generic_onvif_collects_identity() -> None
     assert result.manufacturer == "Bosch"
     assert result.model == "FLEXIDOME 5100i"
     assert result.serial == "SN-12345"
-    assert any(
-        attempt.error_category == "ENDPOINT_UNSUPPORTED"
-        and attempt.outcome == "SKIPPED"
-        for attempt in report.attempts
-    )
+    assert not any(attempt.operation == "vendor_adapter" for attempt in report.attempts)
     assert any(
         attempt.operation == "GetDeviceInformation" and attempt.outcome == "SUCCESS"
         for attempt in report.attempts

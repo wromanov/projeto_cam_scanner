@@ -12,6 +12,7 @@ from requests.exceptions import (
     ConnectTimeout,
     ReadTimeout,
     RequestException,
+    SSLError,
     Timeout,
 )
 
@@ -91,6 +92,10 @@ class ManufacturerSnapshotProvider:
             raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED) from None
         except (ConnectTimeout, ReadTimeout, Timeout):
             raise SnapshotCaptureError(SnapshotFailure.TIMEOUT) from None
+        except SSLError:
+            if context is not None:
+                context.mark_tls_failure()
+            raise SnapshotCaptureError(SnapshotFailure.TLS_ERROR) from None
         except ConnectionError:
             raise SnapshotCaptureError(SnapshotFailure.NETWORK_ERROR) from None
         except RequestException:

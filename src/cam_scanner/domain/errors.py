@@ -25,7 +25,7 @@ def exception_chain(exception: BaseException) -> tuple[BaseException, ...]:
 
 
 def normalize_collection_error(
-    exception: BaseException, *, stage: str
+    exception: BaseException, *, stage: str, authenticated: bool | None = None
 ) -> tuple[str, int | None, str | None]:
     """Classify an error using transport/protocol types and safe status/code fields only."""
     chain = exception_chain(exception)
@@ -38,26 +38,34 @@ def normalize_collection_error(
             http_status = status
             break
 
+    names = {type(item).__name__.casefold() for item in chain}
+    if any(isinstance(item, ssl.SSLError) for item in chain) or any(
+        "ssl" in name or "tls" in name for name in names
+    ):
+        return "TLS_ERROR", http_status, None
+
     if http_status == 401:
-        return "AUTH_REJECTED", http_status, None
+        return (
+            "HTTP_ERROR" if authenticated is False else "AUTH_REJECTED",
+            http_status,
+            None,
+        )
     if http_status == 403:
         return "AUTHORIZATION_DENIED", http_status, None
     if http_status == 404:
         return "ENDPOINT_UNSUPPORTED", http_status, None
 
-    names = {type(item).__name__.casefold() for item in chain}
     modules = {type(item).__module__.casefold() for item in chain}
     folded_messages = tuple(str(item).casefold().replace("_", "") for item in chain)
-    if http_status is None and any(
+    is_soap_fault = any("fault" == name or name.endswith("soapfault") for name in names) or any(
+        module.startswith("zeep") for module in modules
+    )
+    if http_status is None and not is_soap_fault and any(
         marker in message
         for message in folded_messages
         for marker in ("notauthorized", "not authorized", "unauthorized", "authentication failed")
     ):
         return "AUTH_REJECTED", http_status, None
-    if any(isinstance(item, ssl.SSLError) for item in chain) or any(
-        "ssl" in name or "tls" in name for name in names
-    ):
-        return "TLS_ERROR", http_status, None
     if "connecttimeout" in names or any(
         isinstance(item, (TimeoutError, socket.timeout)) and stage == "CONNECT" for item in chain
     ):
@@ -83,9 +91,7 @@ def normalize_collection_error(
         )
     ):
         return "ENDPOINT_UNSUPPORTED", http_status, None
-    if any("fault" == name or name.endswith("soapfault") for name in names) or any(
-        module.startswith("zeep") for module in modules
-    ):
+    if is_soap_fault:
         fault_codes: list[object] = [getattr(item, "code", None) for item in chain]
         safe_fault_names = {
             "Sender",
@@ -112,13 +118,14 @@ def normalize_collection_error(
             if re.fullmatch(r"(?:0x[0-9A-Fa-f]{1,8}|E[0-9]{1,6})", value):
                 protocol_code = value
                 break
-        lowered_codes = {
-            value.casefold().replace("_", "")
-            for value in fault_codes
-            if isinstance(value, str)
-        }
-        if any("notauthorized" in value for value in lowered_codes):
-            return "AUTH_REJECTED", http_status, protocol_code
+        if protocol_code is None:
+            for item in chain:
+                message = str(item).strip()
+                if re.fullmatch(
+                    r"(?:[A-Za-z][A-Za-z0-9]{0,7}:)?NotAuthorized", message
+                ):
+                    protocol_code = message
+                    break
         return "SOAP_FAULT", http_status, protocol_code
     if http_status is not None:
         return "HTTP_ERROR", http_status, None

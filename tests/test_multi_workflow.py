@@ -10,16 +10,21 @@ import pytest
 openpyxl = pytest.importorskip("openpyxl")
 Image = pytest.importorskip("PIL.Image")
 
+from cam_scanner.application.collection_context import CollectionContext
 from cam_scanner.application.controller import ApplicationController
 from cam_scanner.application.inventory_service import InventoryService
 from cam_scanner.application.multi_workflow import MultiWorkflow
-from cam_scanner.domain.enums import CollectionStatus, MainMenuChoice
-from cam_scanner.domain.models import CameraResult, CameraTarget
+from cam_scanner.cameras.preauth import PreAuthEvidence
+from cam_scanner.cameras.registry import AdapterRegistry
+from cam_scanner.cameras.strategy import VendorFirstCollector
+from cam_scanner.domain.enums import CollectionStatus, ErrorCode, MainMenuChoice
+from cam_scanner.domain.models import CameraResult, CameraTarget, CollectionReport
 from cam_scanner.excel.reader import ExcelReader
 from cam_scanner.excel.writer import ExcelWriter
 from cam_scanner.snapshot.service import (
     SnapshotCaptureError,
     SnapshotFailure,
+    SnapshotResult,
     SnapshotService,
 )
 from cam_scanner.terminal.ui import TerminalUI
@@ -48,6 +53,17 @@ class FakeCollector:
             duration=0.125,
         )
 
+    def collect_report(
+        self, target: CameraTarget, *, context: CollectionContext
+    ) -> CollectionReport:
+        result = self.collect(target)
+        assert context.auth.begin("ONVIF", "primary")
+        context.auth.observe_http(200, "ONVIF", authenticated=True)
+        return CollectionReport.from_camera_result(
+            result,
+            sensitive_values=(target.username, target.password),
+        )
+
 
 class SuccessfulSnapshotProvider:
     def __init__(self, image_bytes: bytes) -> None:
@@ -65,6 +81,166 @@ class FailingProvider:
 class NoopWorkflow:
     def run(self) -> MainMenuChoice:
         return MainMenuChoice.EXIT
+
+
+@pytest.mark.parametrize(
+    ("hint", "include_hint_column", "discovery_families", "expected_adapter"),
+    [
+        ("Hikvision", True, ("Axis",), "Hikvision"),
+        ("Hikvision", True, (), "Hikvision"),
+        ("Untrusted vendor text", True, ("Axis",), "Axis"),
+        (None, False, ("Axis",), "Axis"),
+        ("Untrusted vendor text", True, (), "ONVIF"),
+        (None, False, (), "ONVIF"),
+        ("Hikvision", True, ("Axis", "Dahua"), "Hikvision"),
+    ],
+    ids=(
+        "recognized-hint-skips-preauth",
+        "recognized-hint-routes-with-empty-discovery",
+        "unknown-hint-discovery-routing",
+        "missing-hint-discovery-routing",
+        "unknown-hint-generic-onvif-fallback",
+        "missing-hint-generic-onvif-fallback",
+        "recognized-hint-skips-conflicting-preauth-fixture",
+    ),
+)
+def test_multi_row_routes_one_adapter_from_hint_or_onvif_discovery(
+    tmp_path: Path,
+    hint: str | None,
+    include_hint_column: bool,
+    discovery_families: tuple[str, ...],
+    expected_adapter: str,
+) -> None:
+    source = tmp_path / f"hint-{expected_adapter}-{include_hint_column}.xlsx"
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    headers = ("IP", "USERNAME", "PASSWORD", "FABRICANTE") if include_hint_column else (
+        "IP", "USERNAME", "PASSWORD"
+    )
+    worksheet.append(headers)
+    row = ("192.0.2.90", "row-user", "row-password")
+    if include_hint_column:
+        row += (hint,)
+    worksheet.append(row)
+    workbook.save(source)
+    workbook.close()
+
+    discovery_calls: list[str] = []
+
+    class FakeDiscoverer:
+        def discover_with_report(self, _target: CameraTarget, *, context: object):
+            del context
+            discovery_calls.append("discovery")
+            evidence = (
+                PreAuthEvidence(
+                    capabilities=[{"manufacturer": family} for family in discovery_families]
+                )
+                if discovery_families
+                else PreAuthEvidence()
+            )
+            return evidence, CollectionReport()
+
+    from cam_scanner.cameras.manufacturers.axis import AxisAdapter
+    from cam_scanner.cameras.manufacturers.hikvision import HikvisionAdapter
+
+    def fixture_adapter(manufacturer: str, adapter_type: type):
+        adapter = adapter_type(session_factory=lambda: None)
+        adapter.calls = []
+
+        def collect_report(
+            target: CameraTarget, *, context: CollectionContext
+        ) -> CollectionReport:
+            adapter.calls.append((target.ip, target.username, target.password))
+            assert context.auth.allows_authenticated_attempt(
+                f"VENDOR_{manufacturer.upper()}"
+            )
+            result = CameraResult(
+                ip=target.ip,
+                status=CollectionStatus.SUCCESS,
+                manufacturer=manufacturer,
+                model="Synthetic model",
+                serial="SYNTHETIC-90",
+            )
+            return CollectionReport.from_camera_result(
+                result,
+                source="VENDOR",
+                sensitive_values=(target.username, target.password),
+            )
+
+        adapter.collect_report = collect_report
+        return adapter
+
+    class FakeOnvif:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, str]] = []
+
+        def collect_report(self, target: CameraTarget, *, context: object) -> CollectionReport:
+            del context
+            self.calls.append((target.ip, target.username, target.password))
+            result = CameraResult(
+                ip=target.ip,
+                status=CollectionStatus.SUCCESS,
+                manufacturer="Generic ONVIF",
+                model="Synthetic model",
+                serial="SYNTHETIC-90",
+            )
+            return CollectionReport.from_camera_result(
+                result,
+                source="ONVIF_AUTHENTICATED",
+                sensitive_values=(target.username, target.password),
+            )
+
+    registry = AdapterRegistry()
+    axis_adapter = fixture_adapter("Axis", AxisAdapter)
+    hikvision_adapter = fixture_adapter("Hikvision", HikvisionAdapter)
+    registry.register("Axis", axis_adapter)
+    registry.register("Hikvision", hikvision_adapter)
+    onvif = FakeOnvif()
+    collector = VendorFirstCollector(
+        onvif_collector=onvif,
+        registry=registry,
+        discoverer=FakeDiscoverer(),
+    )
+
+    class OfflineSnapshotService:
+        def capture_one(self, *_args: object, **_kwargs: object) -> SnapshotResult:
+            return SnapshotResult(failure=SnapshotFailure.UNSUPPORTED)
+
+    ui = TerminalUI(input_fn=lambda _prompt: "", output_fn=lambda _text: None)
+    workflow = MultiWorkflow(
+        ui,
+        InventoryService(collector),
+        OfflineSnapshotService(),  # type: ignore[arg-type]
+        max_workers=1,
+    )
+    input_row = next(ExcelReader().read(source).rows)
+    processed = workflow._process_row(input_row)
+
+    if expected_adapter == "ONVIF" and len(discovery_families) > 1:
+        # Conflicting strong ONVIF identities leave no vendor selection.
+        assert processed.result.status is CollectionStatus.PARTIAL_SUCCESS
+        assert processed.result.manufacturer is None
+    elif expected_adapter == "ONVIF":
+        assert processed.result.status is CollectionStatus.SUCCESS
+        assert processed.result.manufacturer == "Generic ONVIF"
+    else:
+        assert processed.result.status is CollectionStatus.SUCCESS
+        assert processed.result.manufacturer == expected_adapter
+    if expected_adapter == "ONVIF":
+        assert axis_adapter.calls == hikvision_adapter.calls == []
+        assert onvif.calls == [("192.0.2.90", "row-user", "row-password")]
+    else:
+        selected = axis_adapter if expected_adapter == "Axis" else hikvision_adapter
+        unselected = hikvision_adapter if expected_adapter == "Axis" else axis_adapter
+        assert selected.calls == [("192.0.2.90", "row-user", "row-password")]
+        assert unselected.calls == []
+        assert onvif.calls == []
+    if hint == "Hikvision":
+        assert discovery_calls == []
+    else:
+        assert discovery_calls == ["discovery"]
+    assert "Untrusted vendor text" not in repr(input_row)
+    assert "row-password" not in repr(input_row)
 
 
 class RecordingProgress:
@@ -238,13 +414,30 @@ def test_multi_parallel_offline_smoke_orders_rows_and_keeps_passwords_private(
                 assert first_started.wait(timeout=5)
                 release_first.set()
             if target.ip == "192.0.2.103":
-                return CameraResult(ip=target.ip, status=CollectionStatus.FAILED)
+                return CameraResult(
+                    ip=target.ip,
+                    status=CollectionStatus.FAILED,
+                    error_code=ErrorCode.UNEXPECTED_ERROR,
+                    error_message="Synthetic collection failure.",
+                )
             return CameraResult(
                 ip=target.ip,
                 status=CollectionStatus.SUCCESS,
                 manufacturer="Hikvision",
                 model="DS-KD8003",
                 serial=f"SERIAL-{target.ip.rsplit('.', maxsplit=1)[-1]}",
+            )
+
+        def collect_report(
+            self, target: CameraTarget, *, context: CollectionContext
+        ) -> CollectionReport:
+            result = self.collect(target)
+            if result.status is CollectionStatus.SUCCESS:
+                assert context.auth.begin("ONVIF", "primary")
+                context.auth.observe_http(200, "ONVIF", authenticated=True)
+            return CollectionReport.from_camera_result(
+                result,
+                sensitive_values=(target.username, target.password),
             )
 
     image_bytes = _jpeg_fixture()

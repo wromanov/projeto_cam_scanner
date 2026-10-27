@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from typing import Any
 from urllib.parse import urlsplit
 
+from cam_scanner.application.collection_context import CollectionDeadlineExceeded
 from cam_scanner.cameras.transport import ControlledOnvifClient, TargetRejected
 from cam_scanner.domain.models import CameraTarget
 from cam_scanner.snapshot.onvif import (
@@ -25,6 +26,7 @@ _RTSP_READ_TIMEOUT = 5
 _MAX_FRAME_PIXELS = 40_000_000
 MAX_CONCURRENT_RTSP_FRAMES = 1
 _RTSP_CAPTURE_LOCK = threading.Semaphore(MAX_CONCURRENT_RTSP_FRAMES)
+_RTSP_CAPTURE_ENABLED = False
 
 
 class RtspFrameProvider:
@@ -43,6 +45,11 @@ class RtspFrameProvider:
         self._read_timeout = read_timeout_seconds
 
     def capture(self, target: CameraTarget, *, context: Any = None) -> bytes:
+        if not _RTSP_CAPTURE_ENABLED:
+            # FFmpeg may follow RTSP redirects or SDP control URLs beyond the
+            # validated initial target; keep this path closed until each
+            # connection can be authorized before it is opened.
+            raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
         if context is None and self._client_factory is None:
             raise SnapshotCaptureError(SnapshotFailure.TARGET_REJECTED)
         if context is not None and not context.snapshot_eligible("ONVIF"):
@@ -108,6 +115,8 @@ class RtspFrameProvider:
                     container.close()
         except SnapshotCaptureError:
             raise
+        except CollectionDeadlineExceeded:
+            raise SnapshotCaptureError(SnapshotFailure.TIMEOUT) from None
         except Exception as error:  # noqa: BLE001 - PyAV errors are not exposed or logged.
             folded = str(error).casefold().replace("_", "")
             if "401" in folded or "unauthorized" in folded:

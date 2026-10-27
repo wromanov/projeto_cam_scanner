@@ -3,8 +3,8 @@ from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
-PROJECT_ROOT = Path(SPECPATH).resolve().parent.parent
-datas = collect_data_files("onvif", includes=["wsdl/**/*.wsdl"])
+PROJECT_ROOT = Path(SPECPATH).resolve().parent
+datas = collect_data_files("onvif", includes=["wsdl/**/*"])
 datas += collect_data_files("certifi")
 datas.append((str(PROJECT_ROOT / "config" / "settings.example.toml"), "config"))
 

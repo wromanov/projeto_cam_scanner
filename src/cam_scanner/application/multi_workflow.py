@@ -5,6 +5,7 @@ import threading
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 
+from cam_scanner.application.collection_context import CollectionContext
 from cam_scanner.application.inventory_service import InventoryService
 from cam_scanner.config.models import DEFAULT_MAX_WORKERS, MAX_WORKERS, MIN_WORKERS
 from cam_scanner.domain.enums import CollectionStatus, ErrorCode
@@ -45,6 +46,12 @@ class MultiWorkflow:
         self._excel_writer = excel_writer or ExcelWriter()
         self._progress = progress_reporter or ProgressReporter()
         self._max_workers = max_workers
+        self._completed_rows: tuple[InventoryOutputRow, ...] = ()
+
+    @property
+    def completed_rows(self) -> tuple[InventoryOutputRow, ...]:
+        """Rows completed before a run ended, including safe partial results on cancel."""
+        return self._completed_rows
 
     def run(self) -> None:
         input_path = self._ui.prompt_multi_input_path()
@@ -57,9 +64,13 @@ class MultiWorkflow:
         default_output = _default_output_path(input_path)
         output_path = self._ui.prompt_multi_output_path(str(default_output))
         output_rows: list[InventoryOutputRow | None] = [None] * batch.total_rows
+        self._completed_rows = ()
         self._progress.start(batch.total_rows)
         executor = ThreadPoolExecutor(max_workers=self._max_workers)
-        pending: dict[Future[InventoryOutputRow], tuple[int, int, str]] = {}
+        pending: dict[
+            Future[InventoryOutputRow],
+            tuple[int, int, str, CollectionContext | None],
+        ] = {}
         cancel_event = threading.Event()
         rows = iter(batch.rows)
         position = 0
@@ -82,20 +93,29 @@ class MultiWorkflow:
                     if not input_row.valid:
                         output_row = self._process_row(input_row, cancel_event=cancel_event)
                         output_rows[current_position] = output_row
+                        self._remember_completed(output_rows)
                         self._progress.advance(output_row.result.ip, output_row.result.status.value)
                         continue
-                    pending[executor.submit(
-                        self._process_row, input_row, cancel_event=cancel_event
-                    )] = (
-                        current_position,
-                        input_row.row_id,
-                        input_row.ip,
+                    context = self._create_context(input_row, cancel_event)
+                    try:
+                        future = executor.submit(
+                            self._process_row,
+                            input_row,
+                            cancel_event=cancel_event,
+                            execution_context=context,
+                        )
+                    except BaseException:
+                        if context is not None:
+                            context.close()
+                        raise
+                    pending[future] = (
+                        current_position, input_row.row_id, input_row.ip, context
                     )
 
                 if pending:
                     completed, _ = wait(pending, return_when=FIRST_COMPLETED)
                     for future in completed:
-                        current_position, row_id, ip = pending.pop(future)
+                        current_position, row_id, ip, _context = pending[future]
                         try:
                             output_row = future.result()
                         except Exception:  # noqa: BLE001 - isolate unexpected Future failures.
@@ -104,6 +124,8 @@ class MultiWorkflow:
                                 _unexpected_row_result(ip),
                             )
                         output_rows[current_position] = output_row
+                        pending.pop(future)
+                        self._remember_completed(output_rows)
                         self._progress.advance(output_row.result.ip, output_row.result.status.value)
 
             executor.shutdown(wait=True)
@@ -119,34 +141,26 @@ class MultiWorkflow:
             )
             self._ui.show_multi_complete(output_file, len(output_rows), failed=failed)
         except KeyboardInterrupt:
-            cancel_event.set()
-            for future in pending:
-                future.cancel()
-            executor.shutdown(wait=True, cancel_futures=True)
+            self._cancel_and_collect(executor, pending, output_rows, cancel_event)
             raise
         except ExcelInputError as error:
-            cancel_event.set()
-            for future in pending:
-                future.cancel()
-            executor.shutdown(wait=True, cancel_futures=True)
+            self._cancel_and_collect(executor, pending, output_rows, cancel_event)
             self._ui.show_multi_error(str(error))
         except ExcelOutputError as error:
-            cancel_event.set()
-            for future in pending:
-                future.cancel()
-            executor.shutdown(wait=True, cancel_futures=True)
+            self._cancel_and_collect(executor, pending, output_rows, cancel_event)
             self._ui.show_multi_error(str(error))
         except Exception:  # noqa: BLE001 - batch errors stay at the application boundary.
-            cancel_event.set()
-            for future in pending:
-                future.cancel()
-            executor.shutdown(wait=True, cancel_futures=True)
+            self._cancel_and_collect(executor, pending, output_rows, cancel_event)
             self._ui.show_multi_error("O lote foi interrompido por uma falha local inesperada.")
         finally:
             self._progress.finish()
 
     def _process_row(
-        self, row: ExcelInputRow, *, cancel_event: threading.Event | None = None
+        self,
+        row: ExcelInputRow,
+        *,
+        cancel_event: threading.Event | None = None,
+        execution_context: CollectionContext | None = None,
     ) -> InventoryOutputRow:
         if not row.valid:
             return InventoryOutputRow(
@@ -155,45 +169,107 @@ class MultiWorkflow:
             )
 
         target = CameraTarget(row.ip, row.username, row.password)
-        context = None
+        context = execution_context
+        report = None
         try:
-            collect_execution = getattr(self._inventory_service, "collect_execution", None)
-            if callable(collect_execution):
-                report, context = collect_execution(target, cancel_event=cancel_event)
-                result = report.to_camera_result(target.ip)
-            else:
-                result = self._inventory_service.collect_one(target)
-        except Exception:  # noqa: BLE001 - a single camera cannot abort the batch.
-            result = CameraResult(
-                ip=row.ip,
-                status=CollectionStatus.FAILED,
-                error_code=ErrorCode.UNEXPECTED_ERROR,
-                error_message=_UNEXPECTED_ROW_MESSAGE,
-                duration=0.0,
-            )
+            try:
+                collect_execution = getattr(self._inventory_service, "collect_execution", None)
+                if callable(collect_execution):
+                    if context is None:
+                        report, context = collect_execution(
+                            target,
+                            cancel_event=cancel_event,
+                            manufacturer_hint=row.manufacturer_hint,
+                        )
+                    else:
+                        report, context = collect_execution(target, context=context)
+                    result = report.to_camera_result(target.ip)
+                else:
+                    result = self._inventory_service.collect_one(target)
+            except Exception:  # noqa: BLE001 - a single camera cannot abort the batch.
+                result = CameraResult(
+                    ip=row.ip,
+                    status=CollectionStatus.FAILED,
+                    error_code=ErrorCode.UNEXPECTED_ERROR,
+                    error_message=_UNEXPECTED_ROW_MESSAGE,
+                    duration=0.0,
+                )
 
-        snapshot: SnapshotResult | None = None
-        try:
-            if context is None:
-                snapshot = self._snapshot_service.capture_one(
-                    target,
-                    manufacturer=result.manufacturer,
-                    model=result.model,
-                )
-            else:
-                snapshot = self._snapshot_service.capture_one(
-                    target,
-                    manufacturer=result.manufacturer,
-                    model=result.model,
-                    context=context,
-                )
-        except Exception:  # noqa: BLE001 - snapshot failure preserves collected identity.
-            snapshot = SnapshotResult(failure=SnapshotFailure.UNEXPECTED)
+            snapshot: SnapshotResult | None = None
+            try:
+                if _has_tls_failure(report) or (
+                    context is not None and getattr(context, "tls_failed", False)
+                ):
+                    snapshot = SnapshotResult(failure=SnapshotFailure.TLS_ERROR)
+                elif context is None:
+                    snapshot = self._snapshot_service.capture_one(
+                        target,
+                        manufacturer=result.manufacturer,
+                        model=result.model,
+                    )
+                else:
+                    snapshot = self._snapshot_service.capture_one(
+                        target,
+                        manufacturer=result.manufacturer,
+                        model=result.model,
+                        context=context,
+                    )
+            except Exception:  # noqa: BLE001 - snapshot failure preserves collected identity.
+                snapshot = SnapshotResult(failure=SnapshotFailure.UNEXPECTED)
+            return InventoryOutputRow(row.row_id, result, snapshot, report)
         finally:
             if context is not None:
                 context.close()
-        del target
-        return InventoryOutputRow(row.row_id, result, snapshot)
+            del target
+
+    def _create_context(
+        self, row: ExcelInputRow, cancel_event: threading.Event
+    ) -> CollectionContext | None:
+        """Start the per-camera deadline before the executor queue can delay its worker."""
+        if not row.valid:
+            return None
+        create_context = getattr(self._inventory_service, "create_context", None)
+        collect_execution = getattr(self._inventory_service, "collect_execution", None)
+        if not callable(create_context) or not callable(collect_execution):
+            return None
+        target = CameraTarget(row.ip, row.username, row.password)
+        return create_context(
+            target,
+            cancel_event=cancel_event,
+            manufacturer_hint=row.manufacturer_hint,
+        )
+
+    def _remember_completed(
+        self, output_rows: list[InventoryOutputRow | None]
+    ) -> None:
+        self._completed_rows = tuple(row for row in output_rows if row is not None)
+
+    def _cancel_and_collect(
+        self,
+        executor: ThreadPoolExecutor,
+        pending: dict[
+            Future[InventoryOutputRow],
+            tuple[int, int, str, CollectionContext | None],
+        ],
+        output_rows: list[InventoryOutputRow | None],
+        cancel_event: threading.Event,
+    ) -> None:
+        """Stop queued work, close its contexts, then retain rows that already returned."""
+        cancel_event.set()
+        for future, (_, _, _, context) in pending.items():
+            if future.cancel() and context is not None:
+                context.close()
+        executor.shutdown(wait=True, cancel_futures=True)
+        for future, (position, row_id, ip, _context) in pending.items():
+            if output_rows[position] is not None or future.cancelled():
+                continue
+            try:
+                output_rows[position] = future.result()
+            except BaseException:  # noqa: BLE001 - preserve completed outcomes at the batch boundary.
+                output_rows[position] = InventoryOutputRow(
+                    row_id, _unexpected_row_result(ip)
+                )
+        self._remember_completed(output_rows)
 
 
 def _invalid_row_result(ip: str) -> CameraResult:
@@ -204,6 +280,11 @@ def _invalid_row_result(ip: str) -> CameraResult:
         error_message=_INVALID_ROW_MESSAGE,
         duration=0.0,
     )
+
+
+def _has_tls_failure(report: object) -> bool:
+    attempts = getattr(report, "attempts", ())
+    return any(getattr(attempt, "error_category", None) == "TLS_ERROR" for attempt in attempts)
 
 
 def _unexpected_row_result(ip: str) -> CameraResult:

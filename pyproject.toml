@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cam-scanner"
-version = "0.1.0"
+version = "1.0.0"
 description = "CLI Windows para inventário de câmeras IP, conforme o escopo governado do projeto."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"

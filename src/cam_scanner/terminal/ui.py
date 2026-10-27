@@ -40,6 +40,11 @@ class TerminalUI:
         password = self._password("Password: ")
         return CameraTarget(ip=ip, username=username, password=password)
 
+    def prompt_manufacturer_hint(self) -> str | None:
+        """Ask for an optional declared manufacturer; blank keeps auto discovery."""
+        value = self._input("Fabricante (opcional; vazio para identificação automática): ").strip()
+        return value or None
+
     def render_result(self, result: CameraResult, snapshot: SnapshotResult | None = None) -> None:
         self._output("\nResultado da consulta")
         self._output(f"IP: {result.ip}")
@@ -79,6 +84,17 @@ class TerminalUI:
         self.render_result(report.to_camera_result(ip, duration=duration), snapshot)
         if report.conflicts:
             self._output("Conflitos preservados: " + ", ".join(report.conflicts))
+        resolution = report.manufacturer_resolution
+        if resolution is not None:
+            for label, value in (
+                ("Fabricante declarado", resolution.declared),
+                ("Fabricante observado", resolution.observed),
+                ("Fabricante resolvido", resolution.resolved),
+            ):
+                if value is not None:
+                    self._output(f"{label}: {value}")
+            if resolution.mismatch:
+                self._output("Divergência entre fabricante declarado e observado.")
         if not report.attempts:
             return
         self._output("Diagnósticos da coleta")

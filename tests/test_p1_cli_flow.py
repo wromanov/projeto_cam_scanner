@@ -1,7 +1,7 @@
 """CLI integration tests using a deterministic in-memory ONVIF device."""
+
 import importlib
 import logging
-
 
 
 def _install_controlled_client(monkeypatch, factory) -> None:
@@ -60,7 +60,7 @@ def test_cli_entrypoint_runs_single_flow_without_printing_password(monkeypatch, 
     _install_controlled_client(monkeypatch, FakeClient)
     _install_unsupported_snapshots(monkeypatch, main_module)
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli"))
-    answers = iter(["1", "192.0.2.10", "operator", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 
@@ -104,17 +104,46 @@ def test_cli_handles_authentication_failure_without_a_traceback(monkeypatch, cap
     _install_controlled_client(monkeypatch, FakeClient)
     _install_unsupported_snapshots(monkeypatch, main_module)
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-auth"))
-    answers = iter(["1", "192.0.2.10", "operator", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 
     assert main_module.main() == 0
 
     output = capsys.readouterr().out
-    assert "A câmera recusou a autenticação." in output
+    assert "A câmera retornou um erro ONVIF." in output
     assert "private-password" not in output
     assert "Traceback" not in output
     assert "[3] Sair" in output
+
+
+def test_cli_startup_failure_without_log_handler_keeps_diagnostic_off_terminal(
+    monkeypatch, capsys
+) -> None:
+    main_module = importlib.import_module("cam_scanner.main")
+    logger = logging.getLogger("cam_scanner")
+    unexpected_errors: list[bool] = []
+
+    class FakeUI:
+        def show_unexpected_error(self) -> None:
+            unexpected_errors.append(True)
+
+    def fail_logging(**_kwargs: object) -> None:
+        raise OSError("synthetic unwritable log path")
+
+    monkeypatch.setattr(logger, "handlers", [])
+    monkeypatch.setattr(logger, "propagate", False)
+    monkeypatch.setattr(main_module, "TerminalUI", FakeUI)
+    monkeypatch.setattr(main_module, "load_settings", lambda: object())
+    monkeypatch.setattr(main_module, "configure_logging", fail_logging)
+    monkeypatch.setattr(main_module, "close_logging", lambda: None)
+
+    assert main_module.main() == 1
+
+    captured = capsys.readouterr()
+    assert unexpected_errors == [True]
+    assert captured.out == ""
+    assert captured.err == ""
 
 
 def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_failure(
@@ -178,7 +207,7 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     _install_controlled_client(monkeypatch, FakeClient)
     _install_unsupported_snapshots(monkeypatch, main_module)
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-partial"))
-    answers = iter(["1", "192.0.2.10", "operator", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 
@@ -236,9 +265,11 @@ def test_post_query_menu_repeats_single_and_routes_multi_to_controller(monkeypat
             "1",
             "192.0.2.10",
             "operator",
+            "",
             "1",
             "192.0.2.11",
             "operator",
+            "",
             "2",
             "2",
             "3",
@@ -311,7 +342,7 @@ def test_cli_single_success_includes_offline_snapshot_without_printing_password(
         ),
     )
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-snapshot"))
-    answers = iter(["1", "192.0.2.10", "operator", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 

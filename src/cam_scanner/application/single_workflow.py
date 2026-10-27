@@ -1,6 +1,7 @@
 """Integrated one-camera workflow with canonical diagnostics and optional snapshot."""
 from __future__ import annotations
 
+import inspect
 import time
 
 from cam_scanner.application.inventory_service import InventoryService
@@ -25,13 +26,24 @@ class SingleWorkflow:
 
     def run(self) -> MainMenuChoice:
         target: CameraTarget = self._ui.prompt_camera_target()
+        hint_prompt = getattr(self._ui, "prompt_manufacturer_hint", None)
+        manufacturer_hint = hint_prompt() if callable(hint_prompt) else None
         target_ip = target.ip
         started = time.monotonic()
         collect_execution = getattr(self._inventory_service, "collect_execution", None)
         context = None
         try:
             if callable(collect_execution):
-                report, context = collect_execution(target)
+                try:
+                    parameters = inspect.signature(collect_execution).parameters
+                except (TypeError, ValueError):
+                    parameters = {}
+                if "manufacturer_hint" in parameters:
+                    report, context = collect_execution(
+                        target, manufacturer_hint=manufacturer_hint or None
+                    )
+                else:
+                    report, context = collect_execution(target)
             else:
                 collect_report = getattr(self._inventory_service, "collect_report", None)
                 report = collect_report(target) if callable(collect_report) else None
@@ -44,7 +56,11 @@ class SingleWorkflow:
             snapshot: SnapshotResult | None = None
             if self._snapshot_service is not None:
                 try:
-                    if context is None:
+                    if _has_tls_failure(report) or (
+                        context is not None and getattr(context, "tls_failed", False)
+                    ):
+                        snapshot = SnapshotResult(failure=SnapshotFailure.TLS_ERROR)
+                    elif context is None:
                         snapshot = self._snapshot_service.capture_one(
                             target, manufacturer=result.manufacturer, model=result.model
                         )
@@ -68,3 +84,8 @@ class SingleWorkflow:
         else:
             self._ui.render_result(result, snapshot)
         return self._ui.post_query_menu()
+
+
+def _has_tls_failure(report: object) -> bool:
+    attempts = getattr(report, "attempts", ())
+    return any(getattr(attempt, "error_category", None) == "TLS_ERROR" for attempt in attempts)

@@ -72,6 +72,7 @@ def test_malformed_rows_clear_credentials_and_redact_ip_overlap(tmp_path: Path) 
 @pytest.mark.parametrize(
     "text",
     ["bad\x01text", "bad\x1b[31m", "bad\x85text", "bad\ud800", "x" * 32_768],
+    ids=("control", "escape", "c1-control", "surrogate", "oversize"),
 )
 def test_domain_text_validation_rejects_xml_controls_surrogates_and_oversize(text: str) -> None:
     assert not is_safe_xml_text(text)
@@ -93,3 +94,38 @@ def test_invalid_input_cell_isolated_and_credentials_cleared() -> None:
     assert not row.valid
     assert row.validation_error == "invalid_cell_value"
     assert row.username == row.password == ""
+
+
+@pytest.mark.parametrize(
+    ("header", "value", "expected"),
+    [
+        (("IP", "USERNAME", "PASSWORD", "FABRICANTE"), "HIK", "HIK"),
+        (("IP", "USERNAME", "PASSWORD", "FABRICANTE"), "Vendor secret text", "Vendor secret text"),
+        (("IP", "USERNAME", "PASSWORD"), "Hikvision", None),
+        (("IP", "USERNAME", "PASSWORD", "FABRICANTE"), "Axis " + "x" * 129, None),
+    ],
+    ids=("recognized-alias-literal", "unknown-literal", "missing-column", "oversized"),
+)
+def test_manufacturer_hint_is_optional_recognized_only_and_not_in_repr(
+    tmp_path: Path,
+    header: tuple[str, ...],
+    value: str,
+    expected: str | None,
+) -> None:
+    source = tmp_path / "manufacturer-hint.xlsx"
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet.append(header)
+    row = ("192.0.2.44", "operator", "password")
+    if len(header) == 4:
+        row += (value,)
+    worksheet.append(row)
+    workbook.save(source)
+    workbook.close()
+
+    parsed = next(ExcelReader().read(source).rows)
+
+    assert parsed.valid
+    assert parsed.manufacturer_hint == expected
+    assert "Vendor secret text" not in repr(parsed)
+    assert "password" not in repr(parsed)

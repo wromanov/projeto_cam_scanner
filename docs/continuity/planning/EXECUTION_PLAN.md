@@ -1,5 +1,39 @@
 # Execution Plan — P0-A03 e sequência P0–P12
 
+## Checkpoint corrente — CAM_SCANNER_P12_WINDOWS_ONEDIR_BUILD_AND_VALIDATION (2026-10-19)
+
+Consultar [`PROJECT_STATE.md`](../PROJECT_STATE.md) e [`CONTINUITY_RECORD.md`](../CONTINUITY_RECORD.md). Gates 2/3/4/V passaram antes do P12; a regressão integral foi 373 passed, 0 failed, 0 skipped, 0 deselected e não foi reexecutada. O build Windows 11 24H2 x64 ONEDIR `1.0.0`, smoke em diretório protegido, configuração/log/temp, CLI, ONVIF/MULTI, XLSX/snapshot e integridade SHA-256 passaram. `PREP12-09=CLEARED_IN_P12`. Nenhuma câmera real, homologação operacional ou publicação foi executada. A sequência do roadmap não encerra as demais fases.
+
+## Aditivo — recuperação de continuidade (2026-10-16)
+
+O resultado vigente da reconciliação está em [`PROJECT_STATE.md`](../PROJECT_STATE.md): `CONTINUITY_AUTHORITY_GATE=PASS` após verificação dos nove pins contra bytes de ZIP e evidências de integridade dos pacotes. O usuário autorizou PyPI público em ambiente local sujeito às políticas aplicáveis; `PIP_NO_INDEX=1` foi preservado. O lock transitivo candidato foi confirmado, mas a reprodução limpa e o aceite formal não ocorreram. A próxima activity de implementação continua sendo PREP12-10 reprodução limpa, em autorização/execução separada. Não iniciar instalação, testes, build ou homologação como parte desta recuperação.
+
+## Snapshot anterior da execução — PRE-P12 targeted acceptance resume (2026-10-16; fonte/lock superseded acima)
+
+### Aditivo de aceite e bloqueios — 2026-10-16 (supersede os parágrafos de estado abaixo)
+
+O parecer Architect independente está registrado em [`docs/audit/PRE_P12_ACCEPTANCE_REASSESSMENT_2026-10-16.md`](../../audit/PRE_P12_ACCEPTANCE_REASSESSMENT_2026-10-16.md). PREP12-01/02/04/05 seguem `OPEN`: a suíte integral de referência tem 372 passed e 1 skipped, portanto Gate 2 não passou; 01/02 também exigem Gate 3. PREP12-10=`BLOCKED_EXTERNAL_DEPENDENCY`; o usuário confirmou que fonte aprovada não foi identificada e proibiu contornar `PIP_NO_INDEX=1`. O manifesto candidato `requirements/locks/windows-py314.in` já está preparado, sem alteração de versões; lock transitivo/hash e reprodução limpa aguardam fonte autorizada. PREP12-11=`OPEN_CONDITIONAL`; a capacidade symlink foi sondada e falhou com HRESULT `0x80070522`/WinError 1314, sem executar o teste real.
+
+`GATE_V=NOT_MET`, `P12_READINESS=BLOCKED`, `ACTIVITY_COMPLETE=NO`, progresso 96%. Próximo passo de PREP12-10: aguardar índice ou wheelhouse aprovado; depois resolver, gerar hashes, reproduzir em venv limpo e validar. Separadamente, executar symlink real e regressão sem skip quando houver capacidade Windows autorizada. Nenhuma instalação, câmera, build P12 ou publicação Git.
+
+Esta atualização supersede o estado de 2026-10-15 abaixo e mantém a sequência normativa P0–P12. O workspace gate passou no worktree PRE-P12; branch `feature/pre-p12-unified-remediation`, HEAD de checkpoint `37bc8c4cc718559fc1e6f39a9b8a1145563a551e`. Alterações locais e arquivos não rastreados foram preservados; sem operações Git destrutivas, stage, commit ou push.
+
+PREP12-01/02: evidência direta passou para HTTPS real do produto com preauth integrado em SINGLE/MULTI e seis casos negativos por workflow (TLS/redirect de preauth, endpoint Media não aprovado, URI de snapshot não aprovada, redirect de snapshot e TLS de snapshot). Revisão Architect Sol/High final favorável ao delta, sem novo defeito material. Aceite formal V continua pendente. PREP12-04: deadline único por câmera demonstrado persistente entre fila, inventário e snapshot, com RTSP sem início após expiração. PREP12-05: oito testes focados passaram; cancelamento cobre contexto/serviço de inventário, providers/processamento de snapshot e futures/recursos MULTI. Resultados já concluídos/parciais permanecem; workbook de lote incompleto não é exportado após cancelamento.
+
+PREP12-11 permanece OPEN: retention/rollover, arquivo bloqueado e ausência de sentinelas de username/password passaram em filesystem Windows real; symlink real foi tentado e pulou por WinError 1314. PREP12-10 permanece OPEN: estratégia e entrada candidata de lock foram preparadas, mas a resolução não produziu lock/hash porque índice restrito não ofereceu `av==19.0.1`; sem instalação de dependências.
+
+Executável Python 3.14.0 foi confirmado. Pytest completo pós-delta não concluiu por WinError 5 em basetemp/fixtures; baseline histórica 325 passed não foi repetida. Ruff, compileall, `pip check` e `git diff --check` passaram. PREP12-03/06/07/08/12/13/14 permanecem CLEARED; PREP12-09 é `DEFERRED_BY_CONTRACT`. P12_READINESS=BLOCKED e ACTIVITY_COMPLETE=NO. O próximo gate é formalizar o aceite V, obter evidência de symlink real e concluir lock transitivo com hashes/reprodução. Nenhuma câmera real ou build P12 foi executado.
+
+## Estado vigente da execução — 2026-10-15
+
+Este plano preserva a sequência histórica P0–P12 abaixo. O estado de fase vigente está no ROADMAP.md e o snapshot factual completo em PROJECT_STATE.md. P1 permanece CLOSED; P2 permanece IN_PROGRESS. Evidências offline de P3–P11 não fecham fases nem equivalem a homologação real.
+
+PRE-P12 está no checkpoint 88% no worktree feature/pre-p12-unified-remediation, HEAD 37bc8c4cc718559fc1e6f39a9b8a1145563a551e, com alterações locais não publicadas. Resultados fornecidos pelo usuário de Windows PowerShell autorizado: Python 3.14.0, import correto, os.scandir/temp PASS, 115 testes focados PASS (9.20s), 318 testes completos PASS (8.51s), Ruff PASS, pip check PASS e git diff check PASS. Root e Architect não executaram a suíte; a comunicação não separa contagens skipped/deselected.
+
+A revisão independente do Architect encontrou 7 findings CLEARED, 6 OPEN e 1 DEFERRED_BY_CONTRACT. PREP12-01/02 não demonstram HTTPS confiável integrado; em PREP12-02 foi confirmado que uma SSLError de snapshot pode permitir fallback HTTP vendor se essa rota estiver explicitamente autorizada. Correção proposta: erro TLS distinto, parar o fallback e teste negativo integrado com zero requests HTTP. PREP12-04/05 ainda precisam de aceite integrado de budget/cancelamento; RTSP/PyAV está fail-closed. PREP12-10 carece lock transitivo/hashes e reprodução limpa. PREP12-11 requer casos de log anterior bloqueado e symlink. PREP12-09 depende do build/smoke ONEDIR em P12 e não foi executado.
+
+P12_READINESS = BLOCKED. Nenhuma câmera real, build P12, instalação/alteração de dependências, stage, commit ou push ocorreu. O próximo gate é corrigir somente o defeito confirmado, completar os aceites abertos dentro do contrato e reavaliar readiness. O handoff corrente está em LAST_HANDOFF.md.
+
 ## P0-A03 — Foundation Remediation & Continuity Reconciliation
 
 **DELIVERY_UNIT** = atividade/checkpoint conforme PM-01 e padrão adotado no projeto; não declarar sprint.
@@ -39,7 +73,7 @@ CURRENT_STRATEGY_REAL_CAMERA_VALIDATION = PARTIAL_SUCCESS (P1-A05; details in PR
 
 Fluxo integrado em P1-A04: descoberta READ_ONLY pré-autenticação quando necessária → resolução do fabricante → adapter nativo registrado quando conhecido → ONVIF como complemento/fallback → `SUCCESS | PARTIAL_SUCCESS | FAILED`. Credenciais de XLSX são individuais por linha/câmera e `TRY_ALL_VENDOR_LOGINS = PROHIBITED`. O contrato P1 contém os requisitos completos e preserva os 14 campos atuais de `CameraResult` até eventual contrato futuro. P1 foi fechada em P1-CHECKPOINT-01 após validação operacional real READ_ONLY com evidência pré-auth preservada como `PARTIAL_SUCCESS`; autenticação ONVIF bem-sucedida não é obrigatória nesse cenário.
 
-O contrato P1 está em [`../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md). O usuário aprovou preservar os dez campos existentes e acrescentar somente `error_code`, `error_message`, `collection_method` e `duration`, totalizando 14. As tipagens e regras canônicas dos quatro campos estão fechadas em P1-C01-R2. P1-A04 e P1-A05 estão concluídas conforme seus payloads autorizados.
+O contrato P1 está em [`../../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md`](../../contracts/P1_SINGLE_MINIMUM_VERTICAL_SLICE.md). O usuário aprovou preservar os dez campos existentes e acrescentar somente `error_code`, `error_message`, `collection_method` e `duration`, totalizando 14. As tipagens e regras canônicas dos quatro campos estão fechadas em P1-C01-R2. P1-A04 e P1-A05 estão concluídas conforme seus payloads autorizados.
 
 Critérios mínimos de DONE: aplicação inicia; menu principal funciona; SINGLE solicita IP, username e password via `getpass()` no terminal; realiza consulta ONVIF somente leitura; obtém Manufacturer, Model, Serial e Firmware quando disponíveis; normaliza em `CameraResult` e exibe no terminal; erros esperados não mostram traceback ao operador; menu oferece `[1] pesquisar nova câmera`, `[2] ir para MULTI`, `[3] sair`; não altera configuração da câmera; testes aplicáveis passam; validação operacional ocorre em Python 3.14.x; integração da slice no fluxo canônico é demonstrada; consulta READ_ONLY contra câmera real autorizada é evidenciada.
 
@@ -171,7 +205,7 @@ Antes de build operacional/release, validar `TESTS + RUFF + PACKAGE_SMOKE_TEST +
 
 ## P0-A04 — Foundation Review Recheck
 
-Escopo: leitura, validações existentes e atualização de estado/continuidade. Sem implementação funcional, mudança arquitetural ou escrita Git. Critérios de saída: conferir F-01…F-08, registrar evidências e limites, emitir resultado da revisão e reconciliar continuidade. Resultado e critérios verificados em [`../FOUNDATION_REVIEW_P0_A04.md`](../FOUNDATION_REVIEW_P0_A04.md). Próxima decisão e autorização em PROJECT_STATE; os fatos ambientais da seção P0-A03 acima são históricos.
+Escopo: leitura, validações existentes e atualização de estado/continuidade. Sem implementação funcional, mudança arquitetural ou escrita Git. Critérios de saída: conferir F-01…F-08, registrar evidências e limites, emitir resultado da revisão e reconciliar continuidade. Resultado e critérios verificados em [`../../audit/FOUNDATION_REVIEW_P0_A04.md`](../../audit/FOUNDATION_REVIEW_P0_A04.md). Próxima decisão e autorização em PROJECT_STATE; os fatos ambientais da seção P0-A03 acima são históricos.
 
 ## P1-C01-R1 — CameraResult Contract Reconciliation (documental)
 
@@ -296,3 +330,6 @@ P2_STATUS = IN_PROGRESS
 GIT_ADD_COMMIT_PUSH = NONE
 NEXT_ACTION = Publish the Git checkpoint after user approval
 ```
+## Ponte de execução — checkpoint 2026-10-27
+
+Próxima atividade autorizada: `CAM_SCANNER_ASTRA_P0_P1_TRANSPORT_IMPLEMENTATION`, em modo offline. Não iniciar câmera real, HTTP operacional, RTSP ou build de distribuição neste limite.

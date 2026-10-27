@@ -3,10 +3,9 @@ from __future__ import annotations
 
 import inspect
 import logging
-from builtins import TimeoutError
+from dataclasses import replace
 
 from cam_scanner.cameras.collector import CameraCollector
-from cam_scanner.cameras.manufacturer import ManufacturerNormalizer
 from cam_scanner.cameras.onvif.adapter import GenericOnvifCollector
 from cam_scanner.cameras.preauth import (
     ManufacturerResolver,
@@ -15,6 +14,7 @@ from cam_scanner.cameras.preauth import (
 )
 from cam_scanner.cameras.registry import AdapterRegistry
 from cam_scanner.domain.enums import CollectionStatus
+from cam_scanner.domain.errors import normalize_collection_error
 from cam_scanner.domain.models import (
     CameraResult,
     CameraTarget,
@@ -39,7 +39,6 @@ class VendorFirstCollector(CameraCollector):
         self._registry = registry or AdapterRegistry()
         self._discoverer = discoverer or OnvifPreAuthDiscoverer()
         self._resolver = resolver or ManufacturerResolver()
-        self._normalizer = ManufacturerNormalizer()
         self._logger = logger or logging.getLogger("cam_scanner")
 
     def collect(self, target: CameraTarget) -> CameraResult:
@@ -47,37 +46,75 @@ class VendorFirstCollector(CameraCollector):
 
     def collect_report(self, target: CameraTarget, *, context: object | None = None) -> CollectionReport:
         report = CollectionReport()
-        try:
-            discover_with_report = getattr(self._discoverer, "discover_with_report", None)
-            if callable(discover_with_report):
-                preauth, preauth_report = _call_with_context(discover_with_report, target, context)
-                if isinstance(preauth_report, CollectionReport):
-                    report = report.merged(preauth_report).validated_for_target(
-                        (target.username, target.password)
+        declared_hint = getattr(context, "manufacturer_hint", None)
+        # A declared hint can skip anonymous discovery only for native collectors
+        # already known to return all IDENTITY_V1 fields. Registry membership alone
+        # is insufficient (notably Bosch and Panasonic in this release).
+        hinted_resolution = self._resolver.resolve_with_evidence(
+            declared_hint,
+            PreAuthEvidence(),
+            sensitive_values=(target.username, target.password),
+        )
+        hinted_adapter = (
+            self._registry.get(hinted_resolution.selected)
+            if hinted_resolution.selected
+            else None
+        )
+        if hinted_adapter is not None and not _hint_adapter_covers_identity(
+            hinted_resolution.selected, hinted_adapter
+        ):
+            hinted_adapter = None
+        preauth = PreAuthEvidence()
+        if hinted_adapter is None:
+            try:
+                discover_with_report = getattr(self._discoverer, "discover_with_report", None)
+                if callable(discover_with_report):
+                    preauth, preauth_report = _call_with_context(discover_with_report, target, context)
+                    if isinstance(preauth_report, CollectionReport):
+                        report = report.merged(preauth_report).validated_for_target(
+                            (target.username, target.password)
+                        )
+                else:
+                    discover = self._discoverer.discover
+                    preauth = _call_with_context(discover, target, context)
+            except KeyboardInterrupt:
+                _request_cancel(context)
+                return report.with_attempt(
+                    CollectionAttempt(
+                        stage="DISCOVERY",
+                        operation="discover",
+                        protocol="ONVIF",
+                        outcome="CANCELLED",
                     )
-            else:
-                discover = self._discoverer.discover
-                preauth = _call_with_context(discover, target, context)
-        except KeyboardInterrupt:
-            return report.with_attempt(
-                CollectionAttempt(
-                    stage="DISCOVERY",
-                    operation="discover",
-                    protocol="ONVIF",
-                    outcome="CANCELLED",
                 )
-            )
-        except Exception:  # noqa: BLE001 - discovery failure permits generic ONVIF collection.
-            preauth = PreAuthEvidence()
-        if preauth is None:
-            preauth = PreAuthEvidence()
+            except Exception as exception:  # noqa: BLE001 - preserve TLS failures as terminal.
+                category, _, _ = normalize_collection_error(exception, stage="CONNECT")
+                if category == "TLS_ERROR":
+                    _mark_tls_failure(context)
+                    report = report.with_attempt(CollectionAttempt(
+                        stage="CONNECT", operation="preauth_discovery", protocol="ONVIF",
+                        outcome="FAILED", error_category=category,
+                    ))
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
+                preauth = PreAuthEvidence()
+            if _has_tls_failure(report):
+                _mark_tls_failure(context)
+                return _attach_resolution(report, declared_hint, self._resolver, target)
+            if report.status is CollectionStatus.CANCELLED or _is_cancelled(context):
+                return _cancelled_report(report, stage="DISCOVERY", operation="discover")
+            if preauth is None:
+                preauth = PreAuthEvidence()
 
+        # Resolution is attached after observed vendor evidence is available, so
+        # declared-only routing cannot overwrite or conflict with the observation.
         resolution = self._resolver.resolve_with_evidence(
-            None,
+            declared_hint,
             preauth,
             sensitive_values=(target.username, target.password),
         )
-        manufacturer = resolution.selected
+        manufacturer = (
+            hinted_resolution.selected if hinted_adapter is not None else resolution.selected
+        )
         for value in resolution.observed_values:
             report = report.with_evidence(
                 EvidenceRecord(
@@ -101,7 +138,9 @@ class VendorFirstCollector(CameraCollector):
                 )
             )
         report = report.validated_for_target((target.username, target.password))
-        adapter = self._registry.get(manufacturer) if manufacturer else None
+        adapter = hinted_adapter or (self._registry.get(manufacturer) if manufacturer else None)
+        if adapter is not None and not _hint_adapter_covers_identity(manufacturer, adapter):
+            adapter = None
         if adapter is not None:
             try:
                 if context is not None:
@@ -111,7 +150,7 @@ class VendorFirstCollector(CameraCollector):
                     if vendor_family is not None and not context.auth.begin(
                         vendor_family, "initial"
                     ):
-                        return report
+                        return _attach_resolution(report, declared_hint, self._resolver, target)
                 collect_report = getattr(adapter, "collect_report", None)
                 if callable(collect_report):
                     vendor_report = _call_with_context(collect_report, target, context)
@@ -139,17 +178,55 @@ class VendorFirstCollector(CameraCollector):
                                 sensitive_values=(target.username, target.password),
                             )
                         )
-            except Exception:  # noqa: BLE001 - raw vendor exceptions are never retained.
+            except KeyboardInterrupt:
+                _request_cancel(context)
+                return _cancelled_report(
+                    report, stage="CONNECT", operation="vendor_adapter"
+                )
+            except Exception as exception:  # noqa: BLE001 - raw errors are never retained.
+                if _is_cancelled(context):
+                    return _cancelled_report(
+                        report, stage="CONNECT", operation="vendor_adapter"
+                    )
+                category, _, _ = normalize_collection_error(
+                    exception, stage="CONNECT", authenticated=True
+                )
+                if category == "TLS_ERROR":
+                    _mark_tls_failure(context)
+                    report = report.with_attempt(CollectionAttempt(
+                        stage="CONNECT", operation="vendor_adapter", outcome="FAILED",
+                        error_category=category,
+                    ))
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
+                report = report.with_attempt(CollectionAttempt(
+                    stage="CONNECT", operation="vendor_adapter", outcome="FAILED",
+                    error_category=category,
+                ))
+                if category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED"}:
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
                 self._logger.warning("Registered vendor adapter failed; using controlled ONVIF fallback")
             else:
+                if _has_tls_failure(report):
+                    _mark_tls_failure(context)
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
+                if _is_cancelled(context):
+                    return _cancelled_report(
+                        report, stage="CONNECT", operation="vendor_adapter"
+                    )
                 if _authentication_rejected(report) or _authentication_blocked(context):
-                    return report
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
                 if report.to_camera_result(target.ip).status is CollectionStatus.SUCCESS:
-                    return report
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
+
+        report = _attach_resolution(report, declared_hint, self._resolver, target)
 
         try:
             if context is not None:
-                if context.cancelled or _authentication_blocked(context):
+                if context.cancelled:
+                    return _cancelled_report(
+                        report, stage="SOAP", operation="collect_report"
+                    )
+                if _authentication_blocked(context):
                     return report
                 context.check("ONVIF")
                 missing_fields = _missing_identity_fields(report, target.ip)
@@ -165,27 +242,36 @@ class VendorFirstCollector(CameraCollector):
                     combined = report.merged(onvif_report).validated_for_target(
                         (target.username, target.password)
                     )
+                    combined = _attach_resolution(
+                        combined, declared_hint, self._resolver, target
+                    )
                     _log_conflicts(self._logger, combined)
                     return combined
                 raise TypeError("ONVIF collector returned an unsupported report")
             result = _call_with_context(self._onvif.collect, target, context)
         except KeyboardInterrupt:
-            return report.with_attempt(
-                CollectionAttempt(
-                    stage="SOAP",
-                    operation="GetDeviceInformation",
-                    protocol="ONVIF",
-                    outcome="CANCELLED",
-                )
+            _request_cancel(context)
+            return _cancelled_report(
+                report, stage="SOAP", operation="GetDeviceInformation"
             )
         except Exception as exception:  # noqa: BLE001 - retain only a bounded failure category.
-            category = _failure_category(exception)
+            if _is_cancelled(context):
+                return _cancelled_report(
+                    report, stage="SOAP", operation="collect_report"
+                )
+            category, http_status, protocol_code = normalize_collection_error(
+                exception, stage="SOAP", authenticated=True
+            )
+            if category == "TLS_ERROR":
+                _mark_tls_failure(context)
             return report.with_attempt(
                 CollectionAttempt(
                     stage="AUTH" if category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED"} else "SOAP",
                     operation="GetDeviceInformation",
                     protocol="ONVIF",
                     outcome="FAILED",
+                    http_status=http_status,
+                    protocol_code=protocol_code,
                     error_category=category,
                     authentication_mechanism="WS_SECURITY_USERNAME_TOKEN",
                 )
@@ -220,6 +306,9 @@ class VendorFirstCollector(CameraCollector):
         combined = report.merged(onvif_report).validated_for_target(
             (target.username, target.password)
         )
+        combined = _attach_resolution(combined, declared_hint, self._resolver, target)
+        if _has_tls_failure(combined):
+            _mark_tls_failure(context)
         _log_conflicts(self._logger, combined)
         return combined
 
@@ -227,8 +316,50 @@ class VendorFirstCollector(CameraCollector):
 def _authentication_rejected(report: CollectionReport) -> bool:
     return any(
         attempt.error_category in {"AUTH_REJECTED", "AUTHORIZATION_DENIED"}
+        or (
+            attempt.error_category == "SOAP_FAULT"
+            and _is_not_authorized(attempt.protocol_code)
+            and attempt.authentication_mechanism != "NONE"
+        )
         for attempt in report.attempts
     )
+
+
+def _has_tls_failure(report: CollectionReport) -> bool:
+    return any(attempt.error_category == "TLS_ERROR" for attempt in report.attempts)
+
+
+def _mark_tls_failure(context: object | None) -> None:
+    marker = getattr(context, "mark_tls_failure", None)
+    if callable(marker):
+        marker()
+
+
+def _request_cancel(context: object | None) -> None:
+    event = getattr(context, "cancel_event", None)
+    setter = getattr(event, "set", None)
+    if callable(setter):
+        setter()
+
+
+def _is_cancelled(context: object | None) -> bool:
+    return bool(getattr(context, "cancelled", False))
+
+
+def _cancelled_report(
+    report: CollectionReport, *, stage: str, operation: str
+) -> CollectionReport:
+    _request_cancelled = any(attempt.outcome == "CANCELLED" for attempt in report.attempts)
+    attempts = report.attempts
+    if not report.cancelled and not _request_cancelled:
+        attempts += (
+            CollectionAttempt(
+                stage=stage,
+                operation=operation,
+                outcome="CANCELLED",
+            ),
+        )
+    return replace(report, attempts=attempts, cancelled=True)
 
 
 def _call_with_context(method: object, target: CameraTarget, context: object | None) -> object:
@@ -249,7 +380,7 @@ def _authentication_blocked(context: object | None) -> bool:
     return context.auth.state in {
         context.auth.AUTH_REJECTED_FINAL,
         context.auth.AUTHORIZATION_DENIED,
-    }
+    } or context.auth.soap_access_blocked
 
 
 def _vendor_auth_family(manufacturer: str | None) -> str | None:
@@ -270,6 +401,62 @@ def _vendor_auth_family(manufacturer: str | None) -> str | None:
     return None
 
 
+def _hint_adapter_covers_identity(manufacturer: str, adapter: object) -> bool:
+    """Only the shipped, documented parsers can bypass anonymous discovery."""
+    supported_types: dict[str, type] = {}
+    if manufacturer == "Axis":
+        from cam_scanner.cameras.manufacturers.axis import AxisAdapter
+
+        supported_types[manufacturer] = AxisAdapter
+    elif manufacturer == "Hikvision":
+        from cam_scanner.cameras.manufacturers.hikvision import HikvisionAdapter
+
+        supported_types[manufacturer] = HikvisionAdapter
+    elif manufacturer == "Dahua":
+        from cam_scanner.cameras.manufacturers.dahua import DahuaAdapter
+
+        supported_types[manufacturer] = DahuaAdapter
+    elif manufacturer == "Samsung/Hanwha":
+        from cam_scanner.cameras.manufacturers.samsung_hanwha import SamsungHanwhaAdapter
+
+        supported_types[manufacturer] = SamsungHanwhaAdapter
+    supported_type = supported_types.get(manufacturer)
+    return supported_type is not None and type(adapter) is supported_type
+
+
+def _attach_resolution(
+    report: CollectionReport,
+    declared_hint: str | None,
+    resolver: ManufacturerResolver,
+    target: CameraTarget,
+) -> CollectionReport:
+    strong = tuple(
+        dict.fromkeys(
+            item.value
+            for item in report.evidence
+            if item.field == "manufacturer" and item.confidence == "STRONG"
+        )
+    )
+    weak = tuple(
+        dict.fromkeys(
+            item.value for item in report.evidence if item.field == "manufacturer_signal"
+        )
+    )
+    evidence = PreAuthEvidence(
+        capabilities={"Manufacturer": strong, "Server": weak}
+    )
+    resolution = resolver.resolve_with_evidence(
+        declared_hint,
+        evidence,
+        sensitive_values=(target.username, target.password),
+    )
+    # Reconcile after every merge: authenticated ONVIF may add identity evidence
+    # after the initial preauth resolution was attached.
+    if report.manufacturer_resolution != resolution:
+        report = replace(report, manufacturer_resolution=resolution)
+    return report
+
+
 def _missing_identity_fields(report: CollectionReport, ip: str) -> tuple[str, ...]:
     result = report.to_camera_result(ip)
     return tuple(
@@ -279,36 +466,10 @@ def _missing_identity_fields(report: CollectionReport, ip: str) -> tuple[str, ..
     )
 
 
-def _failure_category(exception: Exception) -> str:
-    chain: list[BaseException] = []
-    current: BaseException | None = exception
-    seen: set[int] = set()
-    while current is not None and id(current) not in seen:
-        seen.add(id(current))
-        chain.append(current)
-        original = getattr(current, "original_exception", None)
-        current = original if isinstance(original, BaseException) else current.__cause__ or current.__context__
-    if any(getattr(getattr(item, "response", None), "status_code", None) == 403 for item in chain):
-        return "AUTHORIZATION_DENIED"
-    if any(
-        getattr(getattr(item, "response", None), "status_code", None) == 401
-        or any(
-            marker in str(item).casefold().replace("_", "")
-            for marker in ("notauthorized", "unauthorized", "authentication failed", "invalid credentials")
-        )
-        for item in chain
-    ):
-        return "AUTH_REJECTED"
-    if any(isinstance(item, TimeoutError) or type(item).__name__ in {"ConnectTimeout", "ReadTimeout", "Timeout"} for item in chain):
-        return "READ_TIMEOUT"
-    if any(
-        type(item).__name__ in {"ConnectionError", "ConnectError"} or isinstance(item, OSError)
-        for item in chain
-    ):
-        return "CONNECTION_REFUSED"
-    if any(type(item).__module__.startswith(("zeep", "onvif")) for item in chain):
-        return "SOAP_FAULT"
-    return "UNEXPECTED"
+def _is_not_authorized(protocol_code: str | None) -> bool:
+    return isinstance(protocol_code, str) and "notauthorized" in protocol_code.replace(
+        "_", ""
+    ).casefold()
 
 
 

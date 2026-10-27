@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from math import isfinite
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
 from cam_scanner.domain.models import CameraTarget, CollectionReport
 
@@ -25,6 +25,10 @@ class CollectionCancelled(RuntimeError):
     """Raised at a cooperative checkpoint after cancellation was requested."""
 
 
+class CollectionTLSFailure(RuntimeError):
+    """Raised after certificate validation fails to prevent every network fallback."""
+
+
 class CollectionDeadlineExceeded(TimeoutError):
     """Raised when a camera or source budget has no time left for another I/O."""
 
@@ -40,6 +44,7 @@ class AuthenticationLedger:
 
     _IDENTITY_FIELDS = frozenset({"manufacturer", "model", "serial"})
     _ONVIF_FAMILIES = frozenset({"ONVIF", "GENERIC_ONVIF", "ONVIF_PREAUTH"})
+    _PRIMARY_REASONS = frozenset({"initial", "primary"})
 
     def __init__(self) -> None:
         self._state = self.AUTH_SCOPE_UNKNOWN
@@ -48,7 +53,8 @@ class AuthenticationLedger:
         self._families_started: set[str] = set()
         self._accepted_families: set[str] = set()
         self._physical_exchanges = 0
-        self._soap_auth_retry_blocked = False
+        self._soap_diagnostic_auth_blocked = False
+        self._soap_access_blocked = False
         self._lock = threading.RLock()
 
     @property
@@ -66,6 +72,12 @@ class AuthenticationLedger:
         with self._lock:
             return self._physical_exchanges
 
+    @property
+    def soap_access_blocked(self) -> bool:
+        """Whether an authenticated SOAP fault conservatively stopped this scope."""
+        with self._lock:
+            return self._soap_access_blocked
+
     def begin(
         self,
         family: str,
@@ -79,7 +91,16 @@ class AuthenticationLedger:
         with self._lock:
             if self._state in {self.AUTH_REJECTED_FINAL, self.AUTHORIZATION_DENIED}:
                 return False
-            if self._soap_auth_retry_blocked:
+            if self._soap_access_blocked:
+                return False
+            # An anonymous SOAP fault is not evidence that the supplied
+            # credentials are invalid. Permit the planned first collection
+            # login, but do not use the fault to justify a later diagnostic
+            # or identity-driven authentication attempt.
+            if self._soap_diagnostic_auth_blocked and (
+                self._logical_attempts > 0
+                or reason.casefold() not in self._PRIMARY_REASONS
+            ):
                 return False
             if normalized_family not in self._ONVIF_FAMILIES:
                 if self._vendor_family not in {None, normalized_family}:
@@ -124,15 +145,15 @@ class AuthenticationLedger:
                 self._state = self.AUTHORIZATION_DENIED
 
     def observe_soap(self, code: str | None, *, authenticated: bool = False) -> None:
-        """A SOAP NotAuthorized fault never authorizes a diagnostic login retry."""
+        """Keep SOAP authorization ambiguous while conservatively stopping access."""
         if not isinstance(code, str) or "notauthorized" not in code.replace("_", "").casefold():
             return
         with self._lock:
             if self._state in {self.AUTH_REJECTED_FINAL, self.AUTHORIZATION_DENIED}:
                 return
-            self._soap_auth_retry_blocked = True
+            self._soap_diagnostic_auth_blocked = True
             if authenticated:
-                self._state = self.AUTHORIZATION_DENIED
+                self._soap_access_blocked = True
 
     def record_physical_exchange(self, count: int = 1) -> None:
         if type(count) is not int or count < 0:
@@ -146,6 +167,17 @@ class AuthenticationLedger:
             return (
                 self._state == self.AUTH_ACCEPTED
                 and normalized_family in self._accepted_families
+                and not self._soap_access_blocked
+            )
+
+    def allows_authenticated_attempt(self, family: str) -> bool:
+        """Allow only a family whose logical attempt was explicitly started."""
+        normalized_family = self._normalize_family(family)
+        with self._lock:
+            return (
+                self._state in {self.AUTH_NEGOTIATION, self.AUTH_ACCEPTED}
+                and normalized_family in self._families_started
+                and not self._soap_access_blocked
             )
 
     @staticmethod
@@ -158,7 +190,7 @@ class AuthenticationLedger:
 class CollectionBudget:
     """Monotonic per-camera deadline plus cumulative per-source time budgets."""
 
-    _SOURCE_CONFIG = {
+    _SOURCE_CONFIG: ClassVar[dict[str, tuple[str, float]]] = {
         "ONVIF": ("onvif_budget_seconds", 15.0),
         "NATIVE": ("manufacturer_budget_seconds", 10.0),
         "SNAPSHOT_HTTP": ("snapshot_http_timeout_seconds", 10.0),
@@ -182,7 +214,7 @@ class CollectionBudget:
             for name, (attribute, default) in self._SOURCE_CONFIG.items()
         }
         self._source_spent = dict.fromkeys(self._source_limits, 0.0)
-        self._retry_counts = dict.fromkeys(self._source_limits, 0)
+        self._retry_counts: dict[object, int] = dict.fromkeys(self._source_limits, 0)
         self._lock = threading.RLock()
 
     @property
@@ -226,24 +258,28 @@ class CollectionBudget:
         finally:
             self.charge(source, max(0.0, self._clock() - started))
 
-    def retry_allowed(self, source: str, *, eligible: bool) -> bool:
+    def retry_allowed(
+        self, source: str, *, eligible: bool, operation_id: object | None = None
+    ) -> bool:
         key = self._source(source)
+        retry_key: object = key if operation_id is None else (key, operation_id)
         max_retries = getattr(self._config, "max_retries", 0)
         if type(max_retries) is not int or max_retries < 0:
             return False
         with self._lock:
             return (
                 eligible
-                and self._retry_counts[key] < max_retries
+                and self._retry_counts.get(retry_key, 0) < max_retries
                 and self.remaining(key) > 0
             )
 
-    def record_retry(self, source: str) -> None:
+    def record_retry(self, source: str, *, operation_id: object | None = None) -> None:
         key = self._source(source)
+        retry_key: object = key if operation_id is None else (key, operation_id)
         with self._lock:
-            if self._retry_counts[key] >= getattr(self._config, "max_retries", 0):
+            if self._retry_counts.get(retry_key, 0) >= getattr(self._config, "max_retries", 0):
                 raise ValueError("retry limit exceeded")
-            self._retry_counts[key] += 1
+            self._retry_counts[retry_key] = self._retry_counts.get(retry_key, 0) + 1
 
     def _positive_config(self, attribute: str, default: float) -> float:
         return self._positive_number(getattr(self._config, attribute, default), attribute)
@@ -273,10 +309,13 @@ class CollectionContext:
         transport_factory: Callable[[CollectionContext], TransportPolicy] | None = None,
         cancel_event: threading.Event | None = None,
         clock: Callable[[], float] = time.monotonic,
+        manufacturer_hint: str | None = None,
     ) -> None:
         self.target = target
         self.config = config
+        self.manufacturer_hint = manufacturer_hint
         self.cancel_event = cancel_event or threading.Event()
+        self._tls_failed = False
         self.started_monotonic = clock()
         self.budget = CollectionBudget(config, started_at=self.started_monotonic, clock=clock)
         self.auth = AuthenticationLedger()
@@ -300,7 +339,21 @@ class CollectionContext:
     def cancelled(self) -> bool:
         return self.cancel_event.is_set()
 
+    @property
+    def tls_failed(self) -> bool:
+        return self._tls_failed
+
+    def mark_tls_failure(self) -> None:
+        """Close this target's network path after any certificate validation failure."""
+        self._tls_failed = True
+
+    def monotonic(self) -> float:
+        """Return the clock used by this collection's budget and timing."""
+        return self._clock()
+
     def check(self, source: str) -> float:
+        if self._tls_failed:
+            raise CollectionTLSFailure("TLS validation failed; network fallback is closed")
         if self.cancel_event.is_set():
             raise CollectionCancelled("coleta cancelada")
         remaining = self.budget.remaining(source)
@@ -318,6 +371,28 @@ class CollectionContext:
 
     def charge_operation(self, source: str, elapsed: float) -> None:
         self.budget.charge(source, elapsed)
+
+    def wait_for_retry(self, source: str, seconds: float) -> bool:
+        """Wait cooperatively within both source and camera budgets."""
+        if (type(seconds) not in {int, float} or not isfinite(float(seconds))
+                or seconds <= 0):
+            return False
+        try:
+            self.check(source)
+        except (CollectionCancelled, CollectionDeadlineExceeded):
+            return False
+        if seconds >= self.budget.remaining(source):
+            return False
+        started = self._clock()
+        cancelled = self.cancel_event.wait(seconds)
+        self.charge_operation(source, max(0.0, self._clock() - started))
+        if cancelled:
+            return False
+        try:
+            self.check(source)
+        except (CollectionCancelled, CollectionDeadlineExceeded):
+            return False
+        return True
 
     def merge(self, report: CollectionReport) -> CollectionReport:
         if not isinstance(report, CollectionReport):
@@ -341,6 +416,8 @@ class CollectionContext:
 
     def snapshot_eligible(self, family: str) -> bool:
         """Eligibility is explicit and never inferred from CameraResult status."""
+        if self._tls_failed:
+            return False
         if self.cancel_event.is_set() or not self.auth.allows_authenticated_request(family):
             return False
         return self.budget.remaining("SNAPSHOT_HTTP") > 0 or self.budget.remaining("RTSP_OPEN") > 0

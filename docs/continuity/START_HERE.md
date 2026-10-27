@@ -28,3 +28,6 @@ P0-A04 permanece como revisão concluída com `PASS_WITH_ACCEPTED_FINDINGS`; evi
 ## Estado histórico após P1-A03 (superado pelo checkpoint P1-CHECKPOINT-01)
 
 P1-A01 implementou e integrou a slice SINGLE sob a estratégia ONVIF-first anterior. P1-A02 e P1-A03 são registros históricos; o estado atual está em `PROJECT_STATE.md` e no handoff mais recente.
+## Checkpoint vigente — 2026-10-27
+
+Consulte [`checkpoints/CAM_SCANNER_PRE_IMPLEMENTATION_CHECKPOINT_2026_10_27.md`](checkpoints/CAM_SCANNER_PRE_IMPLEMENTATION_CHECKPOINT_2026_10_27.md). A baseline confirmada é a branch `feature/pre-p12-unified-remediation` no HEAD `37bc8c4`; a implementação P0/P1/TRANSPORT ainda não começou.
