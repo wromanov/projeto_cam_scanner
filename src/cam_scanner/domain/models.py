@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -67,6 +68,8 @@ _VALID_OPERATIONS = {
     "GetDeviceInformation",
     "create_onvif_client",
     "validate_target",
+    "validate_model_hint",
+    "compare_model_hint",
     "collect_one",
     "collect",
     "collect_result",
@@ -84,6 +87,9 @@ _VALID_OPERATIONS = {
     "GET /cgi-bin/magicBox.cgi getSystemInfo",
     "GET /cgi-bin/magicBox.cgi getVendor",
     "GET /cgi-bin/getinfo",
+    "POST /axis-cgi/basicdeviceinfo.cgi getSupportedVersions",
+    "POST /axis-cgi/basicdeviceinfo.cgi getAllUnrestrictedProperties",
+    "select_transport_policy",
 }
 _VALID_PROTOCOLS = {"ONVIF", "HTTP", "HTTPS", "RTSP"}
 _VALID_EVIDENCE_SOURCES = {
@@ -103,6 +109,10 @@ _SAFE_METADATA_KEYS = {
     "vendor_family",
     "soap_code",
     "retry_policy",
+    "policy_id",
+    "authorization_ref",
+    "auth_mode",
+    "model_hint_match",
 }
 _SAFE_CODE = re.compile(
     r"^(?:[A-Za-z][A-Za-z0-9]{0,7}:)?(?:Sender|Receiver|MustUnderstand|VersionMismatch|"
@@ -193,6 +203,65 @@ class CameraTarget:
     ip: str
     username: str
     password: str = field(repr=False)
+
+
+def parse_model_hint(value: object, *, sensitive_values: tuple[str, ...] = ()) -> ModelHint | None:
+    """Return a safe optional hint; invalid values are discarded without being retained."""
+    return ModelHint.parse(value, sensitive_values=sensitive_values)
+
+
+@dataclass(frozen=True, slots=True)
+class ModelHint:
+    """Safe, immutable declaration of a camera model supplied by the user."""
+
+    declared: str = field(repr=False)
+    normalized: str = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        normalized = self._normalize(self.declared)
+        if normalized is None:
+            raise ValueError("model hint is empty or invalid")
+        object.__setattr__(self, "normalized", normalized)
+
+    @classmethod
+    def parse(
+        cls, value: object, *, sensitive_values: tuple[str, ...] = ()
+    ) -> ModelHint | None:
+        """Return a validated hint, or ``None`` for an optional invalid value."""
+        if not isinstance(value, str):
+            return None
+        if any(
+            isinstance(secret, str)
+            and secret
+            and secret.casefold() in value.casefold()
+            for secret in sensitive_values
+        ):
+            return None
+        try:
+            return cls(value)
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def match_key(self) -> str:
+        return self.normalized.casefold()
+
+    @staticmethod
+    def _normalize(value: object) -> str | None:
+        if not isinstance(value, str) or len(value) > 256:
+            return None
+        if not is_safe_xml_text(value) or any(ord(char) < 0x20 for char in value):
+            return None
+        if value.lstrip().startswith(("=", "+", "-", "@")):
+            return None
+        normalized = unicodedata.normalize("NFC", value)
+        normalized = normalized.strip(" ")
+        normalized = re.sub(r" +", " ", normalized)
+        if not normalized or len(normalized) > 256:
+            return None
+        if _URL_IN_EVIDENCE.search(normalized) or _EXPLICIT_SECRET.search(normalized):
+            return None
+        return normalized
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,6 +420,19 @@ class CollectionAttempt:
                     safe[normalized_key] = value
         return MappingProxyType(safe)
 
+    def validated_for_target(self, sensitive_values: tuple[str, ...]) -> CollectionAttempt:
+        """Remove target credentials from otherwise safe diagnostic identifiers."""
+        safe = {
+            key: value
+            for key, value in self.metadata.items()
+            if not isinstance(value, str)
+            or not any(
+                secret and secret.casefold() in value.casefold()
+                for secret in sensitive_values
+            )
+        }
+        return self if len(safe) == len(self.metadata) else replace(self, metadata=safe)
+
 
 @dataclass(frozen=True, slots=True)
 class CollectionReport:
@@ -361,6 +443,7 @@ class CollectionReport:
     required_fields: tuple[str, ...] = _IDENTITY_FIELDS
     cancelled: bool = False
     manufacturer_resolution: ManufacturerResolution | None = field(default=None, repr=False)
+    model_hint: ModelHint | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "evidence", tuple(self.evidence))
@@ -374,6 +457,8 @@ class CollectionReport:
             self.manufacturer_resolution, ManufacturerResolution
         ):
             raise TypeError("manufacturer resolution must use ManufacturerResolution")
+        if self.model_hint is not None and not isinstance(self.model_hint, ModelHint):
+            raise TypeError("model hint must use ModelHint")
         if self.required_fields != _IDENTITY_FIELDS:
             raise ValueError("CollectionReport currently implements only IDENTITY_V1")
         if type(self.cancelled) is not bool:
@@ -383,7 +468,21 @@ class CollectionReport:
     def provenance(self) -> tuple[tuple[str, tuple[EvidenceRecord, ...]], ...]:
         fields = sorted({item.field for item in self.evidence})
         return tuple(
-            (name, tuple(item for item in self.evidence if item.field == name)) for name in fields
+            (
+                name,
+                tuple(
+                    sorted(
+                        (item for item in self.evidence if item.field == name),
+                        key=lambda item: (
+                            self._record_rank(item),
+                            (item.protocol or "").casefold(),
+                            item.protocol or "",
+                            item.observed_at.isoformat(),
+                        ),
+                    )
+                ),
+            )
+            for name in fields
         )
 
     @property
@@ -392,6 +491,18 @@ class CollectionReport:
             name
             for name, records in self.provenance
             if len({self._comparison_value(name, item.value) for item in records}) > 1
+        )
+
+    @property
+    def model_mismatch(self) -> bool:
+        observed = self.value_for("model")
+        if not isinstance(observed, str) or not is_safe_xml_text(observed):
+            return False
+        observed_key = re.sub(r" +", " ", unicodedata.normalize("NFC", observed).strip(" ")).casefold()
+        return bool(
+            self.model_hint is not None
+            and observed_key
+            and self.model_hint.match_key != observed_key
         )
 
     @property
@@ -464,10 +575,18 @@ class CollectionReport:
             required_fields=required,
             cancelled=self.cancelled or other.cancelled,
             manufacturer_resolution=resolution,
+            model_hint=self.model_hint or other.model_hint,
         )
 
     def with_attempt(self, attempt: CollectionAttempt) -> CollectionReport:
         return replace(self, attempts=self.attempts + (attempt,))
+
+    def with_model_hint(self, hint: ModelHint | None) -> CollectionReport:
+        if hint is not None and not isinstance(hint, ModelHint):
+            raise TypeError("model hint must use ModelHint")
+        if self.model_hint is not None and hint is not None and self.model_hint != hint:
+            raise ValueError("cannot replace a different model hint")
+        return self if self.model_hint is hint else replace(self, model_hint=hint)
 
     def with_evidence(self, *records: EvidenceRecord) -> CollectionReport:
         return replace(self, evidence=self.evidence + tuple(records))
@@ -498,9 +617,19 @@ class CollectionReport:
             resolution, sensitive_values
         ):
             resolution = None
-        if len(safe_evidence) == len(self.evidence) and resolution is self.manufacturer_resolution:
+        hint = self.model_hint
+        if hint is not None and any(
+            secret and secret.casefold() in hint.declared.casefold() for secret in sensitive_values
+        ):
+            hint = None
+        safe_attempts = tuple(
+            item.validated_for_target(sensitive_values) for item in self.attempts
+        )
+        if (len(safe_evidence) == len(self.evidence)
+                and resolution is self.manufacturer_resolution and hint is self.model_hint
+                and safe_attempts == self.attempts):
             return self
-        attempts = self.attempts
+        attempts = safe_attempts
         if len(safe_evidence) != len(self.evidence):
             attempts += (
                 CollectionAttempt(
@@ -514,6 +643,7 @@ class CollectionReport:
             self,
             evidence=safe_evidence,
             manufacturer_resolution=resolution,
+            model_hint=hint,
             attempts=attempts,
         )
 

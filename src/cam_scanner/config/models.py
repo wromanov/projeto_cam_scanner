@@ -21,6 +21,10 @@ _TRANSPORT_COMPONENTS = frozenset(
     }
 )
 _TRANSPORT_PROTOCOLS = frozenset({"https", "http", "rtsp", "rtsps"})
+_PROFILE_COMPONENTS = frozenset({
+    "vendor_axis", "vendor_hikvision", "vendor_dahua", "vendor_hanwha",
+    "vendor_panasonic",
+})
 @dataclass(frozen=True, slots=True)
 class TransportRule:
     """One exact destination authorization; wildcards and networks are invalid."""
@@ -65,6 +69,136 @@ class TransportRule:
 
 
 @dataclass(frozen=True, slots=True)
+class TransportProfile:
+    """Closed, offline declaration for one exact-target HTTP exception."""
+
+    id: str
+    targets: tuple[str, ...]
+    component: str
+    protocol: str
+    port: int
+    auth_mode: str
+    authorization_ref: str
+    http_risk_accepted: bool
+
+    def __post_init__(self) -> None:
+        if not _valid_transport_id(self.id) or not _valid_transport_id(self.authorization_ref):
+            raise ValueError("Identificador de perfil inválido.")
+        if self.id in {"HTTPS_DEFAULT", "LEGACY_EXACT"}:
+            raise ValueError("ID de perfil reservado.")
+        if (not isinstance(self.targets, tuple) or not self.targets
+                or any(type(target) is not str for target in self.targets)):
+            raise ValueError("Targets do perfil inválidos.")
+        parsed_targets: list[str] = []
+        for target in self.targets:
+            try:
+                address = ipaddress.ip_address(target)
+            except ValueError:
+                raise ValueError("Target de perfil deve ser um IP exato.") from None
+            if address.compressed != target:
+                raise ValueError("Target de perfil deve ser canônico.")
+            parsed_targets.append(target)
+        if len(set(parsed_targets)) != len(parsed_targets):
+            raise ValueError("Targets de perfil duplicados.")
+        if self.component not in _PROFILE_COMPONENTS or self.protocol != "http":
+            raise ValueError("Componente ou protocolo de perfil inválido.")
+        if type(self.port) is not int or not 1 <= self.port <= 65535:
+            raise ValueError("Porta de perfil inválida.")
+        expected_auth = (
+            "PUBLIC_NONE" if self.component == "vendor_axis"
+            else "NATIVE_DIGEST_EXISTING"
+        )
+        if self.auth_mode != expected_auth:
+            raise ValueError("Modo de autenticação incompatível com o componente.")
+        if self.http_risk_accepted is not True:
+            raise ValueError("Perfil HTTP exige aceite explícito de risco.")
+
+
+@dataclass(frozen=True, slots=True)
+class TransportPolicyMetadata:
+    """Sanitized, closed provenance attached to a compiled transport choice."""
+
+    policy_id: str
+    authorization_ref: str | None
+    auth_mode: str
+    scheme: str
+
+    def __post_init__(self) -> None:
+        if (not _valid_transport_id(self.policy_id)
+                or (self.authorization_ref is not None
+                    and not _valid_transport_id(self.authorization_ref))
+                or self.auth_mode not in {
+                    "NONE", "EXISTING", "PUBLIC_NONE", "NATIVE_DIGEST_EXISTING",
+                }
+                or self.scheme not in {"http", "https"}):
+            raise ValueError("Metadados de transporte inválidos.")
+
+
+@dataclass(frozen=True, slots=True)
+class PlannedTransport:
+    target: str
+    component: str
+    rule: TransportRule | None
+    metadata: TransportPolicyMetadata
+
+    def __post_init__(self) -> None:
+        if (type(self.target) is not str or not _valid_ip(self.target)
+                or self.component not in _TRANSPORT_COMPONENTS
+                or (self.rule is not None and (
+                    self.rule.target != self.target or self.rule.component != self.component
+                    or self.rule.protocol != self.metadata.scheme
+                ))):
+            raise ValueError("Entrada de plano de transporte inválida.")
+
+
+@dataclass(frozen=True, slots=True)
+class TransportExecutionPlan:
+    """Immutable per-run plan compiled before any network-capable object exists."""
+
+    selection_id: str
+    entries: tuple[PlannedTransport, ...]
+    rules: tuple[TransportRule, ...]
+
+    def __post_init__(self) -> None:
+        if (not _valid_transport_id(self.selection_id)
+                or not isinstance(self.entries, tuple)
+                or any(not isinstance(entry, PlannedTransport) for entry in self.entries)
+                or not isinstance(self.rules, tuple)
+                or any(not isinstance(rule, TransportRule) for rule in self.rules)):
+            raise ValueError("Plano de transporte inválido.")
+        if len({(entry.target, entry.component) for entry in self.entries}) != len(self.entries):
+            raise ValueError("Plano de transporte duplicado.")
+        entries = {(entry.target, entry.component): entry for entry in self.entries}
+        if any(entries.get((rule.target, rule.component)) is None
+               or entries[(rule.target, rule.component)].rule != rule
+               for rule in self.rules):
+            raise ValueError("Regras fora do plano de transporte.")
+
+    def for_target(self, target: str, component: str) -> PlannedTransport | None:
+        return next((entry for entry in self.entries
+                     if entry.target == target and entry.component == component), None)
+
+
+def _valid_transport_id(value: object) -> bool:
+    if (type(value) is not str or not 1 <= len(value) <= 64
+            or not all(char.isascii() and (char.isalnum() or char in "_-")
+                       for char in value)):
+        return False
+    lowered = value.casefold()
+    return not any(marker in lowered for marker in (
+        "password", "passwd", "secret", "token", "credential", "username",
+    ))
+
+
+def _valid_ip(value: str) -> bool:
+    try:
+        parsed = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return parsed.compressed == value
+
+
+@dataclass(frozen=True, slots=True)
 class EffectiveConfig:
     """Validated values delivered to runtime consumers."""
 
@@ -89,6 +223,8 @@ class EffectiveConfig:
     log_retention_days: int = 30
     log_max_file_size_mb: int = 10
     transport_rules: tuple[TransportRule, ...] = ()
+    transport_profiles: tuple[TransportProfile, ...] = ()
+    transport_plan: TransportExecutionPlan | None = None
 
     def __post_init__(self) -> None:
         ranges = {
@@ -122,3 +258,27 @@ class EffectiveConfig:
             raise ValueError("transport_rules deve ser uma tupla imutável de regras.")
         if len(set(self.transport_rules)) != len(self.transport_rules):
             raise ValueError("Regras de transporte duplicadas.")
+        rule_by_scope: dict[tuple[str, str], TransportRule] = {}
+        for rule in self.transport_rules:
+            scope = (rule.target, rule.component)
+            previous = rule_by_scope.setdefault(scope, rule)
+            if previous != rule:
+                raise ValueError("Regras de transporte conflitantes.")
+        if (not isinstance(self.transport_profiles, tuple)
+                or any(not isinstance(profile, TransportProfile)
+                       for profile in self.transport_profiles)):
+            raise ValueError("transport_profiles deve ser uma tupla imutável.")
+        if len({profile.id for profile in self.transport_profiles}) != len(self.transport_profiles):
+            raise ValueError("IDs de perfil de transporte duplicados.")
+        for left_index, left in enumerate(self.transport_profiles):
+            for right in self.transport_profiles[left_index + 1:]:
+                if (left.component == right.component
+                        and set(left.targets).intersection(right.targets)):
+                    raise ValueError("Perfis de transporte conflitantes.")
+            if any(rule.target in left.targets and rule.component == left.component
+                   for rule in self.transport_rules):
+                raise ValueError("Perfil conflita com regra de transporte.")
+        if self.transport_plan is not None and not isinstance(
+            self.transport_plan, TransportExecutionPlan
+        ):
+            raise ValueError("transport_plan inválido.")

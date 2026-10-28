@@ -138,8 +138,16 @@ def test_final_digest_rejection_is_one_logical_attempt_and_does_not_store_challe
     assert _DIGEST_CHALLENGE not in repr(report)
 
 
-def test_unsupported_digest_challenge_is_distinct_from_credential_rejection() -> None:
-    unsupported = 'Digest realm="camera", nonce="abc123", qop="auth-int", algorithm=MD5'
+@pytest.mark.parametrize(
+    "unsupported",
+    [
+        'Digest realm="camera", nonce="abc123", qop="auth-int", algorithm=MD5',
+        'Digest realm="camera", nonce="abc123", qop="auth", algorithm=SHA-256',
+    ],
+)
+def test_unsupported_digest_challenge_is_distinct_from_credential_rejection(
+    unsupported: str,
+) -> None:
     adapter, sent = _adapter(
         lambda request: _response(
             request,

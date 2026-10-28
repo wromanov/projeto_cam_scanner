@@ -20,9 +20,15 @@ from requests.exceptions import (
 )
 from requests.utils import parse_dict_header
 
+from cam_scanner.application.collection_context import (
+    CollectionCancelled,
+    CollectionDeadlineExceeded,
+)
 from cam_scanner.cameras.manufacturers._http_utils import (
+    DeadlineExceeded,
     managed_vendor_session,
     read_limited_until,
+    transport_provenance,
 )
 from cam_scanner.domain.models import (
     CameraResult,
@@ -53,6 +59,9 @@ class HikvisionAdapter:
         report = CollectionReport()
         started = time.monotonic()
         auth = _BoundedDigestAuth(target.username, target.password)
+        url: str | None = None
+        protocol: str | None = None
+        metadata: dict[str, str] = {}
         try:
             if context is not None:
                 context.check("NATIVE")
@@ -65,6 +74,10 @@ class HikvisionAdapter:
                     if context is not None
                     else f"https://{host}/ISAPI/System/deviceInfo"
                 )
+                protocol, metadata = transport_provenance(
+                    context, "vendor_hikvision", url,
+                    auth_mode="NATIVE_DIGEST_EXISTING",
+                )
                 response = session.get(
                     url,
                     auth=auth,
@@ -76,44 +89,48 @@ class HikvisionAdapter:
                 try:
                     status = response.status_code
                     if 300 <= status < 400:
-                        return self._failure(report, started, "INVALID_RESPONSE", "HTTP", status)
+                        return self._failure(report, started, "INVALID_RESPONSE", "HTTP", status, protocol=protocol, metadata=metadata)
                     if status == 401:
                         category = "AUTH_MECHANISM_UNSUPPORTED" if auth.mechanism_unsupported else "AUTH_REJECTED"
-                        return self._failure(report, started, category, "AUTH", status)
+                        return self._failure(report, started, category, "AUTH", status, protocol=protocol, metadata=metadata)
                     if status == 403:
-                        return self._failure(report, started, "AUTHORIZATION_DENIED", "AUTH", status)
+                        return self._failure(report, started, "AUTHORIZATION_DENIED", "AUTH", status, protocol=protocol, metadata=metadata)
                     if status in {404, 405}:
-                        return self._failure(report, started, "ENDPOINT_UNSUPPORTED", "HTTP", status, "SKIPPED")
+                        return self._failure(report, started, "ENDPOINT_UNSUPPORTED", "HTTP", status, "SKIPPED", protocol, metadata)
                     if status != 200:
-                        return self._failure(report, started, "HTTP_ERROR", "HTTP", status)
+                        return self._failure(report, started, "HTTP_ERROR", "HTTP", status, protocol=protocol, metadata=metadata)
                     declared = response.headers.get("content-length")
                     if declared and int(declared) > _MAX_XML_BYTES:
-                        return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
+                        return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status, protocol=protocol, metadata=metadata)
                     body = read_limited_until(
                         response.iter_content(chunk_size=8192), _MAX_XML_BYTES,
                         started, _NATIVE_BUDGET, context=context,
                     )
                 finally:
                     response.close()
+        except (DeadlineExceeded, CollectionDeadlineExceeded):
+            return self._failure(report, started, "DEADLINE_EXCEEDED", "HTTP", protocol=protocol, metadata=metadata)
+        except CollectionCancelled:
+            return self._cancelled(report, started, protocol, metadata)
         except ConnectTimeout:
-            return self._failure(report, started, "CONNECT_TIMEOUT", "CONNECT")
+            return self._failure(report, started, "CONNECT_TIMEOUT", "CONNECT", protocol=protocol, metadata=metadata)
         except (ReadTimeout, Timeout):
-            return self._failure(report, started, "READ_TIMEOUT", "HTTP")
+            return self._failure(report, started, "READ_TIMEOUT", "HTTP", protocol=protocol, metadata=metadata)
         except ValueError:
-            return self._failure(report, started, "INVALID_RESPONSE", "PARSE")
+            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", protocol=protocol, metadata=metadata)
         except requests.exceptions.InvalidURL:
-            return self._failure(report, started, "INVALID_RESPONSE", "CONNECT")
+            return self._failure(report, started, "INVALID_RESPONSE", "CONNECT", protocol=protocol, metadata=metadata)
         except SSLError:
-            return self._failure(report, started, "TLS_ERROR", "CONNECT")
+            return self._failure(report, started, "TLS_ERROR", "CONNECT", protocol=protocol, metadata=metadata)
         except (ConnectionError, RequestException, OSError):
-            return self._failure(report, started, "CONNECTION_REFUSED", "CONNECT")
+            return self._failure(report, started, "CONNECTION_REFUSED", "CONNECT", protocol=protocol, metadata=metadata)
         except Exception:  # noqa: BLE001 - raw transport and parser data is never retained.
-            return self._failure(report, started, "UNEXPECTED", "HTTP")
+            return self._failure(report, started, "UNEXPECTED", "HTTP", protocol=protocol, metadata=metadata)
 
         try:
             parsed = _parse_device_info(body)
         except (ET.ParseError, ValueError):
-            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
+            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status, protocol=protocol, metadata=metadata)
         sensitive = (target.username, target.password)
         evidence = tuple(
             EvidenceRecord(
@@ -121,23 +138,24 @@ class HikvisionAdapter:
                 value=value,
                 source="VENDOR",
                 confidence="STRONG",
-                protocol="HTTPS",
+                protocol=protocol,
                 operation=_OPERATION,
             )
             for field_name, value in parsed.items()
         )
         report = report.with_evidence(*evidence).validated_for_target(sensitive)
         if not any(record.field == "manufacturer" for record in report.evidence):
-            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
+            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status, protocol=protocol, metadata=metadata)
         report = report.with_attempt(
             CollectionAttempt(
                 stage="PARSE",
                 operation=_OPERATION,
-                protocol="HTTPS",
+                protocol=protocol,
                 outcome="SUCCESS",
                 duration=max(0.0, time.monotonic() - started),
                 http_status=status,
                 authentication_mechanism="HTTP_DIGEST",
+                metadata=metadata,
             )
         )
         return report
@@ -150,19 +168,31 @@ class HikvisionAdapter:
         stage: str,
         status: int | None = None,
         outcome: str = "FAILED",
+        protocol: str | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> CollectionReport:
         return report.with_attempt(
             CollectionAttempt(
                 stage=stage,
                 operation=_OPERATION,
-                protocol="HTTPS",
+                protocol=protocol,
                 outcome=outcome,
                 duration=max(0.0, time.monotonic() - started),
                 http_status=status,
                 error_category=category,
                 authentication_mechanism="HTTP_DIGEST",
+                metadata=metadata or {},
             )
         )
+
+    @staticmethod
+    def _cancelled(report: CollectionReport, started: float, protocol: str | None,
+                   metadata: dict[str, str]) -> CollectionReport:
+        return report.with_attempt(CollectionAttempt(
+            stage="HTTP", operation=_OPERATION, protocol=protocol, outcome="CANCELLED",
+            duration=max(0.0, time.monotonic() - started),
+            authentication_mechanism="HTTP_DIGEST", metadata=metadata,
+        ))
 
 
 def _read_limited(chunks: Iterable[bytes], limit: int) -> bytes:

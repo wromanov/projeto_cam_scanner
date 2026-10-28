@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from contextlib import nullcontext
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
+
+_AUTH_MODES = frozenset({
+    "NONE", "EXISTING", "PUBLIC_NONE", "NATIVE_DIGEST_EXISTING",
+})
 
 
 class DeadlineExceeded(Exception):
@@ -64,3 +69,66 @@ def managed_vendor_session(context: Any, component: str, session_factory: Any) -
     if session_factory is requests.Session:
         raise ValueError("collection context required for network I/O")
     return session_factory()
+
+
+def transport_provenance(
+    context: Any, component: str, url: str, *, auth_mode: str
+) -> tuple[str | None, dict[str, str]]:
+    """Return the actual HTTP scheme and closed, sanitized policy metadata."""
+    try:
+        scheme = urlsplit(url).scheme.casefold()
+    except (TypeError, ValueError):
+        return None, {}
+    if scheme not in {"http", "https"}:
+        return None, {}
+
+    fallback_policy = "HTTPS_DEFAULT" if scheme == "https" else "LEGACY_EXACT"
+    fallback_auth = auth_mode if auth_mode in _AUTH_MODES else "EXISTING"
+    raw: object = None
+    transport = getattr(context, "transport", None) if context is not None else None
+    policy_method = getattr(transport, "policy_metadata", None)
+    if callable(policy_method):
+        try:
+            raw = policy_method(component, url)
+        except Exception:  # noqa: BLE001 - diagnostic provenance must remain non-fatal.
+            raw = None
+    source = raw if isinstance(raw, Mapping) else {}
+
+    policy_id = source.get("policy_id")
+    if not _safe_transport_id(policy_id):
+        policy_id = fallback_policy
+    selected_auth = source.get("auth_mode")
+    if type(selected_auth) is not str or selected_auth not in _AUTH_MODES:
+        selected_auth = fallback_auth
+    metadata = {
+        "policy_id": policy_id,
+        "auth_mode": selected_auth,
+        "scheme": scheme,
+    }
+    authorization_ref = source.get("authorization_ref")
+    if _safe_transport_id(authorization_ref):
+        metadata["authorization_ref"] = authorization_ref
+    target = getattr(context, "target", None) if context is not None else None
+    sensitive_values = tuple(
+        value for value in (
+            getattr(target, "username", None),
+            getattr(target, "password", None),
+        )
+        if isinstance(value, str) and value
+    )
+    for key, value in tuple(metadata.items()):
+        if isinstance(value, str) and any(
+            secret.casefold() in value.casefold() for secret in sensitive_values
+        ):
+            metadata.pop(key)
+    return scheme.upper(), metadata
+
+
+def _safe_transport_id(value: object) -> bool:
+    if (type(value) is not str or not 1 <= len(value) <= 64
+            or not all(char.isascii() and (char.isalnum() or char in "_-") for char in value)):
+        return False
+    lowered = value.casefold()
+    return not any(marker in lowered for marker in (
+        "password", "passwd", "secret", "token", "credential", "username",
+    ))

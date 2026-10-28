@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from cam_scanner.config.defaults import DEFAULT_SETTINGS
-from cam_scanner.config.models import EffectiveConfig, TransportRule
+from cam_scanner.config.models import EffectiveConfig, TransportProfile, TransportRule
 from cam_scanner.domain.errors import ConfigurationError
 
 _SECTION_KEYS = {name: frozenset(values) for name, values in {
@@ -26,9 +26,13 @@ _SECTION_KEYS = {name: frozenset(values) for name, values in {
         "thumbnail_width", "thumbnail_height", "jpeg_quality", "keep_temporary_files",
     },
     "logging": {"level", "retention_days", "max_file_size_mb"},
-    "transport": {"rules"},
+    "transport": {"rules", "profiles"},
 }.items()}
 _RULE_KEYS = frozenset({"target", "component", "protocol", "host", "port"})
+_PROFILE_KEYS = frozenset({
+    "id", "targets", "component", "protocol", "port", "auth_mode",
+    "authorization_ref", "http_risk_accepted",
+})
 _FIXED_SETTINGS = {
     ("collection", "retry_backoff_seconds"): 1,
     ("concurrency", "min_workers"): 1,
@@ -61,6 +65,11 @@ def load_settings(path: str | Path | None = None) -> EffectiveConfig:
         raise ConfigurationError("A estrutura da configuração é inválida.")
     merged = _merge_and_validate_schema(raw)
     rules = _load_transport_rules(merged["transport"]["rules"])
+    profiles = _load_transport_profiles(merged["transport"].get("profiles", ()))
+    for profile in profiles:
+        if any(rule.target in profile.targets and rule.component == profile.component
+               for rule in rules):
+            raise ConfigurationError("Perfil conflita com regra de transporte legada.")
     concurrency = merged["concurrency"]
     workers = concurrency["default_max_workers"]
     collection = merged["collection"]
@@ -83,6 +92,7 @@ def load_settings(path: str | Path | None = None) -> EffectiveConfig:
             log_retention_days=logging["retention_days"],
             log_max_file_size_mb=logging["max_file_size_mb"],
             transport_rules=rules,
+            transport_profiles=profiles,
         )
     except ValueError:
         raise ConfigurationError(
@@ -111,6 +121,9 @@ def _merge_and_validate_schema(raw: dict[str, Any]) -> dict[str, dict[str, Any]]
             elif key == "rules" and section == "transport":
                 if not isinstance(value, list):
                     raise ConfigurationError("transport.rules deve ser uma lista TOML.")
+            elif key == "profiles" and section == "transport":
+                if not isinstance(value, list):
+                    raise ConfigurationError("transport.profiles deve ser uma lista TOML.")
             elif key == "level":
                 if type(value) is not str or value not in {"INFO", "DEBUG"}:
                     raise ConfigurationError("logging.level deve ser INFO ou DEBUG.")
@@ -153,6 +166,42 @@ def _load_transport_rules(raw_rules: object) -> tuple[TransportRule, ...]:
     if len(set(rules)) != len(rules):
         raise ConfigurationError("Há regras de transporte duplicadas.")
     return tuple(rules)
+
+
+def _load_transport_profiles(raw_profiles: object) -> tuple[TransportProfile, ...]:
+    if not isinstance(raw_profiles, (list, tuple)):
+        raise ConfigurationError("transport.profiles deve ser uma lista.")
+    profiles: list[TransportProfile] = []
+    try:
+        for raw in raw_profiles:
+            if not isinstance(raw, Mapping) or set(raw) != _PROFILE_KEYS:
+                raise ValueError
+            if (type(raw["id"]) is not str or type(raw["component"]) is not str
+                    or type(raw["protocol"]) is not str
+                    or type(raw["auth_mode"]) is not str
+                    or type(raw["authorization_ref"]) is not str
+                    or type(raw["port"]) is not int
+                    or type(raw["http_risk_accepted"]) is not bool
+                    or not isinstance(raw["targets"], list)
+                    or any(type(target) is not str for target in raw["targets"])):
+                raise ValueError
+            profiles.append(TransportProfile(
+                id=raw["id"], targets=tuple(raw["targets"]),
+                component=raw["component"], protocol=raw["protocol"],
+                port=raw["port"], auth_mode=raw["auth_mode"],
+                authorization_ref=raw["authorization_ref"],
+                http_risk_accepted=raw["http_risk_accepted"],
+            ))
+    except (KeyError, TypeError, ValueError):
+        raise ConfigurationError("Um perfil de transporte é inválido.") from None
+    if len({profile.id for profile in profiles}) != len(profiles):
+        raise ConfigurationError("Há IDs de perfil de transporte duplicados.")
+    for index, left in enumerate(profiles):
+        if any(left.component == right.component
+               and set(left.targets).intersection(right.targets)
+               for right in profiles[index + 1:]):
+            raise ConfigurationError("Há perfis de transporte conflitantes.")
+    return tuple(profiles)
 
 
 def user_data_directory() -> Path:

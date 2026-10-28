@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from cam_scanner.domain.models import is_safe_xml_text
+from cam_scanner.domain.models import ModelHint, is_safe_xml_text, parse_model_hint
 
 _REQUIRED_HEADERS = ("ip", "username", "password")
 
@@ -23,6 +23,8 @@ class ExcelInputRow:
     password: str = field(repr=False)
     validation_error: str | None = None
     manufacturer_hint: str | None = field(default=None, repr=False)
+    model_hint: ModelHint | None = field(default=None, repr=False)
+    model_hint_invalid: bool = False
 
     @property
     def valid(self) -> bool:
@@ -108,6 +110,11 @@ def _header_map(rows) -> dict[str, int]:
     ]
     if len(manufacturer_matches) == 1:
         mapping["fabricante"] = manufacturer_matches[0]
+    model_matches = [index for index, value in enumerate(normalized) if value == "modelo"]
+    if len(model_matches) > 1:
+        raise ExcelInputError("A planilha contém mais de uma coluna MODELO.")
+    if model_matches:
+        mapping["modelo"] = model_matches[0]
     return mapping
 
 
@@ -120,10 +127,19 @@ def _parse_row(row_id: int, values: tuple[object, ...], header_map: dict[str, in
         if "fabricante" in header_map
         else ""
     )
+    model_value = _get_cell(values, header_map["modelo"]) if "modelo" in header_map else None
+    model_hint = parse_model_hint(
+        model_value if isinstance(model_value, str) else None,
+        sensitive_values=(raw_username, raw_password),
+    )
+    model_hint_invalid = model_value is not None and (
+        not isinstance(model_value, str)
+        or (bool(model_value.strip(" ")) and model_hint is None)
+    )
     if any(not is_safe_xml_text(value) for value in (raw_ip, raw_username, raw_password)):
         return ExcelInputRow(
             row_id, _safe_ip(raw_ip, raw_username, raw_password), "", "", "invalid_cell_value",
-            manufacturer_hint,
+            manufacturer_hint, model_hint, model_hint_invalid,
         )
     ip = raw_ip.strip()
     username = raw_username.strip()
@@ -131,15 +147,19 @@ def _parse_row(row_id: int, values: tuple[object, ...], header_map: dict[str, in
     if not ip or not username or not password.strip():
         return ExcelInputRow(
             row_id, _safe_ip(ip, username, password), "", "", "missing_required_value",
-            manufacturer_hint,
+            manufacturer_hint, model_hint, model_hint_invalid,
         )
     try:
         ipaddress.ip_address(ip)
     except ValueError:
         return ExcelInputRow(
-            row_id, _safe_ip(ip, username, password), "", "", "invalid_ip", manufacturer_hint
+            row_id, _safe_ip(ip, username, password), "", "", "invalid_ip",
+            manufacturer_hint, model_hint, model_hint_invalid
         )
-    return ExcelInputRow(row_id, ip, username, password, manufacturer_hint=manufacturer_hint)
+    return ExcelInputRow(
+        row_id, ip, username, password, manufacturer_hint=manufacturer_hint,
+        model_hint=model_hint, model_hint_invalid=model_hint_invalid,
+    )
 
 
 def _safe_manufacturer_hint(value: str) -> str | None:

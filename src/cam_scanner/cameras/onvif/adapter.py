@@ -120,6 +120,7 @@ class GenericOnvifCollector(CameraCollector):
                 "model": self._raw_field(device_info, "Model"),
                 "serial": self._raw_field(device_info, "SerialNumber"),
                 "firmware": self._raw_field(device_info, "FirmwareVersion"),
+                "hardware_id": self._raw_field(device_info, "HardwareId"),
             }
             rejected_fields = [
                 name
@@ -150,6 +151,9 @@ class GenericOnvifCollector(CameraCollector):
                 else None,
                 "firmware": raw_fields["firmware"]
                 if is_valid_evidence_value("firmware", raw_fields["firmware"], sensitive_values=secrets)
+                else None,
+                "hardware_id": raw_fields["hardware_id"]
+                if is_valid_evidence_value("hardware_id", raw_fields["hardware_id"], sensitive_values=secrets)
                 else None,
             }
             for name, value in values.items():

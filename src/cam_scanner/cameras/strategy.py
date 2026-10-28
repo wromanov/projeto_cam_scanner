@@ -23,6 +23,8 @@ from cam_scanner.domain.models import (
     EvidenceRecord,
 )
 
+_PANASONIC_PROFILE = "i-pro-command-interface-v1.17:WV-S2531L"
+
 
 class VendorFirstCollector(CameraCollector):
     """Select at most one identified vendor adapter, then use ONVIF as a controlled fallback."""
@@ -61,9 +63,26 @@ class VendorFirstCollector(CameraCollector):
             else None
         )
         if hinted_adapter is not None and not _hint_adapter_covers_identity(
-            hinted_resolution.selected, hinted_adapter
+            hinted_resolution.selected, hinted_adapter, context=context
         ):
             hinted_adapter = None
+        panasonic_model_hint = getattr(context, "model_hint", None)
+        if (hinted_resolution.selected == "Panasonic"
+                and (panasonic_model_hint is None
+                     or getattr(panasonic_model_hint, "match_key", "") != "wv-s2531l")):
+            # A declared Panasonic family without the exact documented profile
+            # cannot route to native CGI or trigger discovery as a fallback.
+            return _attach_resolution(
+                report.with_attempt(CollectionAttempt(
+                    stage="DISCOVERY",
+                    operation="preauth_discovery",
+                    protocol="ONVIF",
+                    outcome="SKIPPED",
+                )),
+                declared_hint,
+                self._resolver,
+                target,
+            )
         preauth = PreAuthEvidence()
         if hinted_adapter is None:
             try:
@@ -139,15 +158,27 @@ class VendorFirstCollector(CameraCollector):
             )
         report = report.validated_for_target((target.username, target.password))
         adapter = hinted_adapter or (self._registry.get(manufacturer) if manufacturer else None)
-        if adapter is not None and not _hint_adapter_covers_identity(manufacturer, adapter):
+        if adapter is not None and not _hint_adapter_covers_identity(
+            manufacturer, adapter, context=context
+        ):
             adapter = None
         if adapter is not None:
             try:
                 if context is not None:
                     context.check("NATIVE")
+                    if manufacturer == "Panasonic":
+                        context.panasonic_profile = _PANASONIC_PROFILE
                     vendor_family = _vendor_auth_family(manufacturer)
                     # Bosch currently has no native authenticated request.
-                    if vendor_family is not None and not context.auth.begin(
+                    real_axis_public = False
+                    if manufacturer == "Axis":
+                        from cam_scanner.cameras.manufacturers.axis import AxisAdapter
+
+                        real_axis_public = (
+                            type(adapter) is AxisAdapter
+                            and inspect.ismethod(getattr(adapter, "collect_report", None))
+                        )
+                    if vendor_family is not None and not real_axis_public and not context.auth.begin(
                         vendor_family, "initial"
                     ):
                         return _attach_resolution(report, declared_hint, self._resolver, target)
@@ -401,7 +432,9 @@ def _vendor_auth_family(manufacturer: str | None) -> str | None:
     return None
 
 
-def _hint_adapter_covers_identity(manufacturer: str, adapter: object) -> bool:
+def _hint_adapter_covers_identity(
+    manufacturer: str, adapter: object, *, context: object | None = None
+) -> bool:
     """Only the shipped, documented parsers can bypass anonymous discovery."""
     supported_types: dict[str, type] = {}
     if manufacturer == "Axis":
@@ -420,8 +453,17 @@ def _hint_adapter_covers_identity(manufacturer: str, adapter: object) -> bool:
         from cam_scanner.cameras.manufacturers.samsung_hanwha import SamsungHanwhaAdapter
 
         supported_types[manufacturer] = SamsungHanwhaAdapter
+    elif manufacturer == "Panasonic":
+        from cam_scanner.cameras.manufacturers.panasonic import PanasonicAdapter
+
+        supported_types[manufacturer] = PanasonicAdapter
     supported_type = supported_types.get(manufacturer)
-    return supported_type is not None and type(adapter) is supported_type
+    if supported_type is None or type(adapter) is not supported_type:
+        return False
+    if manufacturer == "Panasonic":
+        hint = getattr(context, "model_hint", None)
+        return bool(hint is not None and getattr(hint, "match_key", "") == "wv-s2531l")
+    return True
 
 
 def _attach_resolution(

@@ -169,7 +169,7 @@ def _rtsp_test_client_factory(
 ):
     class MediaService:
         operator = SimpleNamespace(
-            address=f"http://{_TARGET.ip}:80/onvif/media_service"
+            address=f"https://{_TARGET.ip}:443/onvif/media_service"
         )
 
         def GetProfiles(self) -> list[object]:
@@ -537,7 +537,7 @@ def test_single_deadline_is_shared_through_vendor_onvif_snapshot_and_active_rtsp
 
     class MediaService:
         operator = SimpleNamespace(
-            address=f"http://{_TARGET.ip}:80/onvif/media_service"
+                address=f"https://{_TARGET.ip}:443/onvif/media_service"
         )
 
         def GetProfiles(self) -> list[object]:

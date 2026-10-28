@@ -27,7 +27,8 @@ from cam_scanner.cameras.preauth import OnvifPreAuthDiscoverer, PreAuthEvidence
 from cam_scanner.cameras.registry import AdapterRegistry
 from cam_scanner.cameras.strategy import VendorFirstCollector
 from cam_scanner.cameras.transport import ControlledOnvifClient, TargetTransportPolicy
-from cam_scanner.config.models import EffectiveConfig, TransportRule
+from cam_scanner.config.models import EffectiveConfig, TransportProfile, TransportRule
+from cam_scanner.config.transport_plan import select_transport
 from cam_scanner.domain.enums import CollectionMethod, CollectionStatus, MainMenuChoice
 from cam_scanner.domain.models import CameraResult, CameraTarget, CollectionReport
 from cam_scanner.excel.reader import ExcelInputRow
@@ -72,8 +73,8 @@ class _HttpsServer(_Server):
         super().__init__(handler)
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         tls.load_cert_chain(
-            Path(__file__).with_name("tls_test_server.pem"),
-            Path(__file__).with_name("tls_test_server.key"),
+            Path(__file__).with_name("tls_test_server_cardb.pem"),
+            Path(__file__).with_name("tls_test_server_cardb.key"),
         )
         self.httpd.socket = tls.wrap_socket(self.httpd.socket, server_side=True)
 
@@ -150,7 +151,7 @@ def _soap_snapshot_handler(addresses: dict[str, str], observed: list[tuple[str, 
 def _trust_test_ca_for_ports(monkeypatch, ports: set[int]) -> None:
     """Trust the fixture CA only for selected loopback requests; keep real TLS checks."""
     original_send = HTTPAdapter.send
-    ca_bundle = str(Path(__file__).with_name("tls_test_ca.pem"))
+    ca_bundle = str(Path(__file__).with_name("tls_test_ca_cardb.pem"))
 
     def send(adapter, request, **kwargs):
         parsed = urlsplit(request.url)
@@ -353,13 +354,9 @@ class _EmptyDiscovery:
 
 
 def _real_onvif_inventory(port: int) -> InventoryService:
-    config = EffectiveConfig(transport_rules=(TransportRule(
-        target="127.0.0.1",
-        component="onvif_device",
-        protocol="http",
-        host=None,
-        port=port,
-    ),))
+    config = EffectiveConfig(transport_rules=_https_rules(
+        port, components=("onvif_device",)
+    ))
     collector = VendorFirstCollector(
         onvif_collector=GenericOnvifCollector(),
         discoverer=_EmptyDiscovery(),
@@ -448,13 +445,9 @@ class _QuietProgress:
 
 
 def _service(port: int) -> InventoryService:
-    config = EffectiveConfig(transport_rules=(TransportRule(
-        target="127.0.0.1",
-        component="onvif_device",
-        protocol="http",
-        host=None,
-        port=port,
-    ),))
+    config = EffectiveConfig(transport_rules=_https_rules(
+        port, components=("onvif_device",)
+    ))
     return InventoryService(_RealZeepCollector(), config=config)
 
 
@@ -477,7 +470,7 @@ def _jpeg_fixture() -> bytes:
     return output.getvalue()
 
 
-def test_single_inventory_path_uses_real_zeep_and_exact_target_port() -> None:
+def test_single_inventory_path_uses_real_zeep_and_exact_target_port(monkeypatch) -> None:
     observed: list[tuple[str, bytes]] = []
 
     def record(handler: BaseHTTPRequestHandler) -> None:
@@ -488,7 +481,8 @@ def test_single_inventory_path_uses_real_zeep_and_exact_target_port() -> None:
         handler.end_headers()
         handler.wfile.write(SOAP_DEVICE_INFORMATION)
 
-    with _Server(_soap_handler(on_post=record)) as server:
+    with _HttpsServer(_soap_handler(on_post=record)) as server:
+        _trust_test_ca_for_ports(monkeypatch, {server.port})
         service = _service(server.port)
         target = CameraTarget("127.0.0.1", "offline-user", "offline-password")
         report, context = service.collect_execution(target)
@@ -505,7 +499,7 @@ def test_single_inventory_path_uses_real_zeep_and_exact_target_port() -> None:
             context.close()
 
 
-def test_multi_row_real_zeep_redirect_does_not_reach_unapproved_loopback_port() -> None:
+def test_multi_row_real_zeep_redirect_does_not_reach_unapproved_loopback_port(monkeypatch) -> None:
     redirected_requests: list[str] = []
 
     def record_redirect(handler: BaseHTTPRequestHandler) -> None:
@@ -524,9 +518,10 @@ def test_multi_row_real_zeep_redirect_does_not_reach_unapproved_loopback_port() 
         def log_message(self, *_args: object) -> None:
             pass
 
-    with _Server(DestinationHandler) as destination, _Server(
+    with _Server(DestinationHandler) as destination, _HttpsServer(
         _soap_handler(on_post=record_redirect)
     ) as source:
+        _trust_test_ca_for_ports(monkeypatch, {source.port})
         service = _service(source.port)
         row = ExcelInputRow(
             row_id=2,
@@ -548,11 +543,12 @@ def test_multi_row_real_zeep_redirect_does_not_reach_unapproved_loopback_port() 
     assert output.result.status is CollectionStatus.FAILED
 
 
-def test_single_workflow_stops_all_authenticated_io_after_real_onvif_401() -> None:
+def test_single_workflow_stops_all_authenticated_io_after_real_onvif_401(monkeypatch) -> None:
     requests: list[tuple[str, str]] = []
     target = CameraTarget("127.0.0.1", "offline-user", "offline-password")
 
-    with _Server(_auth_rejected_handler(requests)) as server:
+    with _HttpsServer(_auth_rejected_handler(requests)) as server:
+        _trust_test_ca_for_ports(monkeypatch, {server.port})
         ui = _SingleWorkflowUI(target)
         SingleWorkflow(
             ui=ui,  # type: ignore[arg-type]
@@ -566,10 +562,11 @@ def test_single_workflow_stops_all_authenticated_io_after_real_onvif_401() -> No
     assert requests == [("POST", "/onvif/device_service")]
 
 
-def test_multi_row_stops_all_authenticated_io_after_real_onvif_401() -> None:
+def test_multi_row_stops_all_authenticated_io_after_real_onvif_401(monkeypatch) -> None:
     requests: list[tuple[str, str]] = []
 
-    with _Server(_auth_rejected_handler(requests)) as server:
+    with _HttpsServer(_auth_rejected_handler(requests)) as server:
+        _trust_test_ca_for_ports(monkeypatch, {server.port})
         workflow = MultiWorkflow(
             ui=object(),  # _process_row only uses the UI on batch-level failures.
             inventory_service=_real_onvif_inventory(server.port),
@@ -926,9 +923,25 @@ def test_real_target_transport_ignores_hostile_proxies_netrc_and_ambient_credent
         monkeypatch.setenv("CAMERA_PASSWORD", netrc_password)
 
         target = CameraTarget("127.0.0.1", "configured-user", "configured-password")
-        config = EffectiveConfig(transport_rules=(TransportRule(
-            target.ip, "vendor_axis", scheme, None, target_server.port
-        ),))
+        if scheme == "http":
+            profile = TransportProfile(
+                id="OFFLINE_TEST_HTTP",
+                targets=(target.ip,),
+                component="vendor_axis",
+                protocol="http",
+                port=target_server.port,
+                auth_mode="PUBLIC_NONE",
+                authorization_ref="OFFLINE_TEST_AUTH",
+                http_risk_accepted=True,
+            )
+            config = select_transport(
+                EffectiveConfig(transport_profiles=(profile,)),
+                (target,), {target.ip: "vendor_axis"}, profile.id,
+            )
+        else:
+            config = EffectiveConfig(transport_rules=(TransportRule(
+                target.ip, "vendor_axis", scheme, None, target_server.port
+            ),))
         context = CollectionContext(
             target, config, transport_factory=TargetTransportPolicy
         )

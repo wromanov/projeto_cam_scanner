@@ -1,11 +1,14 @@
 """Offline checks for the target-bound Requests/Zeep path."""
 from __future__ import annotations
 
+import ssl
 import threading
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from types import SimpleNamespace
 from typing import ClassVar
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -25,6 +28,8 @@ from cam_scanner.cameras.transport import (
     _BoundedResponse,
     _RestrictedService,
 )
+from cam_scanner.config.models import EffectiveConfig, TransportProfile
+from cam_scanner.config.transport_plan import select_transport
 from cam_scanner.domain.models import CameraTarget
 
 
@@ -32,10 +37,11 @@ def _context(
     port: int | None = None,
     *,
     component: str = "onvif_device",
+    protocol: str = "https",
     clock: Callable[[], float] | None = None,
 ) -> CollectionContext:
     rules = () if port is None else (SimpleNamespace(
-        target="127.0.0.1", component=component, protocol="http", host=None,
+        target="127.0.0.1", component=component, protocol=protocol, host=None,
         port=port,
     ),)
     options = {"transport_factory": TargetTransportPolicy}
@@ -46,6 +52,44 @@ def _context(
         SimpleNamespace(transport_rules=rules),
         **options,
     )
+
+
+class _HttpsServer:
+    def __init__(self, handler: type[BaseHTTPRequestHandler]) -> None:
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls.load_cert_chain(
+            Path(__file__).with_name("tls_test_server_cardb.pem"),
+            Path(__file__).with_name("tls_test_server_cardb.key"),
+        )
+        self.httpd.socket = tls.wrap_socket(self.httpd.socket, server_side=True)
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+
+    @property
+    def server_port(self) -> int:
+        return self.httpd.server_port
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def close(self) -> None:
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.thread.join(timeout=2)
+
+
+def _trust_test_ca_for_ports(monkeypatch: pytest.MonkeyPatch, ports: set[int]) -> None:
+    original_send = HTTPAdapter.send
+    ca_bundle = str(Path(__file__).with_name("tls_test_ca_cardb.pem"))
+
+    def send(adapter, request, **kwargs):
+        parsed = urlsplit(request.url)
+        if parsed.scheme == "https" and parsed.hostname == "127.0.0.1" and parsed.port in ports:
+            assert kwargs.get("verify") is True
+            kwargs["verify"] = ca_bundle
+        return original_send(adapter, request, **kwargs)
+
+    monkeypatch.setattr(HTTPAdapter, "send", send)
 
 
 def _one_retry_context(component: str = "vendor_axis") -> CollectionContext:
@@ -75,7 +119,9 @@ def test_transport_rejects_cross_target_credentials_and_unapproved_http() -> Non
         context.close()
 
 
-def test_real_zeep_uses_local_wsdl_and_guarded_requests_before_soap_io() -> None:
+def test_real_zeep_uses_local_wsdl_and_guarded_requests_before_soap_io(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     observed: list[tuple[str, bytes]] = []
     soap = (b'<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" '
             b'xmlns:tds="http://www.onvif.org/ver10/device/wsdl">'
@@ -99,9 +145,9 @@ def test_real_zeep_uses_local_wsdl_and_guarded_requests_before_soap_io() -> None
         def log_message(self, *_args: object) -> None:
             pass
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    server = _HttpsServer(Handler)
+    server.start()
+    _trust_test_ca_for_ports(monkeypatch, {server.server_port})
     context = _context(server.server_port)
     try:
         assert context.auth.begin("ONVIF", "primary")
@@ -119,19 +165,19 @@ def test_real_zeep_uses_local_wsdl_and_guarded_requests_before_soap_io() -> None
         assert session.proxies == {}
     finally:
         context.close()
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=2)
+        server.close()
 
 
-def test_real_zeep_discovers_only_authorized_media_xaddr() -> None:
+def test_real_zeep_discovers_only_authorized_media_xaddr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:
             body = (b'<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" '
                     b'xmlns:tds="http://www.onvif.org/ver10/device/wsdl" '
                     b'xmlns:tt="http://www.onvif.org/ver10/schema"><s:Body>'
                     b'<tds:GetCapabilitiesResponse><tds:Capabilities>'
-                    b'<tt:Media><tt:XAddr>http://127.0.0.1:'
+                    b'<tt:Media><tt:XAddr>https://127.0.0.1:'
                     + str(self.server.server_port).encode() + b'/onvif/media</tt:XAddr>'
                     b'</tt:Media></tds:Capabilities></tds:GetCapabilitiesResponse>'
                     b'</s:Body></s:Envelope>')
@@ -144,9 +190,9 @@ def test_real_zeep_discovers_only_authorized_media_xaddr() -> None:
         def log_message(self, *_args: object) -> None:
             pass
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    server = _HttpsServer(Handler)
+    server.start()
+    _trust_test_ca_for_ports(monkeypatch, {server.server_port})
     context = _context(server.server_port)
     try:
         result = ControlledOnvifClient(context, authenticated=False).devicemgmt().GetCapabilities(
@@ -156,15 +202,13 @@ def test_real_zeep_discovers_only_authorized_media_xaddr() -> None:
         assert context.transport.media_address is None  # Media has no approved rule.
     finally:
         context.close()
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=2)
+        server.close()
 
 
 def test_authenticated_adapter_requires_started_family_and_allows_digest_replay(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    context = _context(component="vendor_axis")
+    context = _context(component="vendor_hikvision")
     sent = 0
 
     def synthetic_send(adapter: HTTPAdapter, request: requests.PreparedRequest,
@@ -188,7 +232,7 @@ def test_authenticated_adapter_requires_started_family_and_allows_digest_replay(
     monkeypatch.setattr(HTTPAdapter, "send", synthetic_send)
     try:
         url = "https://127.0.0.1/cgi-bin/param.cgi"
-        session = context.transport._session("vendor_axis", "NATIVE", True)
+        session = context.transport._session("vendor_hikvision", "NATIVE", True)
         prepared = session.prepare_request(requests.Request("GET", url))
         adapter = session.get_adapter(url)
         with pytest.raises(TargetRejected, match="authorized"):
@@ -196,24 +240,24 @@ def test_authenticated_adapter_requires_started_family_and_allows_digest_replay(
         assert context.auth.physical_exchanges == 0
         assert sent == 0
 
-        assert context.auth.begin("VENDOR_AXIS", "primary")
+        assert context.auth.begin("VENDOR_HIKVISION", "primary")
         response = context.transport.request(
-            "vendor_axis", "GET", url, source="NATIVE", authenticated=True,
+            "vendor_hikvision", "GET", url, source="NATIVE", authenticated=True,
             auth=requests.auth.HTTPDigestAuth("operator", "secret"),
         )
         assert response.status_code == 200
         assert sent == 2  # Initial challenge and authorized Digest replay.
         assert context.auth.physical_exchanges == 2
-        assert context.auth.allows_authenticated_request("VENDOR_AXIS")
+        assert context.auth.allows_authenticated_request("VENDOR_HIKVISION")
 
         second_response = context.transport.request(
-            "vendor_axis", "GET", url, source="NATIVE", authenticated=True,
+            "vendor_hikvision", "GET", url, source="NATIVE", authenticated=True,
             auth=requests.auth.HTTPDigestAuth("operator", "secret"),
         )
         assert second_response.status_code == 200
         assert sent == 4  # A new operation may negotiate Digest on the same URL.
         assert context.auth.physical_exchanges == 4
-        assert context.auth.allows_authenticated_request("VENDOR_AXIS")
+        assert context.auth.allows_authenticated_request("VENDOR_HIKVISION")
     finally:
         context.close()
 
@@ -258,11 +302,28 @@ def test_real_digest_replay_does_not_follow_redirect_or_forward_authentication()
     source = ThreadingHTTPServer(("127.0.0.1", 0), DigestRedirectHandler)
     source_thread = threading.Thread(target=source.serve_forever, daemon=True)
     source_thread.start()
-    context = _context(source.server_port, component="vendor_axis")
+    target = CameraTarget("127.0.0.1", "operator", "secret")
+    profile = TransportProfile(
+        id="TEST_HTTP_DIGEST",
+        targets=(target.ip,),
+        component="vendor_hikvision",
+        protocol="http",
+        port=source.server_port,
+        auth_mode="NATIVE_DIGEST_EXISTING",
+        authorization_ref="AUTH-TEST",
+        http_risk_accepted=True,
+    )
+    config = select_transport(
+        EffectiveConfig(transport_profiles=(profile,)),
+        (target,),
+        {target.ip: "vendor_hikvision"},
+        selection_id=profile.id,
+    )
+    context = CollectionContext(target, config, transport_factory=TargetTransportPolicy)
     try:
-        assert context.auth.begin("VENDOR_AXIS", "primary")
+        assert context.auth.begin("VENDOR_HIKVISION", "primary")
         response = context.transport.request(
-            "vendor_axis",
+            "vendor_hikvision",
             "GET",
             f"http://127.0.0.1:{source.server_port}/digest",
             source="NATIVE",
@@ -383,7 +444,7 @@ def test_onvif_wsse_401_with_digest_header_is_final_not_http_digest_challenge(
 def test_digest_challenge_body_is_bounded_before_auth_hook_and_exchange_is_counted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    context = _context(component="vendor_axis")
+    context = _context(component="vendor_hikvision")
     sent = 0
     bytes_read = 0
 
@@ -417,10 +478,10 @@ def test_digest_challenge_body_is_bounded_before_auth_hook_and_exchange_is_count
 
     monkeypatch.setattr(HTTPAdapter, "send", synthetic_send)
     try:
-        assert context.auth.begin("VENDOR_AXIS", "primary")
+        assert context.auth.begin("VENDOR_HIKVISION", "primary")
         with pytest.raises(ResponseTooLarge, match="challenge body too large"):
             context.transport.request(
-                "vendor_axis", "GET", "https://127.0.0.1/cgi-bin/param.cgi",
+                "vendor_hikvision", "GET", "https://127.0.0.1/ISAPI/System/deviceInfo",
                 source="NATIVE", authenticated=True,
                 auth=requests.auth.HTTPDigestAuth("operator", "secret"),
             )
@@ -439,6 +500,7 @@ def test_digest_challenge_body_is_bounded_before_auth_hook_and_exchange_is_count
     [
         ('Basic realm="camera"', False),
         ('Digest realm="camera", nonce="n", algorithm="UNKNOWN"', True),
+        ('Digest realm="camera", nonce="n", qop="auth", algorithm="SHA-256"', True),
     ],
 )
 def test_unsupported_401_challenge_closes_auth_scope_without_network_replay(
@@ -446,7 +508,7 @@ def test_unsupported_401_challenge_closes_auth_scope_without_network_replay(
     challenge: str,
     replay_blocked: bool,
 ) -> None:
-    context = _context(component="vendor_axis")
+    context = _context(component="vendor_hikvision")
     sent = 0
 
     def synthetic_send(adapter: HTTPAdapter, request: requests.PreparedRequest,
@@ -466,10 +528,10 @@ def test_unsupported_401_challenge_closes_auth_scope_without_network_replay(
 
     monkeypatch.setattr(HTTPAdapter, "send", synthetic_send)
     try:
-        assert context.auth.begin("VENDOR_AXIS", "primary")
+        assert context.auth.begin("VENDOR_HIKVISION", "primary")
         def operation() -> requests.Response:
             return context.transport.request(
-                "vendor_axis", "GET", "https://127.0.0.1/cgi-bin/param.cgi",
+                "vendor_hikvision", "GET", "https://127.0.0.1/ISAPI/System/deviceInfo",
                 source="NATIVE", authenticated=True,
                 auth=requests.auth.HTTPDigestAuth("operator", "secret"),
             )

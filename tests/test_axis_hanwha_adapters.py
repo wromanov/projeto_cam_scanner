@@ -27,10 +27,11 @@ class _Response:
 
 
 class _Session:
-    def __init__(self, response: _Response | Exception) -> None:
-        self.response = response
+    def __init__(self, *responses: _Response | Exception) -> None:
+        self.responses = list(responses)
         self.trust_env = True
         self.request: tuple[str, str, dict[str, object]] | None = None
+        self.requests: list[tuple[str, str, dict[str, object]]] = []
 
     def __enter__(self):
         return self
@@ -40,9 +41,11 @@ class _Session:
 
     def _send(self, method: str, url: str, **kwargs):
         self.request = (method, url, kwargs)
-        if isinstance(self.response, Exception):
-            raise self.response
-        return self.response
+        self.requests.append(self.request)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def post(self, url: str, **kwargs):
         return self._send("POST", url, **kwargs)
@@ -60,7 +63,8 @@ def _target() -> CameraTarget:
 
 
 def test_axis_uses_only_documented_bdi_post_and_records_identity_and_firmware() -> None:
-    response = _Response(
+    versions = _Response(200, b'{"data":{"apiVersions":["1.2"]}}')
+    properties = _Response(
         200,
         json.dumps(
             {
@@ -76,7 +80,7 @@ def test_axis_uses_only_documented_bdi_post_and_records_identity_and_firmware() 
             }
         ).encode(),
     )
-    session = _Session(response)
+    session = _Session(versions, properties)
 
     report = AxisAdapter(session_factory=_factory(session)).collect_report(_target())
 
@@ -88,13 +92,24 @@ def test_axis_uses_only_documented_bdi_post_and_records_identity_and_firmware() 
         "firmware": "8.20.1",
     }
     assert session.trust_env is False
+    assert len(session.requests) == 2
+    first, second = session.requests
+    assert (first[0], first[1]) == (
+        "POST", "https://192.0.2.10/axis-cgi/basicdeviceinfo.cgi"
+    )
+    assert json.loads(first[2]["data"]) == {"method": "getSupportedVersions"}
+    assert "auth" not in first[2]
+    assert (second[0], second[1]) == (
+        "POST", "https://192.0.2.10/axis-cgi/basicdeviceinfo.cgi"
+    )
+    assert json.loads(second[2]["data"]) == {
+        "apiVersion": "1.2", "method": "getAllUnrestrictedProperties"
+    }
+    assert "auth" not in second[2]
     assert session.request is not None
-    method, url, kwargs = session.request
-    assert (method, url) == ("POST", "https://192.0.2.10/axis-cgi/basicdeviceinfo.cgi")
-    assert json.loads(kwargs["data"]) == {"apiVersion": "1.0", "method": "getAllProperties"}
-    assert kwargs["allow_redirects"] is False
-    assert response.closed
-    assert all(record.operation == "POST /axis-cgi/basicdeviceinfo.cgi getAllProperties" for record in report.evidence)
+    assert session.request[2]["allow_redirects"] is False
+    assert versions.closed and properties.closed
+    assert all(record.operation == "POST /axis-cgi/basicdeviceinfo.cgi getAllUnrestrictedProperties" for record in report.evidence)
     assert {record.protocol for record in report.evidence} == {"HTTPS"}
 
 
@@ -143,7 +158,6 @@ def test_hanwha_accepts_explicit_manufacturer_from_device_payload() -> None:
 @pytest.mark.parametrize(
     ("adapter_type", "method", "operation"),
     [
-        (AxisAdapter, "POST", "POST /axis-cgi/basicdeviceinfo.cgi getAllProperties"),
         (SamsungHanwhaAdapter, "GET", "GET /stw-cgi/system.cgi deviceinfo view"),
     ],
 )
@@ -166,6 +180,23 @@ def test_auth_failure_is_normalized_and_credentials_stay_target_scoped(adapter_t
     auth = session.request[2]["auth"]
     assert auth.username == "operator"
     assert auth.password == "private-password"
+
+
+def test_axis_public_401_does_not_replay_with_credentials() -> None:
+    session = _Session(_Response(401, b"private-password"))
+
+    report = AxisAdapter(session_factory=_factory(session)).collect_report(_target())
+
+    assert report.status is CollectionStatus.FAILED
+    assert len(report.attempts) == 1
+    assert report.attempts[0].error_category == "HTTP_ERROR"
+    assert report.attempts[0].operation == (
+        "POST /axis-cgi/basicdeviceinfo.cgi getSupportedVersions"
+    )
+    assert report.attempts[0].authentication_mechanism == "NONE"
+    assert "private-password" not in repr(report)
+    assert len(session.requests) == 1
+    assert "auth" not in session.requests[0][2]
 
 
 def test_timeout_error_does_not_leak_transport_message() -> None:

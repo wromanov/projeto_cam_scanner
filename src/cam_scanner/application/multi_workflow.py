@@ -1,14 +1,19 @@
 """Concurrent MULTI workflow reusing canonical services and ordered XLSX output."""
 from __future__ import annotations
 
+import inspect
 import threading
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 
 from cam_scanner.application.collection_context import CollectionContext
-from cam_scanner.application.inventory_service import InventoryService
+from cam_scanner.application.inventory_service import (
+    InventoryService,
+    TransportInputDescriptor,
+)
 from cam_scanner.config.models import DEFAULT_MAX_WORKERS, MAX_WORKERS, MIN_WORKERS
 from cam_scanner.domain.enums import CollectionStatus, ErrorCode
+from cam_scanner.domain.errors import ConfigurationError
 from cam_scanner.domain.models import CameraResult, CameraTarget
 from cam_scanner.excel.reader import ExcelInputError, ExcelInputRow, ExcelReader
 from cam_scanner.excel.writer import ExcelOutputError, ExcelWriter, InventoryOutputRow
@@ -63,6 +68,57 @@ class MultiWorkflow:
 
         default_output = _default_output_path(input_path)
         output_path = self._ui.prompt_multi_output_path(str(default_output))
+        try:
+            preflight_rows = tuple(
+                TransportInputDescriptor(
+                    row.row_id, row.ip, row.valid, row.manufacturer_hint,
+                    row.model_hint,
+                )
+                for row in batch.rows
+            )
+        except ExcelInputError as error:
+            self._ui.show_multi_error(str(error))
+            return
+        if len(preflight_rows) != batch.total_rows:
+            self._ui.show_multi_error("A quantidade de linhas mudou durante o pré-voo.")
+            return
+        selection_id = "HTTPS_DEFAULT"
+        prepared_transport: dict[
+            int, tuple[object, bool, dict[str, str | None]]
+        ] = {}
+        options_method = getattr(self._inventory_service, "transport_selection_options", None)
+        prepare_method = getattr(self._inventory_service, "prepare_transport_for_row", None)
+        selection_prompt = getattr(self._ui, "prompt_transport_selection", None)
+        if callable(options_method) and callable(prepare_method) and callable(selection_prompt):
+            try:
+                selected = selection_prompt(options_method(preflight_rows))
+                if selected is None:
+                    cancelled = getattr(self._ui, "show_transport_selection_cancelled", None)
+                    if callable(cancelled):
+                        cancelled()
+                    return
+                selection_id = selected
+                for row in preflight_rows:
+                    if not row.valid:
+                        continue
+                    prepared_transport[row.row_id] = prepare_method(
+                        row.ip,
+                        row.manufacturer_hint,
+                        selection_id,
+                        **_supported_kwargs(prepare_method, model_hint=row.model_hint),
+                    )
+            except (ExcelInputError, ConfigurationError) as error:
+                self._ui.show_multi_error(str(error))
+                return
+        try:
+            batch = self._excel_reader.read(input_path)
+            if batch.total_rows != len(preflight_rows):
+                raise ExcelInputError(
+                    "A quantidade de linhas mudou após o pré-voo de transporte."
+                )
+        except ExcelInputError as error:
+            self._ui.show_multi_error(str(error))
+            return
         output_rows: list[InventoryOutputRow | None] = [None] * batch.total_rows
         self._completed_rows = ()
         self._progress.start(batch.total_rows)
@@ -96,7 +152,21 @@ class MultiWorkflow:
                         self._remember_completed(output_rows)
                         self._progress.advance(output_row.result.ip, output_row.result.status.value)
                         continue
-                    context = self._create_context(input_row, cancel_event)
+                    expected = preflight_rows[current_position]
+                    current_spec = TransportInputDescriptor(
+                        input_row.row_id, input_row.ip, input_row.valid,
+                        input_row.manufacturer_hint, input_row.model_hint,
+                    )
+                    if current_spec != expected:
+                        raise ExcelInputError(
+                            "A planilha mudou após o pré-voo de transporte."
+                        )
+                    context = self._create_context(
+                        input_row,
+                        cancel_event,
+                        prepared_transport.get(input_row.row_id),
+                        selection_id,
+                    )
                     try:
                         future = executor.submit(
                             self._process_row,
@@ -180,9 +250,24 @@ class MultiWorkflow:
                             target,
                             cancel_event=cancel_event,
                             manufacturer_hint=row.manufacturer_hint,
+                            **_supported_kwargs(collect_execution, model_hint=row.model_hint),
                         )
                     else:
                         report, context = collect_execution(target, context=context)
+                    if context is not None and row.model_hint_invalid:
+                        _set_context_attribute(context, "model_hint_invalid", True)
+                    if report is not None and row.model_hint is not None:
+                        report = report.with_model_hint(row.model_hint)
+                    if report is not None and row.model_hint_invalid:
+                        from cam_scanner.domain.models import CollectionAttempt
+
+                        if not any(
+                            item.operation == "validate_model_hint" for item in report.attempts
+                        ):
+                            report = report.with_attempt(CollectionAttempt(
+                                stage="VALIDATE", operation="validate_model_hint", outcome="FAILED",
+                                error_category="INVALID_INPUT",
+                            ))
                     result = report.to_camera_result(target.ip)
                 else:
                     result = self._inventory_service.collect_one(target)
@@ -197,7 +282,9 @@ class MultiWorkflow:
 
             snapshot: SnapshotResult | None = None
             try:
-                if _has_tls_failure(report) or (
+                if context is not None and getattr(context, "transport_selection_blocked", False):
+                    snapshot = SnapshotResult(failure=SnapshotFailure.UNSUPPORTED)
+                elif _has_tls_failure(report) or (
                     context is not None and getattr(context, "tls_failed", False)
                 ):
                     snapshot = SnapshotResult(failure=SnapshotFailure.TLS_ERROR)
@@ -223,7 +310,11 @@ class MultiWorkflow:
             del target
 
     def _create_context(
-        self, row: ExcelInputRow, cancel_event: threading.Event
+        self,
+        row: ExcelInputRow,
+        cancel_event: threading.Event,
+        prepared_transport: tuple[object, bool, dict[str, str | None]] | None = None,
+        selection_id: str = "HTTPS_DEFAULT",
     ) -> CollectionContext | None:
         """Start the per-camera deadline before the executor queue can delay its worker."""
         if not row.valid:
@@ -233,11 +324,32 @@ class MultiWorkflow:
         if not callable(create_context) or not callable(collect_execution):
             return None
         target = CameraTarget(row.ip, row.username, row.password)
-        return create_context(
+        context_options: dict[str, object] = {
+            "cancel_event": cancel_event,
+            "manufacturer_hint": row.manufacturer_hint,
+            "model_hint": row.model_hint,
+        }
+        if prepared_transport is not None:
+            config, blocked, metadata = prepared_transport
+            context_options.update({
+                "transport_config": config,
+                "transport_selection_id": selection_id,
+                "transport_selection_metadata": metadata,
+                "transport_selection_blocked": blocked,
+            })
+        context = create_context(
             target,
-            cancel_event=cancel_event,
-            manufacturer_hint=row.manufacturer_hint,
+            **_supported_kwargs(create_context, **context_options),
         )
+        if context is not None:
+            if getattr(context, "model_hint", None) is None and row.model_hint is not None:
+                _set_context_attribute(context, "model_hint", row.model_hint)
+                if hasattr(context, "report"):
+                    _set_context_attribute(
+                        context, "report", context.report.with_model_hint(row.model_hint)
+                    )
+            _set_context_attribute(context, "model_hint_invalid", row.model_hint_invalid)
+        return context
 
     def _remember_completed(
         self, output_rows: list[InventoryOutputRow | None]
@@ -300,3 +412,22 @@ def _unexpected_row_result(ip: str) -> CameraResult:
 def _default_output_path(input_path: str | Path) -> Path:
     source = Path(input_path).expanduser()
     return source.with_name(f"{source.stem}_inventario.xlsx")
+
+
+def _supported_kwargs(callable_object, **kwargs):
+    """Filter new optional keywords for compatibility with historical service fakes."""
+    try:
+        parameters = inspect.signature(callable_object).parameters
+    except (TypeError, ValueError):
+        return {}
+    if any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters.values()):
+        return kwargs
+    return {key: value for key, value in kwargs.items() if key in parameters}
+
+
+def _set_context_attribute(context: object, name: str, value: object) -> None:
+    """Keep older test doubles usable when they expose a slotted/frozen context."""
+    try:
+        setattr(context, name, value)
+    except (AttributeError, TypeError):
+        pass

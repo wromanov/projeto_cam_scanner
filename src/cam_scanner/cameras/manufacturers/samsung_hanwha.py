@@ -13,14 +13,18 @@ from typing import Any
 import requests
 from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException, SSLError, Timeout
 
+from cam_scanner.application.collection_context import (
+    CollectionCancelled,
+    CollectionDeadlineExceeded,
+)
 from cam_scanner.cameras.manufacturers._http_utils import (
     DeadlineExceeded,
     bounded_timeout,
     managed_vendor_session,
     read_limited_until,
     remaining_budget,
+    transport_provenance,
 )
-from cam_scanner.cameras.manufacturers.axis import _classify_status
 from cam_scanner.cameras.manufacturers.hikvision import _BoundedDigestAuth
 from cam_scanner.domain.models import (
     CameraResult,
@@ -58,6 +62,8 @@ class SamsungHanwhaAdapter:
         started = time.monotonic()
         report = CollectionReport()
         auth = _BoundedDigestAuth(target.username, target.password)
+        protocol: str | None = None
+        metadata: dict[str, str] = {}
         try:
             address = ipaddress.ip_address(target.ip)
             host = f"[{address.compressed}]" if address.version == 6 else address.compressed
@@ -69,6 +75,10 @@ class SamsungHanwhaAdapter:
                 timeout = bounded_timeout(self._timeout, started, self._budget)
                 url = (context.transport.endpoint("vendor_hanwha", path=_PATH)
                        if context is not None else f"https://{host}{_PATH}")
+                protocol, metadata = transport_provenance(
+                    context, "vendor_hanwha", url,
+                    auth_mode="NATIVE_DIGEST_EXISTING",
+                )
                 response = session.get(
                     url, auth=auth, allow_redirects=False,
                     stream=True, timeout=timeout, verify=True,
@@ -77,61 +87,93 @@ class SamsungHanwhaAdapter:
                     status = response.status_code
                     category, stage, outcome = _classify_status(status, auth.mechanism_unsupported)
                     if category:
-                        return self._failure(report, started, category, stage, status, outcome)
+                        return self._failure(report, started, category, stage, status, outcome,
+                                             protocol, metadata)
                     declared = response.headers.get("content-length")
                     if declared and int(declared) > _MAX_BODY:
-                        return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
+                        return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status,
+                                             protocol=protocol, metadata=metadata)
                     body = read_limited_until(
                         response.iter_content(chunk_size=8192), _MAX_BODY, started, self._budget,
                         context=context,
                     )
                 finally:
                     response.close()
-        except DeadlineExceeded:
-            return self._failure(report, started, "DEADLINE_EXCEEDED", "HTTP")
+        except (DeadlineExceeded, CollectionDeadlineExceeded):
+            return self._failure(report, started, "DEADLINE_EXCEEDED", "HTTP", protocol=protocol, metadata=metadata)
+        except CollectionCancelled:
+            return self._cancelled(report, started, protocol, metadata)
         except ConnectTimeout:
-            return self._failure(report, started, "CONNECT_TIMEOUT", "CONNECT")
+            return self._failure(report, started, "CONNECT_TIMEOUT", "CONNECT", protocol=protocol, metadata=metadata)
         except (ReadTimeout, Timeout):
-            return self._failure(report, started, "READ_TIMEOUT", "HTTP")
+            return self._failure(report, started, "READ_TIMEOUT", "HTTP", protocol=protocol, metadata=metadata)
         except SSLError:
-            return self._failure(report, started, "TLS_ERROR", "CONNECT")
+            return self._failure(report, started, "TLS_ERROR", "CONNECT", protocol=protocol, metadata=metadata)
         except (RequestException, OSError):
-            return self._failure(report, started, "CONNECTION_REFUSED", "CONNECT")
+            return self._failure(report, started, "CONNECTION_REFUSED", "CONNECT", protocol=protocol, metadata=metadata)
         except ValueError:
-            return self._failure(report, started, "INVALID_RESPONSE", "PARSE")
+            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", protocol=protocol, metadata=metadata)
         except Exception:  # noqa: BLE001 - never retain raw transport data
-            return self._failure(report, started, "UNEXPECTED", "HTTP")
+            return self._failure(report, started, "UNEXPECTED", "HTTP", protocol=protocol, metadata=metadata)
         try:
             remaining_budget(started, self._budget)
             values = _parse_device_info(body)
         except DeadlineExceeded:
-            return self._failure(report, started, "DEADLINE_EXCEEDED", "PARSE", status)
+            return self._failure(report, started, "DEADLINE_EXCEEDED", "PARSE", status, protocol=protocol, metadata=metadata)
         except (ValueError, UnicodeDecodeError):
-            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
+            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status, protocol=protocol, metadata=metadata)
         sensitive = (target.username, target.password)
         records = tuple(
-            EvidenceRecord(field=field, value=value, source="VENDOR", protocol="HTTPS",
+            EvidenceRecord(field=field, value=value, source="VENDOR", protocol=protocol,
                            operation=_OPERATION)
             for field, value in values.items()
             if is_valid_evidence_value(field, value, sensitive_values=sensitive)
         )
         report = report.with_evidence(*records).validated_for_target(sensitive)
         if not report.evidence:
-            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status)
+            return self._failure(report, started, "INVALID_RESPONSE", "PARSE", status,
+                                 protocol=protocol, metadata=metadata)
         return report.with_attempt(CollectionAttempt(
-            stage="PARSE", operation=_OPERATION, protocol="HTTPS", outcome="SUCCESS",
+            stage="PARSE", operation=_OPERATION, protocol=protocol, outcome="SUCCESS",
             duration=max(0.0, time.monotonic() - started), http_status=status,
             authentication_mechanism="HTTP_DIGEST",
+            metadata=metadata,
         ))
 
     @staticmethod
     def _failure(report: CollectionReport, started: float, category: str, stage: str,
-                 status: int | None = None, outcome: str = "FAILED") -> CollectionReport:
+                 status: int | None = None, outcome: str = "FAILED",
+                 protocol: str | None = None, metadata: dict[str, str] | None = None) -> CollectionReport:
         return report.with_attempt(CollectionAttempt(
-            stage=stage, operation=_OPERATION, protocol="HTTPS", outcome=outcome,
+            stage=stage, operation=_OPERATION, protocol=protocol, outcome=outcome,
             duration=max(0.0, time.monotonic() - started), http_status=status,
             error_category=category, authentication_mechanism="HTTP_DIGEST",
+            metadata=metadata or {},
         ))
+
+    @staticmethod
+    def _cancelled(report: CollectionReport, started: float, protocol: str | None,
+                   metadata: dict[str, str]) -> CollectionReport:
+        return report.with_attempt(CollectionAttempt(
+            stage="HTTP", operation=_OPERATION, protocol=protocol, outcome="CANCELLED",
+            duration=max(0.0, time.monotonic() - started),
+            authentication_mechanism="HTTP_DIGEST", metadata=metadata,
+        ))
+
+
+def _classify_status(status: int, unsupported_auth: bool) -> tuple[str | None, str, str]:
+    """Classify the single native Digest attempt without public Axis semantics."""
+    if 300 <= status < 400:
+        return "INVALID_RESPONSE", "HTTP", "FAILED"
+    if status == 401:
+        return ("AUTH_MECHANISM_UNSUPPORTED" if unsupported_auth else "AUTH_REJECTED", "AUTH", "FAILED")
+    if status == 403:
+        return "AUTHORIZATION_DENIED", "AUTH", "FAILED"
+    if status in {404, 405}:
+        return "ENDPOINT_UNSUPPORTED", "HTTP", "SKIPPED"
+    if status != 200:
+        return "HTTP_ERROR", "HTTP", "FAILED"
+    return None, "PARSE", "SUCCESS"
 
 
 def _parse_device_info(body: bytes) -> dict[str, str]:

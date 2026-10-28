@@ -1,3 +1,81 @@
+# PROJECT_STATE — adendo de implementação offline vigente (2026-10-27)
+
+Este bloco registra a atividade `CAM_SCANNER_ASTRA_P0_P1_TRANSPORT_IMPLEMENTATION`.
+Ele prevalece sobre o estado documental anterior apenas quanto à execução offline
+autorizada pelo Card atual; não concede câmera real, HTTP operacional, RTSP,
+build/distribuição, deploy ou qualquer escrita Git.
+
+## Resultado factual da implementação
+
+- Baseline verificada por Git read-only: branch `feature/pre-p12-unified-remediation`,
+  `HEAD=deec969880016fb0fe60d737cceac4909313bc56`, worktree limpo no início.
+  O snapshot anterior apontava `37bc8c4...`; a divergência foi preservada e não
+  reconciliada silenciosamente.
+- Foram implementadas fatias P0/P1/TRANSPORT offline com ownership separado:
+  Axis viewer-safe anônimo usando somente `getSupportedVersions` e
+  `getAllUnrestrictedProperties`; Panasonic somente no perfil exato documentado;
+  `ModelHint` imutável/sanitizado, entrada XLSX `MODELO`, mapeamentos
+  `HardwareId`/`HardwareID`/MAC, perfis e plano de transporte fechado, seleção
+  pré-I/O, TLS fail-closed, metadados allowlisted e preservação dos 14 campos
+  públicos de `CameraResult`.
+- HTTP permanece restrito a perfil/seleção explícita e às famílias Axis/Panasonic;
+  ONVIF, RTSP, snapshot e demais famílias não entram no plano HTTP. Nenhuma
+  câmera real ou endpoint operacional foi acessado.
+- Segurança: a revisão independente encontrou cinco bloqueadores; os achados de
+  segredo no `ModelHint`, Axis tratado como autenticado, seleção default não
+  compilada, scheme fixo e `LEGACY_EXACT` aberto a ONVIF foram parcialmente
+  remediados no código. A revisão final independente não foi repetida após as
+  correções; portanto o aceite de segurança permanece parcial.
+
+## Evidência de validação
+
+- Testes novos P0/P1/TRANSPORT: `43 passed`.
+- Regressão focal integrada (P0/P1, SINGLE/MULTI, XLSX e correções R2):
+  `80 passed`.
+- Regressão completa final: `379 passed, 53 failed`. As falhas restantes
+  concentram expectativas históricas incompatíveis com o Card atual (Axis
+  autenticado/`getAllProperties`, Panasonic sem perfil exato, HTTP ONVIF,
+  RTSP/P2) e cenários de integração que dependem de fixtures TLS ausentes neste
+  checkout. Isso impede declarar os 56 ACs como PASS acumulado.
+- Ruff direcionado, `compileall` e `git diff --check`: PASS; há apenas aviso
+  preexistente de normalização LF/CRLF em `config/__init__.py`.
+- Diretórios `.pytest-run-*` foram gerados pelos testes e permanecem não
+  versionados; `.pytest-tmp-astra-p1/` foi preservado conforme o estado deixado
+  pelo agente de testes.
+
+## Roteamento e autoridade
+
+`codex-task-router` não está instalado (`ROUTING_SKILL_STATUS=UNAVAILABLE`). Com
+autorização explícita do usuário, foram realmente acionados cinco subagentes:
+ModelHint/P1, adapters P0, testes, transporte e revisão de segurança; todos
+retornaram e foram encerrados. Scribe não foi acionado por não haver ganho
+material independente. A integração e a decisão final permaneceram no ROOT.
+
+```text
+ACTIVITY_ID = CAM_SCANNER_ASTRA_P0_P1_TRANSPORT_IMPLEMENTATION
+IMPLEMENTATION_AUTHORIZATION = GRANTED_OFFLINE
+OPERATIONAL_HTTP = FORBIDDEN
+REAL_CAMERA_ACCESS = FORBIDDEN
+RTSP_ENABLEMENT = FORBIDDEN
+BUILD_DISTRIBUTION_DEPLOY = FORBIDDEN
+GIT_COMMIT_PUSH = NONE
+ROUTING_SKILL_STATUS = UNAVAILABLE
+AGENTS_ACTUALLY_SPAWNED = 5
+MULTIAGENT_GATE_RESULT = PARTIAL_RUNTIME; EXPLICIT_USER_AUTHORITY; OWNERSHIP_PRESERVED
+PROJECT_STATE_UPDATE = PASS
+PROJECT_STATE_UPDATE_SCOPE = AUTHORIZED_DOCUMENTATION_ONLY
+FORMAL_ACTIVITY_CLOSURE = BLOCKED_PM01_12_3_CONTINUITY_SCOPE
+FUNCTIONAL_VALIDATION = PARTIAL; FOCUSED_80_PASS; FULL_379_PASS_53_FAIL
+SECURITY_REVIEW = PARTIAL_AFTER_REMEDIATION; FINAL_REVIEW_PENDING
+DELIVERY_STATUS = SENT
+ACTIVITY_COMPLETE = NO
+ACTIVITY_COMPLETION_PERCENT = 92
+NEXT_ACTIVITY = revisar falhas históricas compatíveis com o Card e repetir revisão de segurança; nenhuma câmera/HTTP real
+SAFE_RESUME_POINT = diff atual, testes focais 80/80 e lista das 53 falhas preservada
+```
+
+---
+
 # PROJECT_STATE — adendo final documental vigente (2026-10-27)
 
 Este bloco registra CAM_SCANNER_ASTRA_CONTRACT_FINALIZATION_02 e prevalece sobre estado de atividade/próximo passo nos registros anteriores. O Card final 02 aprovou a direção técnica P0/P1, manteve mídia P2 diferida e não concedeu implementação, homologação operacional, câmera, HTTP real, build ou Git write. P0/P1/P2 Astra são prioridades documentais, sem reabertura das fases históricas.
@@ -1440,3 +1518,167 @@ STATUS = COMPLETED_WITH_FINDINGS
 `PROJECT_ID=projeto_cam_scanner`; baseline confirmada no worktree `projeto_cam_scanner_pre_p12_remediation`, branch `feature/pre-p12-unified-remediation`, HEAD `37bc8c4cc718559fc1e6f39a9b8a1145563a551e`. Auditoria Astra `CONDITIONAL_GO`; contratos P0 V2, P1 V2 e TRANSPORT V1 aprovados pelo usuário; P2/RTSP diferido; Viewer não homologado; implementação P0/P1/TRANSPORT não iniciada. Os 56 critérios de aceite são previstos, não implementados.
 
 `CONTINUITY_RECONCILIATION=PASS`; `PROJECT_STATE_UPDATE=PASS`; próxima atividade `CAM_SCANNER_ASTRA_P0_P1_TRANSPORT_IMPLEMENTATION`, exclusivamente offline. Permanecem não autorizados acesso a câmeras reais, HTTP operacional, alteração de equipamentos, build de distribuição, ampliação de autenticação e ativação de RTSP.
+
+## CAM_SCANNER_ASTRA_INTEGRATION_REMEDIATION_01 — atualização Card B (2026-10-28)
+
+Execução local no worktree `C:\Users\walac\desenvolvimento\projeto_cam_scanner`; branch `feature/pre-p12-unified-remediation`; HEAD de referência e final `deec969880016fb0fe60d737cceac4909313bc56`. Branch/HEAD mantidos; sem staging, commit, push, merge, rebase, build ou deploy. Trabalho permaneceu offline, sem câmera real, HTTP operacional ou ativação do RTSP produtivo.
+
+A remediação ajustou adapters Axis/Panasonic e seleção de transporte, AuthLedger, regras HTTP/RTSP e fixtures TLS sintéticas locais. O adapter Axis mantém o plano público anônimo sem replay de credenciais. Panasonic só usa perfil/modelo exato documentado. O filtro de regras deixou de eliminar regras RTSP explícitas de teste ao descartar HTTP legado. A evidência Digest 200 agora exige Authorization efetivamente enviado, inclusive ao aceitar credencial WSSE do SOAP bounded. Novas fixtures de CA/servidor foram adicionadas sem substituir os certificados de teste já existentes.
+
+Regressão acumulada final: **451 passed, 0 failed, 0 skipped, 0 deselected**. Também passaram Ruff nos paths alterados, `compileall` de `src`/`tests` e `git diff --check`. Cinco falhas iniciais foram regressão de implementação, nove expectativas foram supersedidas por contratos posteriores explícitos e 39 decorreram de fixtures/ambiente; todas as 53 estão classificadas e os 53 testes passaram no ciclo final. A lista e as causas estão em `docs/audit/ASTRA_REMEDIATION_53_FAILURES.md`.
+
+A matriz `docs/audit/ASTRA_REMEDIATION_56_AC_MATRIX.md` avalia os 56 IDs individualmente: 9 PASS, 42 PARTIAL e 5 UNVERIFIED. `G-PN-JOINT=PARTIAL/NOT_VERIFIED`, pois a sequência CLI/XLSX→ModelHint→Panasonic P0→contexto/transporte/adapters reais→merge→UI/XLSX não foi demonstrada; o teste de seleção MULTI usa collector fake. Revisão de segurança independente final também permanece PARTIAL: os dois agentes delegados atingiram o limite de uso da conta antes de reavaliar o delta final. A revisão focal anterior não cobre as últimas alterações WSSE/RTSP.
+
+Roteamento: a skill `codex-task-router` foi lida manualmente e aplicada; carregamento nativo da skill não verificado. Resultado do gate multiagente `PASS_WITH_RUNTIME_LIMITATION`; Aquinas (`test_engineer`) e Einstein (`security_reviewer`) foram usados conforme ownership, mas as entregas finais da matriz/revisão ficaram bloqueadas por limite de uso. Nenhuma conclusão desses agentes foi inventada.
+
+```text
+ACTIVITY_ID = CAM_SCANNER_ASTRA_INTEGRATION_REMEDIATION_01
+BASELINE_CONFIRMED = PASS (branch feature/pre-p12-unified-remediation; HEAD deec969880016fb0fe60d737cceac4909313bc56)
+ROUTING_SKILL_STATUS = MANUALLY_READ_AND_APPLIED; NATIVE_LOADER_UNVERIFIED
+MULTIAGENT_GATE_RESULT = PASS_WITH_RUNTIME_LIMITATION
+AGENTS_USED = Aquinas/test_engineer; Einstein/security_reviewer
+INITIAL_FAILURES = 53
+FAILURES_CLASSIFIED = 53
+FAILURES_RESOLVED = 53
+FAILURES_REMAINING = 0
+REGRESSION_STATUS = PASS (451 passed; 0 failed/skipped/deselected)
+P0_AC_PASS = 2/22
+P1_AC_PASS = 3/19
+TRANSPORT_AC_PASS = 4/15
+TOTAL_AC_PASS = 9/56; PARTIAL = 42; UNVERIFIED = 5
+G_PN_JOINT_STATUS = PARTIAL / NOT_VERIFIED
+SECURITY_REVIEW = PARTIAL; final independent rerun blocked by account usage limit
+CONTINUITY_UPDATE = PASS
+PROJECT_STATE_UPDATE = PASS
+IMPLEMENTATION_STATUS = PARTIAL
+ACTIVITY_COMPLETE = NO
+ACTIVITY_COMPLETION_PERCENT = 96%
+NEXT_ACTIVITY = Fechar G-PN-JOINT integrado; completar cinco AC UNVERIFIED e lacunas PARTIAL; obter revisão de segurança independente após o delta final
+GIT_WRITES = NONE
+```
+
+
+
+## CAM_SCANNER_ASTRA_FINAL_AC_CLOSURE_01 — fechamento Card B (2026-10-28)
+
+Baseline reconfirmada no repositório local `C:\Users\walac\desenvolvimento\projeto_cam_scanner`: branch `feature/pre-p12-unified-remediation`, HEAD `deec969880016fb0fe60d737cceac4909313bc56`. A branch e o HEAD permaneceram; nenhuma operação de stage, commit, push, reset, restore, clean, stash, rebase ou merge foi executada. O worktree estava previamente sujo, com alterações tracked, arquivos untracked e caches ignored; foram preservados. Não existia manifesto/hash pré-execução do delta sujo, portanto os ACs P0-05-AC01/02 permanecem PARTIAL.
+
+Roteamento: `$codex-task-router` foi lida/aplicada manualmente; catálogo local R4.1 confirmado, loader nativo não verificado. O ROOT avaliou decomposição, ownership, competência e custo. Dois `test_engineer` trabalharam em paralelo em arquivos novos disjuntos; um `validator` fez correlação estática; um segundo `validator` atualizou as recomendações após os testes; um `security_reviewer` foi iniciado somente após estabilização, mas interrompeu antes de ler fontes ao constatar metadata efetivo `sandbox_mode=workspace-write`. A revisão read-only exigida ficou BLOQUEADA; não houve parecer nem findings.
+
+Correções integradas pelo ROOT:
+
+- `src/cam_scanner/cameras/strategy.py`: Panasonic declarado sem modelo exato documentado agora registra discovery `SKIPPED` e retorna antes de I/O; nenhum `GetCapabilities` ou CGI é enviado para modelo ausente/desconhecido/incompatível.
+- `src/cam_scanner/cameras/transport.py`: prova de WSSE agora exige envelope/cabeçalho SOAP, UsernameToken único, usuário idêntico ao da linha, campos/formatos suportados e PasswordDigest verificável contra a senha da própria linha. Rejeita token solto, conta diferente, senha incorreta e campos incompletos. Token produzido pelo Zeep real foi exercitado por fixture TLS local.
+- `src/cam_scanner/domain/models.py`: ordenação de provenance passou a ser determinística entre ordens distintas de merge.
+
+Testes novos com ownership exclusivo: `tests/test_astra_gpn_joint_integration.py` (Peirce), `tests/test_astra_acl_merge_acceptance.py` (Laplace) e `tests/test_astra_wsse_auth_evidence.py` (ROOT). O teste de merge inicialmente revelou dependência da ordem da provenance; corrigida e reexecutada. Os testes G-PN inicialmente revelaram discovery indevida nos quatro modelos inelegíveis; corrigida e reexecutada.
+
+Validação nova: regressão integral **472 passed, 0 failed, 0 skipped, 0 deselected**; G-PN-JOINT **15/15 PASS offline**; `compileall` PASS; Ruff nos arquivos alterados PASS; `git diff --check` PASS. `ruff check .` retorna uma falha preexistente `I001` em `tests/test_logging_setup.py`, arquivo não editado nesta atividade. A regressão consolidada fica PARTIAL por esse lint geral e pelo gate independente de segurança bloqueado. Não houve acesso a câmera ou endpoint operacional; fixtures de rede foram restritas a `127.0.0.1`.
+
+Reconciliada a matriz `docs/audit/ASTRA_REMEDIATION_56_AC_MATRIX.md`, ID por ID: P0 4 PASS / 16 PARTIAL / 2 UNVERIFIED; P1 5 / 14 / 0; TRANSPORT 4 / 11 / 0; total **13 PASS / 41 PARTIAL / 2 UNVERIFIED**. G-PN-JOINT é PASS exclusivamente offline; não equivale à homologação física. Permanecem UNVERIFIED `ASTRA-P0-01-AC04` (ACL Operator explícito e Viewer/Operator/Admin) e `ASTRA-P0-03-AC01` (servidor ACL por operação e identidade da conta efetiva). Os testes existentes mostram transporte e header/digest por linha, mas não há interface de produto que atribua esses papéis nem fixture que valide a identidade autorizada pelo servidor. Outros ACs continuam PARTIAL conforme lacunas da matriz.
+
+Relatório de agentes: Peirce entregou integração real Panasonic (11/15 iniciais; após patch ROOT 15/15); Laplace entregou merge bidirecional, encontrou defeito corrigido pelo ROOT, e confirmou que não existe ACL por papel no produto; Darwin e Leibniz contribuíram com correlação estática. A recomendação agregada final de Leibniz tinha erro aritmético (13/40/3); o ROOT contou os 56 IDs individualmente e confirmou **13/41/2**. Godel não iniciou revisão por proteção técnica insuficiente. Nenhum agente alterou produção ou docs; arquivos produtivos foram integrados pelo ROOT.
+
+```text
+ACTIVITY_ID = CAM_SCANNER_ASTRA_FINAL_AC_CLOSURE_01
+BASELINE_CONFIRMED = PASS (branch feature/pre-p12-unified-remediation; HEAD deec969880016fb0fe60d737cceac4909313bc56)
+ROUTING_SKILL_STATUS = MANUALLY_READ_AND_APPLIED; LOCAL_CATALOG=R4.1; NATIVE_LOADER=UNVERIFIED
+MULTIAGENT_GATE_RESULT = PASS_FOR_TWO_PARALLEL_TEST_SLICES; SECURITY_REVIEW_BLOCKED_RUNTIME_PROTECTION
+MULTIAGENT_GAIN_JUSTIFICATION = INTEGRATION_TESTS_AND_MERGE_TESTS_HAVE_DISJOINT_OWNERSHIP; STATIC_AC_RECONCILIATION_IN_PARALLEL
+AGENTS_USED = Peirce/test_engineer; Laplace/test_engineer; Darwin/validator; Leibniz/validator; Godel/security_reviewer(blocked before source review)
+G_PN_JOINT_STATUS = PASS_OFFLINE (15/15)
+P0_AC_PASS = 4/22; PARTIAL=16; UNVERIFIED=2
+P1_AC_PASS = 5/19; PARTIAL=14; UNVERIFIED=0
+TRANSPORT_AC_PASS = 4/15; PARTIAL=11; UNVERIFIED=0
+TOTAL_AC_PASS = 13/56; PARTIAL=41; UNVERIFIED=2
+REGRESSION_STATUS = PARTIAL (pytest 472/0/0/0; changed-path Ruff, compileall, diff-check PASS; full Ruff 1 preexisting I001)
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION; no review started; no findings issued
+FILES_CHANGED_BY_THIS_ACTIVITY = strategy.py; transport.py; domain/models.py; 3 new test files; ASTRA_REMEDIATION_56_AC_MATRIX.md; PROJECT_STATE.md
+CONTINUITY_UPDATE = PASS
+BLOCKERS = SECURITY_REVIEW_READ_ONLY_RUNTIME_UNAVAILABLE; TWO_ACS_UNVERIFIED; FULL_RUFF_PREEXISTING_I001
+ACTIVITY_STATUS = PARTIAL
+ACTIVITY_COMPLETION_PERCENT = 23.2% (13/56 ACs PASS; exact ratio, not a weighted estimate)
+ACTIVITY_COMPLETE = NO
+NEXT_RECOMMENDED_ACTIVITY = Repetir revisão security em runtime tecnicamente read-only; decidir cobertura/autoridade de ACL; tratar lint preexistente em escopo separado
+DELIVERY_STATUS = SENT (chat existente “Projeto Scanner 2.0”; threadId confirmado por list_threads)
+GIT_WRITES = NONE
+```
+
+## CAM_SCANNER_ASTRA_ACL_SECURITY_CLOSURE_01 — fechamento focal (2026-10-28)
+
+Baseline confirmada no repositório local: branch `feature/pre-p12-unified-remediation`, HEAD `deec969880016fb0fe60d737cceac4909313bc56`. Branch e HEAD permaneceram. O worktree já estava sujo: ao fim desta atividade havia 27 entradas tracked modificadas, 53 entradas untracked e 9.012 arquivos ignorados; caches/artefatos preexistentes foram preservados. Os diretórios temporários `.pytest-run-*` desta execução também foram preservados. Nenhum stage, commit, push, merge, reset, restore, clean, stash ou rebase foi executado. Nenhum contrato canônico foi alterado.
+
+Roteamento: `$codex-task-router` local R4.1 foi lida e aplicada manualmente; loader nativo não verificado. Gate multiagente `PASS_WITH_RUNTIME_LIMITATION`: dois `test_engineer` tiveram ownership exclusivo de novos testes disjuntos de Axis e ACL Digest; um `validator` correlacionou as lacunas de AC e executou o preflight read-only do Codex Security (`security_scan=ready`). ROOT manteve código produtivo, matriz e continuidade; fez somente a correção mecânica `Self` na anotação de retorno do fixture ACL. Nenhum código produtivo foi modificado nesta atividade.
+
+Resultados ACL: 6 casos Axis comprovaram o plano público anônimo, zero auth lógico, ausência de Authorization/cookies e nenhum replay após 401; os rótulos de papel usaram a mesma conta sintética, logo não comprovam papéis ou contas distintas e não existe caminho `ELEVATED_AUTHORIZED` implementado. Uma fixture HTTP Digest local passou pelo `HikvisionAdapter` e `TargetTransportPolicy` produtivos para `GET /ISAPI/System/deviceInfo`: Viewer=403, Operator=200, Administrator=200, senha inválida=401 final; o servidor validou a resposta Digest e a identidade, com 1 tentativa lógica e 2 trocas físicas por caso. Isso satisfaz o teste offline sintético daquele endpoint, sem comprovar ACL física ou de outras operações.
+
+Reconciliada a matriz, sem alterar os contratos: `ASTRA-P0-01-AC04` passou de UNVERIFIED para PARTIAL; `ASTRA-P0-03-AC01` para PASS OFFLINE com escopo explícito; `ASTRA-TR-AC12` e `ASTRA-TR-AC15` passaram a PASS OFFLINE após evidência focal/regressão. `ASTRA-P1-G-AC01` e outros requisitos com lacunas específicas permaneceram PARTIAL. Contagem atual: P0 5 PASS / 17 PARTIAL / 0 UNVERIFIED; P1 5 / 14 / 0; TRANSPORT 6 / 9 / 0; total 16 PASS / 40 PARTIAL / 0 UNVERIFIED. `G-PN-JOINT=PASS_OFFLINE (15/15)`.
+
+Regressão final após a correção do teste: pytest **479 passed, 0 failed, 0 skipped, 0 deselected**; Ruff nos caminhos alterados, `compileall src/tests` e `git diff --check` passaram. `ruff check .` continua falhando somente por `I001` em `tests/test_logging_setup.py`, preexistente e fora do escopo de escrita; o arquivo não foi alterado. Uma verificação local de padrões de segredo imprimiu apenas caminhos/linhas redigidos: os matches ficaram restritos a sentinela de teste e chaves de certificados de fixture TLS em `tests/`; não há evidência de credencial operacional em produção. Valores não foram exibidos nem usados.
+
+Revisão independente permanece **BLOCKED_RUNTIME_PROTECTION**. O runtime não oferece sandbox read-only efetivo para o perfil `security_reviewer`; o último reviewer observado reportou `sandbox_mode=workspace-write`, e nenhum novo reviewer foi iniciado sem essa proteção. `SECURITY_SANDBOX_VERIFIED=NO`; findings `NOT_ASSESSED`, não zero. Um scan padrão focado em `src/cam_scanner` foi aberto e seu preflight concluiu; permaneceu antes da fase de revisão e é retomável. Daybreak não está habilitado nesta conta; isso é informativo e não foi usado como gate.
+
+```text
+ACTIVITY_ID = CAM_SCANNER_ASTRA_ACL_SECURITY_CLOSURE_01
+BASELINE_CONFIRMED = PASS (branch feature/pre-p12-unified-remediation; HEAD deec969880016fb0fe60d737cceac4909313bc56)
+ROUTER_REFERENCE_STATUS = LOCAL_R4.1_READ; NATIVE_LOADER_UNVERIFIED
+MULTIAGENT_GATE_RESULT = PASS_WITH_RUNTIME_LIMITATION (G1-G3 para slices independentes; G5 exigido, segurança read-only bloqueada)
+AGENTS_USED = 2 test_engineer; 1 validator; ROOT
+ACL_TEST_MATRIX_STATUS = PARTIAL_OVERALL (Hikvision endpoint fixture PASS; Axis elevated path incomplete)
+P0_01_AC04 = PARTIAL; P0_03_AC01 = PASS_OFFLINE_SCOPED
+G_PN_JOINT = PASS_OFFLINE (15/15)
+P0 = 5 PASS / 17 PARTIAL / 0 UNVERIFIED
+P1 = 5 PASS / 14 PARTIAL / 0 UNVERIFIED
+TRANSPORT = 6 PASS / 9 PARTIAL / 0 UNVERIFIED
+TOTAL = 16 PASS / 40 PARTIAL / 0 UNVERIFIED
+PYTEST = 479 passed / 0 failed / 0 skipped / 0 deselected
+RUFF_CHANGED_PATHS = PASS; RUFF_GLOBAL = PARTIAL (1 preexisting I001 in tests/test_logging_setup.py)
+COMPILEALL = PASS; GIT_DIFF_CHECK = PASS
+SECURITY_SANDBOX_VERIFIED = NO
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION; FINDINGS = NOT_ASSESSED
+ACTIVITY_STATUS = PARTIAL; ACTIVITY_COMPLETE = NO
+ACTIVITY_COMPLETION_PERCENT = 80% (marcos de execução; não proporção de ACs aceitos)
+NEXT_RECOMMENDED_ACTIVITY = Revisão de segurança independente em runtime com sandbox read-only efetivo; fechar os 40 ACs PARTIAL conforme evidência específica; tratar o I001 preexistente em escopo separado.
+GIT_WRITES = NONE
+DELIVERY_STATUS = SENT (chat existente “Projeto Scanner 2.0”; threadId 6ad2b0c4-24a4-83e9-b87b-043194e0ff57; kind=chatgpt)
+```
+
+## CAM_SCANNER_ASTRA_EVIDENCE_SECURITY_GATE_01 — fechamento de evidências (2026-10-28)
+
+Baseline e preservação: repositório `C:\Users\walac\desenvolvimento\projeto_cam_scanner`, branch `feature/pre-p12-unified-remediation`, HEAD `deec969880016fb0fe60d737cceac4909313bc56`. O estado Git iniciou com 27 entradas tracked modificadas, 53 untracked e 9.012 ignoradas; no fechamento há 27, 56 e 9.018, respectivamente, e zero paths staged. Os três novos untracked são testes desta atividade; os artefatos ignored foram preservados. Branch e HEAD não mudaram. Sem stage, commit, push, merge, rebase, reset, restore, clean ou stash. Contratos canônicos não foram alterados; nenhum device, host externo, HTTP operacional ou RTSP foi acessado.
+
+Roteamento: `$codex-task-router` local R4.1 lida e aplicada manualmente; loader nativo permanece não verificado. ROOT selecionou Darwin/validator para classificar os 40 PARTIAL e Poincare, Plato e Schrodinger/test_engineer em fases com ownership disjunto. Ganho material: classificação independente em paralelo, seguida por três arquivos de teste isolados, sem edição de produção. ROOT manteve ownership da matriz e continuidade. Security reviewer não foi selecionado: o runtime continua `workspace-write`, sem proteção read-only técnica exigida pelo Card. `SECURITY_SANDBOX_VERIFIED=NO`; `SECURITY_REVIEW_STATUS=BLOCKED_RUNTIME_PROTECTION`; `SECURITY_FINDINGS=NOT_ASSESSED`, não zero. O preflight anterior do scanner não é parecer de segurança.
+
+A matriz dos 40 IDs foi reconciliada com texto canônico, implementação, nodes, evidência sanitizada, categoria, lacuna e próxima ação. Seis ACs foram resolvidos offline: `ASTRA-P0-01-AC01`, `ASTRA-P0-01-AC02`, `ASTRA-P0-01-AC03`, `ASTRA-P0-01-AC06`, `ASTRA-P1-03-AC03` e `ASTRA-TR-AC08`. Estado atual: P0 9 PASS / 13 PARTIAL / 0 UNVERIFIED; P1 6 / 13 / 0; TRANSPORT 7 / 8 / 0; total **22 PASS / 34 PARTIAL / 0 UNVERIFIED**. Categorias ainda pendentes: 10 de cobertura de teste, 20 de evidência integrada, 1 implementação/autoridade de plano elevado ausente, 2 baselines prévias irrecuperáveis e 1 revisão de segurança bloqueada. Nenhum AC dependeu de homologação operacional. `ASTRA-P0-03-AC01` permanece `PASS_OFFLINE_SCOPED` somente para `GET /ISAPI/System/deviceInfo`; `ASTRA-P0-01-AC04` permanece PARTIAL; `ASTRA-P1-G-AC01` permanece PARTIAL.
+
+G-PN-JOINT foi reexecutado: 15/15 PASS offline. O novo node `tests/test_astra_p1_cross_invariant.py::test_single_real_collection_reaches_disabled_rtsp_guard_without_media_io` percorre workflow/coleta produtivos e `SnapshotService` real até o provider RTSP desativado; tripwires confirmam que lock, ONVIF de mídia e PyAV não são chamados. Os testes de lacunas Axis passaram 10/10 e os de mapeamento P1 passaram 15/15. Regressão consolidada após todos os testes: **505 passed, 0 failed, 0 skipped, 0 deselected**. Ruff nos três arquivos de teste novos, `compileall src/tests` e `git diff --check` passaram. `ruff check .` permanece parcial por um `I001` preexistente em `tests/test_logging_setup.py`, arquivo fora do escopo e não alterado.
+
+`PROJECT_STATE_UPDATE=PASS`; `CONTINUITY_UPDATE=PASS`. A atividade permanece PARTIAL/incompleta por 34 critérios ainda PARTIAL e pelo gate de revisão independente. O baseline prévio sem manifesto não pode ser reparado retroativamente. Próxima ação: em sessão separada, comprovar sandbox read-only antes de ler o código e executar revisão focal de WSSE/HTTP Digest/AuthLedger, Axis PUBLIC_NONE, Panasonic/ModelHint, seleção e TLS, RTSP, isolamento, logs/XLSX e SINGLE/MULTI; se não houver RO técnico, parar sem revisão. Depois, fechar os 34 PARTIAL conforme as ações na matriz.
+
+```text
+ACTIVITY_ID = CAM_SCANNER_ASTRA_EVIDENCE_SECURITY_GATE_01
+BASELINE_CONFIRMED = PASS (branch feature/pre-p12-unified-remediation; HEAD deec969880016fb0fe60d737cceac4909313bc56)
+ROUTING_SKILL_STATUS = MANUALLY_READ_AND_APPLIED; LOCAL_CATALOG=R4.1; NATIVE_LOADER=UNVERIFIED
+MULTIAGENT_GATE_RESULT = PASS_WITH_SECURITY_GATE_BLOCKED (validator + 3 test_engineer em ownership disjunto; máximo simultâneo abaixo do limite 3)
+AGENTS_USED = Darwin/validator; Schrodinger/test_engineer; Poincare/test_engineer; Plato/test_engineer; ROOT
+FILE_OWNERSHIP = ROOT: matriz/continuidade; test_engineers: 3 arquivos de teste novos; produção: sem alterações nesta atividade
+INITIAL_AC = 16 PASS / 40 PARTIAL / 0 UNVERIFIED
+CURRENT_AC = 22 PASS_OFFLINE / 34 PARTIAL / 0 UNVERIFIED
+P0 = 9 PASS / 13 PARTIAL / 0 UNVERIFIED
+P1 = 6 PASS / 13 PARTIAL / 0 UNVERIFIED
+TRANSPORT = 7 PASS / 8 PARTIAL / 0 UNVERIFIED
+P1_G_AC01 = PARTIAL; G_PN_JOINT = PASS_OFFLINE (15/15)
+P0_01_AC04 = PARTIAL; P0_03_AC01 = PASS_OFFLINE_SCOPED
+PYTEST = 505 passed / 0 failed / 0 skipped / 0 deselected
+RUFF_NEW_TEST_FILES = PASS; RUFF_GLOBAL = PARTIAL (1 preexisting I001)
+COMPILEALL = PASS; GIT_DIFF_CHECK = PASS
+SECURITY_SANDBOX_VERIFIED = NO
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION; FINDINGS = NOT_ASSESSED
+WORKTREE_FINAL = 27 tracked status entries / 56 untracked entries / 9,018 ignored files / 0 staged
+ACTIVITY_STATUS = PARTIAL
+ACTIVITY_COMPLETION_PERCENT = 76% (marcos de execução; não proporção de ACs PASS)
+ACTIVITY_COMPLETE = NO
+DELIVERY_STATUS = SENT (chat existente Projeto Scanner 2.0; tool confirmation received)
+NEXT_RECOMMENDED_ACTIVITY = Revisão independente em sandbox read-only efetivo; depois fechar 34 PARTIAL conforme a matriz
+GIT_WRITES = NONE
+```

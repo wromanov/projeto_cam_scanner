@@ -1,6 +1,9 @@
 """Target-bound, read-only Requests and Zeep transport for one collection row."""
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import ipaddress
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
@@ -18,6 +21,26 @@ if TYPE_CHECKING:
     from cam_scanner.application.collection_context import CollectionContext
 
 SOAP_BODY_LIMIT = 1024 * 1024
+_WSSE_NAMESPACE = (
+    "http://docs.oasis-open.org/wss/2004/01/"
+    "oasis-200401-wss-wssecurity-secext-1.0.xsd"
+)
+_WSU_NAMESPACE = (
+    "http://docs.oasis-open.org/wss/2004/01/"
+    "oasis-200401-wss-wssecurity-utility-1.0.xsd"
+)
+_WSSE_PASSWORD_DIGEST = (
+    "http://docs.oasis-open.org/wss/2004/01/"
+    "oasis-200401-wss-username-token-profile-1.0#PasswordDigest"
+)
+_WSSE_BASE64_BINARY = (
+    "http://docs.oasis-open.org/wss/2004/01/"
+    "oasis-200401-wss-soap-message-security-1.0#Base64Binary"
+)
+_SOAP_ENVELOPE_NAMESPACES = frozenset({
+    "http://www.w3.org/2003/05/soap-envelope",
+    "http://schemas.xmlsoap.org/soap/envelope/",
+})
 _COMPONENTS = frozenset({
     "onvif_device", "onvif_media", "snapshot_onvif", "snapshot_vendor",
     "vendor_axis", "vendor_dahua", "vendor_hanwha", "vendor_panasonic",
@@ -98,7 +121,7 @@ def _digest_challenge_supported(
     if not values:
         value = response.headers.get("www-authenticate")
         values = [value] if isinstance(value, str) else []
-    supported_algorithms = {"MD5", "MD5-SESS", "SHA", "SHA-256", "SHA-512"}
+    supported_algorithms = {"MD5", "MD5-SESS"}
     for value in values:
         if not isinstance(value, str):
             continue
@@ -149,6 +172,84 @@ def _soap_operation_name(payload: object) -> str | None:
         return None
     operation = next((item for item in body if isinstance(item.tag, str)), None)
     return operation.tag.rsplit("}", 1)[-1] if operation is not None else None
+
+
+def _soap_has_wsse_credentials(
+    payload: object, username: object, password: object
+) -> bool:
+    """Prove this bounded SOAP request carries this row's valid PasswordDigest."""
+    if isinstance(payload, str):
+        try:
+            payload = payload.encode("utf-8")
+        except UnicodeEncodeError:
+            return False
+    if (not isinstance(payload, bytes) or not 0 < len(payload) <= SOAP_BODY_LIMIT
+            or not isinstance(username, str) or not username
+            or not isinstance(password, str) or not password
+            or b"<!DOCTYPE" in payload.upper() or b"<!ENTITY" in payload.upper()):
+        return False
+    try:
+        root = ET.fromstring(payload)
+    except (ET.ParseError, TypeError, ValueError):
+        return False
+    envelope_namespace = (
+        root.tag[1:].split("}", 1)[0]
+        if isinstance(root.tag, str) and root.tag.startswith("{") else None
+    )
+    if (envelope_namespace not in _SOAP_ENVELOPE_NAMESPACES
+            or root.tag != f"{{{envelope_namespace}}}Envelope"):
+        return False
+    header_tag = f"{{{envelope_namespace}}}Header"
+    body_tag = f"{{{envelope_namespace}}}Body"
+    headers = [item for item in root if item.tag == header_tag]
+    bodies = [item for item in root if item.tag == body_tag]
+    if len(headers) != 1 or len(bodies) != 1:
+        return False
+    security_tag = f"{{{_WSSE_NAMESPACE}}}Security"
+    security_headers = [item for item in headers[0] if item.tag == security_tag]
+    if len(security_headers) != 1:
+        return False
+    token_tag = f"{{{_WSSE_NAMESPACE}}}UsernameToken"
+    username_tag = f"{{{_WSSE_NAMESPACE}}}Username"
+    password_tag = f"{{{_WSSE_NAMESPACE}}}Password"
+    nonce_tag = f"{{{_WSSE_NAMESPACE}}}Nonce"
+    created_tag = f"{{{_WSU_NAMESPACE}}}Created"
+    tokens = [item for item in security_headers[0] if item.tag == token_tag]
+    if len(tokens) != 1:
+        return False
+    values: dict[str, list[ET.Element]] = {}
+    for child in tokens[0]:
+        values.setdefault(child.tag, []).append(child)
+    if any(len(values.get(tag, ())) != 1 for tag in (
+        username_tag, password_tag, nonce_tag, created_tag
+    )):
+        return False
+    username_element = values[username_tag][0]
+    password_element = values[password_tag][0]
+    nonce_element = values[nonce_tag][0]
+    created_element = values[created_tag][0]
+    if username_element.text != username:
+        return False
+    if password_element.attrib.get("Type") != _WSSE_PASSWORD_DIGEST:
+        return False
+    if nonce_element.attrib.get("EncodingType") != _WSSE_BASE64_BINARY:
+        return False
+    if (not isinstance(password_element.text, str)
+            or not isinstance(nonce_element.text, str)
+            or not isinstance(created_element.text, str)
+            or not created_element.text or len(created_element.text) > 128):
+        return False
+    try:
+        nonce = base64.b64decode(nonce_element.text, validate=True)
+        submitted_digest = base64.b64decode(password_element.text, validate=True)
+        expected_digest = hashlib.sha1(
+            nonce + created_element.text.encode("utf-8") + password.encode("utf-8")
+        ).digest()
+    except (ValueError, UnicodeEncodeError):
+        return False
+    if not 0 < len(nonce) <= 1024 or len(submitted_digest) != hashlib.sha1().digest_size:
+        return False
+    return hmac.compare_digest(submitted_digest, expected_digest)
 
 
 class _BoundedResponse:
@@ -280,6 +381,17 @@ class _GuardedAdapter(HTTPAdapter):
         kwargs["proxies"] = {}
         started = context.monotonic()
         context.auth.record_physical_exchange()
+        authorization = request.headers.get("Authorization")
+        credential_sent = (
+            self.authenticated
+            and isinstance(authorization, str)
+            and bool(authorization.strip())
+        )
+        if (self.authenticated and self.component.startswith("onvif_")
+                and _soap_has_wsse_credentials(
+                    request.body, context.target.username, context.target.password
+                )):
+            credential_sent = True
         try:
             response = super().send(request, **kwargs)
             family = _AUTH_FAMILIES.get(self.component, self.component.upper())
@@ -298,9 +410,14 @@ class _GuardedAdapter(HTTPAdapter):
                         response.status_code, family, authenticated=self.authenticated
                     )
                     raise
+            observed_authenticated = credential_sent or (
+                self.authenticated
+                and response.status_code == 401
+                and not digest_challenge
+            )
             context.auth.observe_http(
                 response.status_code, family,
-                authenticated=self.authenticated,
+                authenticated=observed_authenticated,
                 challenge=digest_challenge,
             )
             return response
@@ -320,6 +437,38 @@ class TargetTransportPolicy:
         self._session_factory = session_factory
         self._sessions: dict[tuple[str, str, bool], requests.Session] = {}
         self.media_address: str | None = None
+
+    def _rules(self) -> tuple[Any, ...]:
+        plan = getattr(self.context.config, "transport_plan", None)
+        if plan is not None:
+            return plan.rules
+        # Legacy HTTP remains loadable, but cannot activate without a pre-I/O plan.
+        # Preserve explicit RTSP rules: the centralized HTTP profile must not
+        # silently disable the separately governed media transport.
+        return tuple(rule for rule in getattr(self.context.config, "transport_rules", ())
+                     if getattr(rule, "protocol", None) != "http")
+
+    def policy_metadata(self, component: str, url: str) -> dict[str, str | None]:
+        """Return closed sanitized policy metadata for the actual request scheme."""
+        parsed = urlsplit(url)
+        scheme = parsed.scheme.lower()
+        plan = getattr(self.context.config, "transport_plan", None)
+        entry = (plan.for_target(self.context.target.ip, component)
+                 if plan is not None else None)
+        metadata = getattr(entry, "metadata", None)
+        if metadata is not None and metadata.scheme == scheme:
+            return {
+                "policy_id": metadata.policy_id,
+                "authorization_ref": metadata.authorization_ref,
+                "auth_mode": metadata.auth_mode,
+                "scheme": scheme,
+            }
+        return {
+            "policy_id": "HTTPS_DEFAULT" if scheme == "https" else "LEGACY_EXACT",
+            "authorization_ref": None,
+            "auth_mode": "NONE" if scheme == "https" else "EXISTING",
+            "scheme": scheme,
+        }
 
     def authorize(self, component: str, url: str) -> str:
         if component not in _COMPONENTS or not isinstance(url, str) or not 0 < len(url) <= 2048:
@@ -360,7 +509,7 @@ class TargetTransportPolicy:
             raise TargetRejected("invalid RTSP protocol")
         if component != "rtsp" and scheme not in {"http", "https"}:
             raise TargetRejected("invalid HTTP protocol")
-        rules = getattr(self.context.config, "transport_rules", ())
+        rules = self._rules()
         explicitly_allowed = any(
             getattr(rule, "target", None) == self.context.target.ip
             and getattr(rule, "component", None) == component
@@ -379,7 +528,7 @@ class TargetTransportPolicy:
     def endpoint(self, component: str, protocol: str | None = None, path: str = "/") -> str:
         if component not in _COMPONENTS:
             raise TargetRejected("unsupported transport component")
-        rules = getattr(self.context.config, "transport_rules", ())
+        rules = self._rules()
         configured = [rule for rule in rules if getattr(rule, "target", None) == self.context.target.ip
                       and getattr(rule, "component", None) == component]
         if protocol is None:
@@ -422,6 +571,15 @@ class TargetTransportPolicy:
             raise TargetRejected("RTSP uses the bounded decoder")
         self.context.check(source)
         self.authorize(component, url)
+        metadata = self.policy_metadata(component, url)
+        if metadata["policy_id"] not in {"HTTPS_DEFAULT", "LEGACY_EXACT"}:
+            if metadata["scheme"] == "http" and component not in {
+                "vendor_axis", "vendor_dahua", "vendor_hanwha",
+                "vendor_panasonic", "vendor_hikvision",
+            }:
+                raise TargetRejected("HTTP profile is limited to native vendor components")
+            if metadata["auth_mode"] == "PUBLIC_NONE" and authenticated:
+                raise TargetRejected("public transport policy forbids authentication")
         if method.upper() not in {"GET", "POST"}:
             raise TargetRejected("unsupported method")
         options["allow_redirects"] = False

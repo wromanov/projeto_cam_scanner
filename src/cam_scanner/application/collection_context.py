@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from math import isfinite
 from typing import Any, ClassVar, Protocol
 
-from cam_scanner.domain.models import CameraTarget, CollectionReport
+from cam_scanner.domain.models import CameraTarget, CollectionReport, ModelHint
 
 
 class TransportPolicy(Protocol):
@@ -310,16 +310,21 @@ class CollectionContext:
         cancel_event: threading.Event | None = None,
         clock: Callable[[], float] = time.monotonic,
         manufacturer_hint: str | None = None,
+        model_hint: ModelHint | None = None,
     ) -> None:
         self.target = target
         self.config = config
         self.manufacturer_hint = manufacturer_hint
+        if model_hint is not None and not isinstance(model_hint, ModelHint):
+            raise TypeError("model_hint must use ModelHint")
+        self.model_hint = model_hint
+        self.model_hint_invalid = False
         self.cancel_event = cancel_event or threading.Event()
         self._tls_failed = False
         self.started_monotonic = clock()
         self.budget = CollectionBudget(config, started_at=self.started_monotonic, clock=clock)
         self.auth = AuthenticationLedger()
-        self.report = CollectionReport()
+        self.report = CollectionReport(model_hint=model_hint)
         self._clock = clock
         self._transport: TransportPolicy | None = None
         self._transport_factory = transport_factory

@@ -256,4 +256,4 @@ def test_incomplete_input_iteration_does_not_export_partial_batch() -> None:
 
     assert writer.rows == []
     assert ui.completed is None
-    assert ui.errors == ["A quantidade de linhas da planilha mudou durante a leitura."]
+    assert ui.errors == ["A quantidade de linhas mudou durante o pré-voo."]

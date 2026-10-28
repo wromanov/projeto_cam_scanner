@@ -8,6 +8,8 @@ from cam_scanner.cameras.manufacturers.panasonic import PanasonicAdapter
 from cam_scanner.domain.enums import CollectionMethod, CollectionStatus
 from cam_scanner.domain.models import CameraTarget
 
+PANASONIC_TEST_PROFILE = "i-pro-command-interface-v1.17:WV-S2531L"
+
 
 class _Response:
     def __init__(self, status: int, body: bytes, headers: dict[str, str] | None = None) -> None:
@@ -98,14 +100,16 @@ def test_dahua_preserves_partial_evidence_when_vendor_lookup_fails() -> None:
 
 
 def test_panasonic_getinfo_maps_documented_name_serial_and_version_without_inventing_vendor() -> None:
-    response = _Response(200, b"<HTML>\r\nNAME=WV-S2136L\r\nSERIAL=ABC123\r\nVERSION=2.50\r\n</HTML>\r\n")
+    response = _Response(200, b"<HTML>\r\nNAME=WV-S2531L\r\nSERIAL=ABC123\r\nVERSION=2.50\r\n</HTML>\r\n")
     session = _Session(response)
 
-    report = PanasonicAdapter(session_factory=lambda: session).collect_report(_target())
+    report = PanasonicAdapter(
+        session_factory=lambda: session, profile=PANASONIC_TEST_PROFILE
+    ).collect_report(_target())
 
     assert report.status is CollectionStatus.PARTIAL_SUCCESS
     assert report.value_for("manufacturer") is None
-    assert report.value_for("model") == "WV-S2136L"
+    assert report.value_for("model") == "WV-S2531L"
     assert report.value_for("serial") == "ABC123"
     assert report.value_for("firmware") == "2.50"
     assert len(session.requests) == 1
@@ -123,7 +127,9 @@ def test_panasonic_getinfo_maps_documented_name_serial_and_version_without_inven
 def test_panasonic_rejects_malformed_html_wrapper() -> None:
     session = _Session(_Response(200, b"<HTML>\nNAME=WV-S2136L\nSERIAL=ABC123\n"))
 
-    report = PanasonicAdapter(session_factory=lambda: session).collect_report(_target())
+    report = PanasonicAdapter(
+        session_factory=lambda: session, profile=PANASONIC_TEST_PROFILE
+    ).collect_report(_target())
 
     assert report.status is CollectionStatus.FAILED
     assert report.attempts[-1].error_category == "INVALID_RESPONSE"
@@ -132,7 +138,9 @@ def test_panasonic_rejects_malformed_html_wrapper() -> None:
 def test_credentials_are_target_scoped_and_never_copied_to_evidence() -> None:
     session = _Session(_Response(200, b"NAME=private-password\nSERIAL=ABC123\n"))
 
-    report = PanasonicAdapter(session_factory=lambda: session).collect_report(_target())
+    report = PanasonicAdapter(
+        session_factory=lambda: session, profile=PANASONIC_TEST_PROFILE
+    ).collect_report(_target())
 
     assert report.status is CollectionStatus.PARTIAL_SUCCESS
     assert report.value_for("model") is None
@@ -158,7 +166,12 @@ def test_invalid_ip_is_rejected_before_network_request(adapter_type) -> None:
 def test_timeout_is_normalized_without_leaking_exception_text(adapter_type) -> None:
     session = _Session(requests.ReadTimeout("private-password in response"))
 
-    report = adapter_type(session_factory=lambda: session).collect_report(_target())
+    adapter = (
+        adapter_type(session_factory=lambda: session, profile=PANASONIC_TEST_PROFILE)
+        if adapter_type is PanasonicAdapter
+        else adapter_type(session_factory=lambda: session)
+    )
+    report = adapter.collect_report(_target())
 
     assert report.status is CollectionStatus.FAILED
     assert report.attempts[0].error_category == "READ_TIMEOUT"
@@ -170,7 +183,12 @@ def test_timeout_is_normalized_without_leaking_exception_text(adapter_type) -> N
 def test_tls_failure_does_not_downgrade_to_http(adapter_type) -> None:
     session = _Session(requests.exceptions.SSLError("certificate validation failed"))
 
-    report = adapter_type(session_factory=lambda: session).collect_report(_target())
+    adapter = (
+        adapter_type(session_factory=lambda: session, profile=PANASONIC_TEST_PROFILE)
+        if adapter_type is PanasonicAdapter
+        else adapter_type(session_factory=lambda: session)
+    )
+    report = adapter.collect_report(_target())
 
     assert report.status is CollectionStatus.FAILED
     assert report.attempts[0].error_category == "TLS_ERROR"

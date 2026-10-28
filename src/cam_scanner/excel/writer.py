@@ -211,12 +211,11 @@ class ExcelWriter:
                 temporary_path = Path(temporary_file.name)
             workbook.save(temporary_path)
             try:
-                os.link(temporary_path, destination)
+                os.rename(temporary_path, destination)
             except FileExistsError:
                 raise ExcelOutputError(
                     "O arquivo de saída já existe; escolha outro nome."
                 ) from None
-            temporary_path.unlink()
             temporary_path = None
             return destination
         except ExcelOutputError:
@@ -283,9 +282,12 @@ _DIAGNOSTIC_OPERATIONS = {
     "parse_device_information", "resolve_preauth_manufacturer", "aggregate_collection_report",
     "discover", "preauth_discovery", "vendor_adapter", "ONVIF pre-authentication discovery",
     "GET /ISAPI/System/deviceInfo",
-    "POST /axis-cgi/basicdeviceinfo.cgi getAllProperties", "GET /stw-cgi/system.cgi deviceinfo view",
+    "POST /axis-cgi/basicdeviceinfo.cgi getAllProperties",
+    "POST /axis-cgi/basicdeviceinfo.cgi getSupportedVersions",
+    "POST /axis-cgi/basicdeviceinfo.cgi getAllUnrestrictedProperties",
+    "GET /stw-cgi/system.cgi deviceinfo view",
     "GET /cgi-bin/magicBox.cgi getSystemInfo", "GET /cgi-bin/magicBox.cgi getVendor",
-    "GET /cgi-bin/getinfo",
+    "GET /cgi-bin/getinfo", "select_transport_policy",
 }
 _DIAGNOSTIC_CODE_PATTERN = re.compile(
     r"^(?:[A-Za-z][A-Za-z0-9]{0,7}:)?(?:Sender|Receiver|MustUnderstand|VersionMismatch|"
