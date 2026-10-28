@@ -1,5 +1,12 @@
 # Roadmap aprovado — projeto_cam_scanner
 
+## Prioridade atual - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
+
+Ramo de remediação Astra offline: 38 PASS_OFFLINE, 18 PARTIAL, 0 UNVERIFIED. Resultado anterior de testes: 536 passed. Próximo incremento proposto CAM_SCANNER_ASTRA_FINAL_OFFLINE_EVIDENCE_04, focado nos 14 ACs técnicos com lacunas de evidência, sem promessa de promoção automática. Quatro ACs dependem de autoridade, evidência histórica ou revisão de segurança separada read-only.
+
+O checkpoint de transferência está em ../checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md. Confirmar hash remoto e branch antes de retomar. O roadmap histórico P12/P2 abaixo não é prioridade vigente. Sem liberação operacional.
+
+
 ## Checkpoint corrente — CAM_SCANNER_P12_WINDOWS_ONEDIR_BUILD_AND_VALIDATION (2026-10-19)
 
 O estado factual está em [`PROJECT_STATE.md`](../PROJECT_STATE.md). Os gates pré-P12 continuam `GATE_2/3/4/V=PASS`, `P12_READINESS=READY_FOR_P12`; não foram repetidos. O build ONEDIR `1.0.0` e os smoke tests P12 passaram, limpando `PREP12-09` para o estágio de empacotamento. P0/P1/P2 e homologações anteriores não mudam. Homologação operacional READ_ONLY e Gate 5/publicação continuam pendentes de autorização separada; nenhuma câmera real foi acessada.

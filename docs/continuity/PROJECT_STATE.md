@@ -1,5 +1,26 @@
 # PROJECT_STATE — adendo de implementação offline vigente (2026-10-27)
 
+## Estado atual - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
+
+BRANCH = feature/pre-p12-unified-remediation
+BASELINE_HEAD_BEFORE_CHECKPOINT = 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431
+CHECKPOINT_COMMIT = consultar git log do arquivo de checkpoint
+AC_STATUS = 38 PASS_OFFLINE / 18 PARTIAL / 0 UNVERIFIED
+LAST_TEST_REPORT = 536 passed / 0 failed / 0 skipped / 0 deselected (não reexecutado pelo checkpoint)
+MULTIAGENT = 4 agentes concluídos; modelos runtime UNVERIFIED
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+FORMAL_CLOSURE_STATUS = NOT_CLOSED
+CAMERA_ACCESS = NOT_AUTHORIZED
+OPERATIONAL_HTTP = NOT_AUTHORIZED
+ELEVATED_AUTH = NOT_AUTHORIZED
+P2_MEDIA = DEFERRED
+NEXT_RECOMMENDED_ACTIVITY = CAM_SCANNER_ASTRA_FINAL_OFFLINE_EVIDENCE_04 (14 AC técnicos)
+SAFE_RESUME_POINT = confirmar publicação do checkpoint, HEAD remoto e worktree no outro computador
+
+Esta é a atualização vigente de navegação/continuidade. Os estados abaixo são históricos, não o ponto atual de retomada. A ficha completa está em checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md e a matriz em ../audit/ASTRA_REMEDIATION_56_AC_MATRIX.md. A documentação não declara aprovação do gate formal PM-01 ou revisão independente de segurança.
+
+
 Este bloco registra a atividade `CAM_SCANNER_ASTRA_P0_P1_TRANSPORT_IMPLEMENTATION`.
 Ele prevalece sobre o estado documental anterior apenas quanto à execução offline
 autorizada pelo Card atual; não concede câmera real, HTTP operacional, RTSP,
@@ -1681,4 +1702,88 @@ ACTIVITY_COMPLETE = NO
 DELIVERY_STATUS = SENT (chat existente Projeto Scanner 2.0; tool confirmation received)
 NEXT_RECOMMENDED_ACTIVITY = Revisão independente em sandbox read-only efetivo; depois fechar 34 PARTIAL conforme a matriz
 GIT_WRITES = NONE
+```
+
+## CAM_SCANNER_ASTRA_AC_CLOSURE_02 — checkpoint de continuidade (2026-10-28)
+
+Baseline: repositório C:/Users/walacedelgado/PycharmProjects/projeto_cam_scanner_pre_p12_remediation, branch feature/pre-p12-unified-remediation, HEAD e upstream 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431. Branch e HEAD permaneceram. Sem stage, commit, push, reset, clean, stash ou rebase. O Card informa 1.793 arquivos não rastreados anteriores; a listagem atual ficou incompleta por diretórios com acesso negado, portanto o total histórico não foi reconciliado e nenhum desses artefatos foi removido. Estado tracked final: dois testes e dois documentos modificados; nenhum staged.
+
+O gate multiagente resultou FAIL_FOR_DELEGATION: a divisibilidade oferecia ganho, mas checkout isolado para agentes e proteção técnica read-only para security reviewer não estavam disponíveis/comprovados. Aplicado fallback direto pelo ROOT; nenhum subagente foi iniciado. Roteador local R4.1 e referências foram lidos manualmente; loader nativo e verificações de modelo/permissão permanecem não verificados.
+
+A remediação não alterou código produtivo ou contratos. Foram adicionadas provas de Panasonic com payloads vazios/inválidos sem identidade fabricada; integração MULTI real em loopback para profile HTTP exato e alvo fora do profile mantido em HTTPS até TerminalUI/XLSX; cobertura ONVIF/Axis para HardwareId somente quando válido e sem request opcional; negativos de mapeamento em ONVIF/Axis/Panasonic/Dahua; e Digest simultâneo para duas contas no mesmo IP, correlacionado à linha de origem. Nenhum dispositivo ou endpoint operacional foi acessado.
+
+Regressão integral atual: 510 passed, 0 failed, 0 skipped, 0 deselected. G-PN-JOINT 15/15; nodes focais P1 mapping 15/15. Ruff nos arquivos alterados, compileall src/tests com cache isolado e git diff --check passaram. ruff check src tests apresenta somente I001 preexistente em tests/test_logging_setup.py, arquivo fora das alterações. A suíte exigiu diretório TEMP isolado com acesso ampliado porque o sandbox bloqueava preparação/limpeza do pytest.
+
+Matriz atualizada AC a AC: 30 PASS_OFFLINE, 26 PARTIAL, 0 UNVERIFIED. Oito promoções e a lista/categorização dos 26 restantes estão registradas em docs/audit/ASTRA_REMEDIATION_56_AC_MATRIX.md. Security review permanece BLOCKED_RUNTIME_PROTECTION, sem revisão iniciada; findings NOT_ASSESSED. Continuidade documental atualizada, porém fechamento formal segue aberto.
+
+### Registro estruturado
+
+ACTIVITY_ID = CAM_SCANNER_ASTRA_AC_CLOSURE_02
+BASELINE_HEAD = 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431
+FINAL_HEAD = 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431
+BRANCH = feature/pre-p12-unified-remediation
+AC_INITIAL = 22 PASS / 34 PARTIAL / 0 UNVERIFIED
+AC_FINAL = 30 PASS_OFFLINE / 26 PARTIAL / 0 UNVERIFIED
+PYTEST = 510 passed / 0 failed / 0 skipped / 0 deselected
+RUFF_CHANGED_PATHS = PASS
+RUFF_SRC_TESTS = PARTIAL (one preexisting I001 in tests/test_logging_setup.py)
+COMPILEALL = PASS; GIT_DIFF_CHECK = PASS
+MULTIAGENT_GATE_RESULT = FAIL_FOR_DELEGATION; EXECUTION_MODE_EFFECTIVE = DIRECT_ROOT_ONLY
+AGENTS_ACTUALLY_SPAWNED = NONE
+G_PN_JOINT = PASS_OFFLINE (15/15)
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+PROJECT_STATE_UPDATE = PASS (documentary scope)
+CONTINUITY_STATUS = UPDATED; FORMAL_CLOSURE_STATUS = NOT_CLOSED
+ACTIVITY_STATUS = PARTIAL; ACTIVITY_COMPLETE = NO
+ACTIVITY_COMPLETION_PERCENT = 92% (execution milestones; formal closure remains open)
+GIT_COMMIT_PUSH = NONE
+REAL_CAMERA_ACCESS = NONE
+OPERATIONAL_HTTP = NONE
+DELIVERY_STATUS = SENT (chat existente Projeto Scanner 2.0; threadId 6ad2b0c4-24a4-83e9-b87b-043194e0ff57; kind=chatgpt; hostId=N/A; confirmação da ferramenta recebida)
+NEXT_RECOMMENDED_ACTIVITY = Review the 26 PARTIAL ACs and conduct independent security review only under a technically read-only runtime.
+
+
+## CAM_SCANNER_ASTRA_EVIDENCE_COMPLETION_03 - continuidade (2026-10-28)
+
+Baseline: repositorio `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_pre_p12_remediation`; branch `feature/pre-p12-unified-remediation`; HEAD `0c936d443e4865e0f9c9d2dba5fb8927bb6f5431` antes/depois. Quatro paths tracked listados como modificados na entrada foram preservados. No fechamento: 7 paths tracked modificados, 0 staged, 1.794 untracked no inventario Git; a lista inicial estava incompleta e o novo arquivo criado e `tests/test_astra_evidence_completion_03.py`. Nada foi removido. Sem operacoes Git mutaveis.
+
+### Roteamento efetivo
+
+`codex-task-router` local foi lido manualmente; catalogo/referencias locais identificam R4.2. Loader nativo nao verificado. MULTIAGENT foi pedido pelo Card, autorizado e passou para as frentes offline: test_engineer, backend_engineer, integration_engineer e python_cli_engineer, em dois lotes por capacidade simultanea. Os quatro foram efetivamente iniciados e concluidos. Ownership disjunto foi definido. O test_engineer alterou somente seu teste; backend/integration concluiram revisoes somente leitura sem defeito produtivo demonstrado; python_cli_engineer identificou o defeito de formula, mas nao editou porque a permissao efetiva nao autorizava escrita no path. ROOT assumiu a integracao e as duas correcoes Excel. Modelos em perfis eram declarados no momento do spawn; overrides nao foram pedidos; modelo/esforco de turnos filhos permanecem UNVERIFIED. Nao se alega isolamento de filesystem.
+
+O security_reviewer nao foi iniciado: a revisao formal exige sandbox tecnicamente read-only antes do spawn; runtime write-enabled nao satisfaz esse gate. SECURITY_REVIEW_STATUS=BLOCKED_RUNTIME_PROTECTION; SECURITY_FINDINGS=NOT_ASSESSED, nao zero.
+
+### Mudancas
+
+O leitor Excel agora acompanha tipo de celula em `MODELO` sem avaliar formulas e marca formula com/sem cache textual como hint invalido. O writer inclui `validate_model_hint` na allowlist sanitizada de `DIAGNOSTICOS`. Testes cobrem formula sem cache, cache textual, workbook legado com coluna extra, linhas validas/invalida e exportacao XLSX. Os testes previamente adicionados para challenge/AuthLedger, mismatch SINGLE/MULTI, diagnosticos, preservacao Panasonic e profiles permaneceram. Nenhum contrato foi alterado.
+
+### Evidencia e adjudicacao
+
+Entrada do Card: 30 PASS_OFFLINE / 26 PARTIAL / 0 UNVERIFIED; baseline historica 510 testes. Estado atual da matriz: **38 PASS_OFFLINE / 18 PARTIAL / 0 UNVERIFIED**. Promovidos nesta atividade: P0-03-AC02/AC03; P1-01-AC05/AC07; P1-02-AC01/AC02; TR-AC03/AC07. Os 18 restantes e respectivas categorias estao enumerados no registro CAM_SCANNER_ASTRA_EVIDENCE_COMPLETION_03 da matriz.
+
+Regressao final: 536 passed / 0 failed / 0 skipped / 0 deselected em 94,52 s; G-PN-JOINT: 31 passed em 25,27 s; suite focal de seis frentes: 124 passed em 32,81 s. Ruff direcionado e compileall passaram. Ruff global permanece parcial por I001 preexistente em `tests/test_logging_setup.py`, arquivo nao editado. `git diff --check` passou; a ferramenta mostrou aviso de normalizacao LF/CRLF em `PROJECT_STATE.md`, sem erro de whitespace.
+
+P2 MEDIA continua DEFERRED. Sem camera real, HTTP operacional, RTSP operacional, auth elevada, firmware/config/ACL operacional ou build/deploy. Sem commit/push. Formal closure permanece aberta pelos 18 PARTIAL e gate de seguranca.
+
+```text
+ACTIVITY_ID = CAM_SCANNER_ASTRA_EVIDENCE_COMPLETION_03
+BASELINE_HEAD = 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431
+FINAL_HEAD = 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431
+BRANCH = feature/pre-p12-unified-remediation
+WORKTREE_STATUS = 7 tracked modified / 1,794 untracked / 0 staged
+PROJECT_STATE_UPDATE = PASS (final git diff --check passed)
+CONTINUITY_STATUS = UPDATED
+ACTIVITY_STATUS = PARTIAL
+ACTIVITY_COMPLETE = NO
+ACTIVITY_COMPLETION_PERCENT = 92% (marcos executados; nao equivale a ACs aprovados)
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+DELIVERY_STATUS = SENT (chat existente Projeto Scanner 2.0; threadId 6ad2b0c4-24a4-83e9-b87b-043194e0ff57; kind=chatgpt; confirmacao recebida)
+SAFE_RESUME_POINT = branch/HEAD confirmados; 536 testes completos; nenhuma escrita Git
+GIT_COMMIT_PUSH = NONE
+REAL_CAMERA_ACCESS = NONE
+OPERATIONAL_HTTP = NONE
+OPERATIONAL_RTSP = NONE
+ELEVATED_AUTH = NONE
 ```

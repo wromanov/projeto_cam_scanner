@@ -1,5 +1,18 @@
 # Mapa de authorities ativas
 
+## Localizadores vigentes - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
+
+Contratos aprovados para as atividades offline já autorizadas:
+- ../contracts/ASTRA_P0_REQUIRED_CORRECTIONS_IMPLEMENTATION_CONTRACT.md (22 AC).
+- ../contracts/ASTRA_P1_COVERAGE_IMPROVEMENTS_IMPLEMENTATION_CONTRACT.md (19 AC).
+- ../contracts/ASTRA_CENTRALIZED_TRANSPORT_IMPLEMENTATION_CONTRACT.md (15 AC).
+- ../contracts/ASTRA_P2_MEDIA_DEFERRED_DECISION_RECORD.md (P2 deferred).
+
+A matriz vigente indica 38 PASS_OFFLINE / 18 PARTIAL. Este checkpoint Git para mudança de computador não autoriza câmera real, HTTP/RTSP operacional, auth elevada ou deploy. O localizador é checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md.
+
+As authorities normativas e pins do binding abaixo permanecem inalterados; este registro não altera versão nem promove políticas.
+
+
 | Escopo | Authority | Identidade / versão | Estado | Localizador |
 |---|---|---|---|---|
 | Governance baseline | Matriz Unificada | PM-00 / 1.0 | CANONICAL / ACTIVE | `../governanca_de_projetos/Matriz Unificada de Políticas/` |

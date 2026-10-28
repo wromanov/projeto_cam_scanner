@@ -1,5 +1,14 @@
 # Registro de continuidade
 
+## Registro vigente - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
+
+As atividades CAM_SCANNER_ASTRA_AC_CLOSURE_02 e CAM_SCANNER_ASTRA_EVIDENCE_COMPLETION_03 elevaram a matriz de 22/56 para 30/56 e depois 38/56 PASS_OFFLINE. Última regressão reportada: 536 testes sem falhas; G-PN 31/31. Quatro subagentes concluíram as frentes no ciclo R4.2; ROOT integrou; modelos efetivos dos turnos filhos não verificados.
+
+Este checkpoint é um registro de transporte seguro do estado por Git; a publicação efetiva deve ser confirmada no remoto. Conteúdo, 18 AC restantes e limites em checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md.
+
+Segurança permanece BLOCKED_RUNTIME_PROTECTION / NOT_ASSESSED; 14 AC técnicos podem ser trabalhados offline em atividade separada e quatro estão condicionados. Sem câmera real, auth elevada, HTTP/RTSP operacional ou deploy. Os registros seguintes são históricos.
+
+
 ## CAM_SCANNER_P12_WINDOWS_ONEDIR_BUILD_AND_VALIDATION — estado final (2026-10-19)
 
 O build P12 autorizado gerou e validou o pacote portátil CAM Scanner `1.0.0` para Windows 11 24H2 x64. `PREP12-09` foi satisfeito nesta etapa: ONEDIR, WSDL/XSD e recursos, DLLs, certificado, configuração externa, logs/temp, CLI sem Python no PATH, pasta protegida, falha controlada sem diretório gravável, destino local não sobrescrito e exportação XLSX/snapshot sintético passaram. O destino UNC/SMB não foi exercitado porque nenhum caminho autorizado foi fornecido. Veja [`PROJECT_STATE.md`](PROJECT_STATE.md) para status, hashes e limites; evidências do executável e do manifesto estão em `_tmp_P12_WINDOWS_ONEDIR_20261019`.

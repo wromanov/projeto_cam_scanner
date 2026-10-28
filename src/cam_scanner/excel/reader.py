@@ -60,33 +60,63 @@ class ExcelReader:
 
     def _iter_rows(self, path: str | Path, expected_headers: dict[str, int]) -> Iterator[ExcelInputRow]:
         workbook = self._open(path)
+        formula_workbook = None
         try:
             worksheet = workbook.active
+            formula_worksheet = None
+            if "modelo" in expected_headers:
+                # data_only hides the formula marker and can expose a cached string as a hint.
+                formula_workbook = self._open(path, data_only=False)
+                formula_worksheet = formula_workbook.active
+                formula_header_map = _header_map(
+                    formula_worksheet.iter_rows(min_row=1, max_row=1, values_only=True)
+                )
+                if formula_header_map != expected_headers:
+                    raise ExcelInputError("Os cabeçalhos da planilha mudaram durante a leitura.")
             # Re-read the header to detect a file change between counting and processing.
             header_map = _header_map(worksheet.iter_rows(min_row=1, max_row=1, values_only=True))
             if header_map != expected_headers:
                 raise ExcelInputError("Os cabeçalhos da planilha mudaram durante a leitura.")
-            for row_number, values in enumerate(
-                worksheet.iter_rows(min_row=2, values_only=True), start=2
-            ):
+            value_rows = worksheet.iter_rows(min_row=2, values_only=True)
+            if formula_worksheet is None:
+                row_pairs = ((values, None) for values in value_rows)
+            else:
+                formula_rows = formula_worksheet.iter_rows(min_row=2, values_only=False)
+                row_pairs = zip(value_rows, formula_rows, strict=True)
+            model_index = expected_headers.get("modelo")
+            for row_number, (values, formula_cells) in enumerate(row_pairs, start=2):
                 if not _row_has_required_data(values, header_map):
                     continue
-                yield _parse_row(row_number, values, header_map)
+                formula_cell = (
+                    formula_cells[model_index]
+                    if formula_cells is not None
+                    and model_index is not None
+                    and model_index < len(formula_cells)
+                    else None
+                )
+                yield _parse_row(
+                    row_number,
+                    values,
+                    header_map,
+                    model_is_formula=getattr(formula_cell, "data_type", None) == "f",
+                )
         except ExcelInputError:
             raise
         except Exception:  # noqa: BLE001 - malformed worksheet errors are normalized.
             raise ExcelInputError("Não foi possível ler as linhas da planilha XLSX.") from None
         finally:
+            if formula_workbook is not None:
+                formula_workbook.close()
             workbook.close()
 
     @staticmethod
-    def _open(path: str | Path):
+    def _open(path: str | Path, *, data_only: bool = True):
         try:
             from openpyxl import load_workbook
         except ImportError:
             raise ExcelInputError("O suporte XLSX não está disponível neste ambiente.") from None
         try:
-            return load_workbook(Path(path), read_only=True, data_only=True)
+            return load_workbook(Path(path), read_only=True, data_only=data_only)
         except Exception:  # noqa: BLE001 - filesystem/format details are not user-facing.
             raise ExcelInputError("Não foi possível abrir a planilha XLSX de entrada.") from None
 
@@ -118,7 +148,13 @@ def _header_map(rows) -> dict[str, int]:
     return mapping
 
 
-def _parse_row(row_id: int, values: tuple[object, ...], header_map: dict[str, int]) -> ExcelInputRow:
+def _parse_row(
+    row_id: int,
+    values: tuple[object, ...],
+    header_map: dict[str, int],
+    *,
+    model_is_formula: bool = False,
+) -> ExcelInputRow:
     raw_ip = _cell_text(_get_cell(values, header_map["ip"]))
     raw_username = _cell_text(_get_cell(values, header_map["username"]))
     raw_password = _cell_text(_get_cell(values, header_map["password"]))
@@ -128,13 +164,16 @@ def _parse_row(row_id: int, values: tuple[object, ...], header_map: dict[str, in
         else ""
     )
     model_value = _get_cell(values, header_map["modelo"]) if "modelo" in header_map else None
-    model_hint = parse_model_hint(
+    model_hint = None if model_is_formula else parse_model_hint(
         model_value if isinstance(model_value, str) else None,
         sensitive_values=(raw_username, raw_password),
     )
-    model_hint_invalid = model_value is not None and (
-        not isinstance(model_value, str)
-        or (bool(model_value.strip(" ")) and model_hint is None)
+    model_hint_invalid = model_is_formula or (
+        model_value is not None
+        and (
+            not isinstance(model_value, str)
+            or (bool(model_value.strip(" ")) and model_hint is None)
+        )
     )
     if any(not is_safe_xml_text(value) for value in (raw_ip, raw_username, raw_password)):
         return ExcelInputRow(

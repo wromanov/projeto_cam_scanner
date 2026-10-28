@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import fields
+from zipfile import ZipFile
 
 import pytest
 
@@ -198,7 +199,39 @@ def test_excel_formula_cell_is_never_evaluated_as_model_hint(tmp_path) -> None:
 
     assert parsed.valid
     assert parsed.model_hint is None
-    assert parsed.model_hint_invalid is False
+    assert parsed.model_hint_invalid is True
+
+
+def test_excel_formula_with_cached_text_is_invalid_model_hint(tmp_path) -> None:
+    openpyxl = pytest.importorskip("openpyxl")
+    path = tmp_path / "cached-formula-model.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(("IP", "USERNAME", "PASSWORD", "MODELO"))
+    sheet.append(("192.0.2.10", "u", "p", '=\"WV-S2531L\"'))
+    workbook.save(path)
+    workbook.close()
+
+    with ZipFile(path, "r") as archive:
+        entries = [(entry, archive.read(entry.filename)) for entry in archive.infolist()]
+    old_cell = b'<c r="D2"><f>"WV-S2531L"</f><v></v></c>'
+    cached_cell = b'<c r="D2" t="str"><f>"WV-S2531L"</f><v>WV-S2531L</v></c>'
+    for index, (entry, content) in enumerate(entries):
+        if entry.filename == "xl/worksheets/sheet1.xml":
+            assert old_cell in content
+            entries[index] = (entry, content.replace(old_cell, cached_cell, 1))
+            break
+    else:
+        pytest.fail("A planilha sintética não contém a primeira aba esperada.")
+    with ZipFile(path, "w") as archive:
+        for entry, content in entries:
+            archive.writestr(entry, content)
+
+    parsed = next(ExcelReader().read(path).rows)
+
+    assert parsed.valid
+    assert parsed.model_hint is None
+    assert parsed.model_hint_invalid is True
 
 
 def test_axis_public_profile_never_uses_credentials_or_replays_401() -> None:

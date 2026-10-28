@@ -73,6 +73,10 @@ def _axis_fixture(*, challenge_on_versions: bool = False) -> Iterator[
                 status, response_body = 404, b""
             elif operation == _VERSIONS and challenge_on_versions:
                 status, response_body = 401, b""
+                observed.append(_ObservedRequest(
+                    operation, status, "Authorization" in self.headers,
+                    "Cookie" in self.headers, body,
+                ))
                 self.send_response(status)
                 self.send_header(
                     "WWW-Authenticate",
@@ -81,10 +85,6 @@ def _axis_fixture(*, challenge_on_versions: bool = False) -> Iterator[
                 )
                 self.send_header("Content-Length", "0")
                 self.end_headers()
-                observed.append(_ObservedRequest(
-                    operation, status, "Authorization" in self.headers,
-                    "Cookie" in self.headers, body,
-                ))
                 return
             elif operation == _VERSIONS:
                 status = 200
@@ -102,15 +102,15 @@ def _axis_fixture(*, challenge_on_versions: bool = False) -> Iterator[
             else:
                 status, response_body = 400, b""
 
+            observed.append(_ObservedRequest(
+                operation, status, "Authorization" in self.headers,
+                "Cookie" in self.headers, body,
+            ))
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(response_body)))
             self.end_headers()
             self.wfile.write(response_body)
-            observed.append(_ObservedRequest(
-                operation, status, "Authorization" in self.headers,
-                "Cookie" in self.headers, body,
-            ))
 
         def log_message(self, _format: str, *_args: object) -> None:
             return
@@ -214,3 +214,99 @@ def test_axis_credentials_never_replay_after_public_401_challenge(
             assert context.auth.logical_attempts == 0
         finally:
             context.close()
+
+
+_VALID_PROFILE = '''
+[transport]
+[[transport.profiles]]
+id = "field-a"
+targets = ["192.0.2.10"]
+component = "vendor_panasonic"
+protocol = "http"
+port = 8080
+auth_mode = "NATIVE_DIGEST_EXISTING"
+authorization_ref = "AUTH-2026-01"
+http_risk_accepted = true
+'''
+
+
+@pytest.mark.parametrize(
+    "profile_text",
+    [
+        _VALID_PROFILE.replace('"192.0.2.10"', '"192.0.2.0/24"'),
+        _VALID_PROFILE.replace('"192.0.2.10"', '"*"'),
+        _VALID_PROFILE.replace('"192.0.2.10"', '"camera.example"'),
+        _VALID_PROFILE.replace('"192.0.2.10"', '"192.0.2.10-192.0.2.20"'),
+        _VALID_PROFILE.replace(
+            'targets = ["192.0.2.10"]',
+            'targets = ["192.0.2.10"]\nhost = "198.51.100.20"',
+        ),
+        _VALID_PROFILE.replace(
+            'http_risk_accepted = true',
+            'http_risk_accepted = true\nunknown_option = "ignored?"',
+        ),
+        _VALID_PROFILE + _VALID_PROFILE.replace(
+            'targets = ["192.0.2.10"]', 'targets = ["192.0.2.11"]'
+        ),
+        _VALID_PROFILE + _VALID_PROFILE.replace(
+            'id = "field-a"', 'id = "field-b"'
+        ),
+    ],
+    ids=(
+        "cidr", "wildcard", "dns", "range", "alternate-host",
+        "unknown-key", "duplicate-id", "overlapping-profiles",
+    ),
+)
+def test_invalid_transport_profile_schema_fails_before_transport_construction(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, profile_text: str,
+) -> None:
+    """All invalid profile forms fail closed before any network-capable object exists."""
+    from cam_scanner.cameras import transport as transport_module
+    from cam_scanner.config.loader import load_settings
+    from cam_scanner.domain.errors import ConfigurationError
+
+    path = tmp_path / "invalid-profile.toml"
+    path.write_text(profile_text, encoding="utf-8")
+
+    def unexpected_network_constructor(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("invalid profile reached a network-capable constructor")
+
+    monkeypatch.setattr(transport_module.requests, "Session", unexpected_network_constructor)
+    monkeypatch.setattr(TargetTransportPolicy, "__init__", unexpected_network_constructor)
+
+    with pytest.raises(ConfigurationError) as error:
+        load_settings(path)
+
+    assert "192.0.2." not in str(error.value)
+    assert "ignored?" not in str(error.value)
+
+
+def test_secret_bearing_transport_profile_is_rejected_with_sanitized_error(
+    tmp_path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Closed profile parsing rejects secret-bearing keys without echoing values."""
+    from cam_scanner.cameras import transport as transport_module
+    from cam_scanner.config.loader import load_settings
+    from cam_scanner.domain.errors import ConfigurationError
+
+    secret = "ASTRA_PROFILE_PASSWORD_CANARY_03"
+    path = tmp_path / "secret-profile.toml"
+    path.write_text(
+        _VALID_PROFILE.replace(
+            'http_risk_accepted = true',
+            f'http_risk_accepted = true\npassword = "{secret}"',
+        ),
+        encoding="utf-8",
+    )
+
+    def unexpected_network_constructor(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("secret-bearing profile reached a network-capable constructor")
+
+    monkeypatch.setattr(transport_module.requests, "Session", unexpected_network_constructor)
+    monkeypatch.setattr(TargetTransportPolicy, "__init__", unexpected_network_constructor)
+
+    with pytest.raises(ConfigurationError) as error:
+        load_settings(path)
+
+    assert secret not in str(error.value)
+    assert secret not in repr(error.value)

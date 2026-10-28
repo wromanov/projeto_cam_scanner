@@ -1,5 +1,16 @@
 # CAM SCANNER — continuidade do projeto
 
+## Retomada vigente - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
+
+LEITURA PRIORITÁRIA: checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md, PROJECT_STATE.md, ../audit/ASTRA_REMEDIATION_56_AC_MATRIX.md e handoff/LAST_HANDOFF.md.
+
+Branch: feature/pre-p12-unified-remediation. Baseline anterior ao checkpoint: 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431. Identificar o commit publicado com git log -1 após git fetch/fast-forward seguro.
+
+Última evidência: 38/56 PASS_OFFLINE, 18 PARTIAL e 536 testes aprovados (relato anterior, não reexecutado no checkpoint). Segurança independente read-only bloqueada e fechamento formal pendente. Próxima atividade proposta: CAM_SCANNER_ASTRA_FINAL_OFFLINE_EVIDENCE_04, somente 14 AC técnicos. Câmeras reais, HTTP/RTSP operacional, autenticação elevada e deploy permanecem sem autorização.
+
+As afirmações abaixo sobre checkpoint P2-I1/P12 pendente de publicação e HEAD 37bc8c4 são registros históricos SUPERADOS por este bloco; não os usar como instruções vigentes.
+
+
 Use esta página para retomar o trabalho sem depender do histórico do chat.
 
 ## Estado e plano

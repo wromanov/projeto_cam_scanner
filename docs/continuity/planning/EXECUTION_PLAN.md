@@ -1,5 +1,17 @@
 # Execution Plan — P0-A03 e sequência P0–P12
 
+## Sequência vigente - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
+
+1. Realizar checkpoint seletivo da implementação Astra offline e documentação de continuidade; conferir commit e push na branch feature/pre-p12-unified-remediation.
+2. No computador doméstico, verificar worktree local, executar git fetch e somente fast-forward seguro na branch correta. Confirmar HEAD == upstream.
+3. Ler ../checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md, ../PROJECT_STATE.md e a matriz. Baseline: 38 PASS_OFFLINE / 18 PARTIAL; 536 testes reportados, não reexecutados neste checkpoint.
+4. Em atividade futura autorizada, obter evidências dos dois gaps de testes e doze integrações pendentes offline, sem forçar PASS.
+5. Preservar gates de auth elevada, dois manifests históricos e segurança independente tecnicamente read-only. Não declarar fechamento formal antes de comprovar PM-01.
+6. Acesso físico a câmeras, HTTP/RTSP operacional, deploy e release demandam decisões específicas posteriores.
+
+Os planos P12 abaixo são históricos.
+
+
 ## Checkpoint corrente — CAM_SCANNER_P12_WINDOWS_ONEDIR_BUILD_AND_VALIDATION (2026-10-19)
 
 Consultar [`PROJECT_STATE.md`](../PROJECT_STATE.md) e [`CONTINUITY_RECORD.md`](../CONTINUITY_RECORD.md). Gates 2/3/4/V passaram antes do P12; a regressão integral foi 373 passed, 0 failed, 0 skipped, 0 deselected e não foi reexecutada. O build Windows 11 24H2 x64 ONEDIR `1.0.0`, smoke em diretório protegido, configuração/log/temp, CLI, ONVIF/MULTI, XLSX/snapshot e integridade SHA-256 passaram. `PREP12-09=CLEARED_IN_P12`. Nenhuma câmera real, homologação operacional ou publicação foi executada. A sequência do roadmap não encerra as demais fases.

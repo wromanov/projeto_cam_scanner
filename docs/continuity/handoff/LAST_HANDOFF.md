@@ -1,5 +1,14 @@
 # Handoff record
 
+## Handoff atual - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
+
+Origem: RG1NOT0421; repo C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_pre_p12_remediation; branch feature/pre-p12-unified-remediation; HEAD anterior ao checkpoint 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431. O commit publicado deve ser confirmado pelo git log e pelo remote após sincronização.
+
+Status: 38 PASS_OFFLINE, 18 PARTIAL; 536 testes completos reportados na atividade anterior, G-PN 31/31. SEGURANÇA = BLOCKED_RUNTIME_PROTECTION; findings = NOT_ASSESSED; fechamento formal = NOT_CLOSED. Não houve câmera real, HTTP/RTSP operacional, auth elevada ou deploy.
+
+Retomar com git fetch, comparação de divergência e fast-forward seguro. Preservar todo trabalho local. Ler ../checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md, ../PROJECT_STATE.md e matriz de AC. O handoff P12 e os registros anteriores abaixo são históricos e superados.
+
+
 ## Handoff vigente — CAM_SCANNER_P12_WINDOWS_ONEDIR_BUILD_AND_VALIDATION (2026-10-19)
 
 Retomar no worktree `C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_pre_p12_remediation`, branch `feature/pre-p12-unified-remediation`, `HEAD=37bc8c4cc718559fc1e6f39a9b8a1145563a551e`. Preservar alterações e temporários existentes; não houve stage/commit/push/merge/reset/clean.

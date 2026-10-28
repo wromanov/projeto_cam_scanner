@@ -278,7 +278,7 @@ _DIAGNOSTIC_CATEGORIES = {
 }
 _DIAGNOSTIC_OPERATIONS = {
     "GetCapabilities", "GetSystemDateAndTime", "GetDeviceInformation", "create_onvif_client",
-    "validate_target", "collect_one", "collect", "collect_result", "collect_report",
+    "validate_target", "validate_model_hint", "collect_one", "collect", "collect_result", "collect_report",
     "parse_device_information", "resolve_preauth_manufacturer", "aggregate_collection_report",
     "discover", "preauth_discovery", "vendor_adapter", "ONVIF pre-authentication discovery",
     "GET /ISAPI/System/deviceInfo",
