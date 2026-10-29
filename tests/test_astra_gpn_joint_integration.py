@@ -419,6 +419,12 @@ def test_ineligible_model_does_not_call_panasonic_cgi_or_capabilities(monkeypatc
         ] if ui.report is not None else [],
     }
     assert not server.requests
+    skipped = [a for a in ui.report.attempts if a.operation == "GET /cgi-bin/getinfo"]
+    assert len(skipped) == 1
+    assert (skipped[0].stage, skipped[0].outcome, skipped[0].error_category) == (
+        "VALIDATE", "SKIPPED", "ENDPOINT_UNSUPPORTED",
+    )
+    assert skipped[0].http_status is None and skipped[0].protocol is None
     _assert_sentinels_absent(ui.outputs)
 
 

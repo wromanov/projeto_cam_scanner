@@ -108,8 +108,7 @@ def test_unexpected_diagnostic_is_sanitized_in_the_log() -> None:
     assert secret not in log_text
     assert "operator" not in log_text
     assert "c2VjcmV0dG9rZW4=" not in log_text
-    assert "Authorization: [REDACTED]" in log_text
-    assert "[REDACTED_URL]" in log_text
+    assert "RuntimeError: [details omitted]" in log_text
     assert "camera.local" not in log_text
     logger.removeHandler(handler)
     handler.close()

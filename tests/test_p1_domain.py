@@ -45,10 +45,10 @@ def test_camera_result_has_exactly_the_approved_14_fields() -> None:
     assert "password" not in {item.name for item in fields(CameraResult)}
 
 
-def test_camera_target_repr_never_shows_password() -> None:
+def test_camera_target_repr_never_shows_credentials() -> None:
     target = CameraTarget(ip="192.0.2.10", username="operator", password="sensitive-value")
-    assert "sensitive-value" not in repr(target)
-    assert "operator" in repr(target)
+    if any(value in repr(target) for value in ("operator", "sensitive-value")):
+        pytest.fail("CameraTarget repr contains a credential marker.", pytrace=False)
 
 
 @pytest.mark.parametrize("duration", [nan, float("inf"), -0.1])

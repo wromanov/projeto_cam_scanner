@@ -5,6 +5,7 @@ import inspect
 import logging
 from dataclasses import replace
 
+from cam_scanner.application.collection_context import CollectionDeadlineExceeded
 from cam_scanner.cameras.collector import CameraCollector
 from cam_scanner.cameras.onvif.adapter import GenericOnvifCollector
 from cam_scanner.cameras.preauth import (
@@ -73,12 +74,12 @@ class VendorFirstCollector(CameraCollector):
             # A declared Panasonic family without the exact documented profile
             # cannot route to native CGI or trigger discovery as a fallback.
             return _attach_resolution(
-                report.with_attempt(CollectionAttempt(
+                _skip_panasonic_source(report.with_attempt(CollectionAttempt(
                     stage="DISCOVERY",
                     operation="preauth_discovery",
                     protocol="ONVIF",
                     outcome="SKIPPED",
-                )),
+                ))),
                 declared_hint,
                 self._resolver,
                 target,
@@ -162,7 +163,12 @@ class VendorFirstCollector(CameraCollector):
             manufacturer, adapter, context=context
         ):
             adapter = None
+        if adapter is None and (
+            manufacturer == "Panasonic" or "Panasonic" in resolution.conflicts
+        ):
+            report = _skip_panasonic_source(report)
         if adapter is not None:
+            vendor_attempt_start = len(report.attempts)
             try:
                 if context is not None:
                     context.check("NATIVE")
@@ -219,6 +225,12 @@ class VendorFirstCollector(CameraCollector):
                     return _cancelled_report(
                         report, stage="CONNECT", operation="vendor_adapter"
                     )
+                if manufacturer == "Axis" and isinstance(exception, CollectionDeadlineExceeded):
+                    report = report.with_attempt(CollectionAttempt(
+                        stage="CONNECT", operation="vendor_adapter", outcome="FAILED",
+                        error_category="DEADLINE_EXCEEDED",
+                    ))
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
                 category, _, _ = normalize_collection_error(
                     exception, stage="CONNECT", authenticated=True
                 )
@@ -244,6 +256,11 @@ class VendorFirstCollector(CameraCollector):
                     return _cancelled_report(
                         report, stage="CONNECT", operation="vendor_adapter"
                     )
+                if manufacturer == "Axis" and any(
+                    attempt.error_category in {"DEADLINE_EXCEEDED", "INVALID_RESPONSE"}
+                    for attempt in report.attempts[vendor_attempt_start:]
+                ):
+                    return _attach_resolution(report, declared_hint, self._resolver, target)
                 if _authentication_rejected(report) or _authentication_blocked(context):
                     return _attach_resolution(report, declared_hint, self._resolver, target)
                 if report.to_camera_result(target.ip).status is CollectionStatus.SUCCESS:
@@ -412,6 +429,16 @@ def _authentication_blocked(context: object | None) -> bool:
         context.auth.AUTH_REJECTED_FINAL,
         context.auth.AUTHORIZATION_DENIED,
     } or context.auth.soap_access_blocked
+
+
+def _skip_panasonic_source(report: CollectionReport) -> CollectionReport:
+    """Record an ineligible source without claiming a network exchange occurred."""
+    return report.with_attempt(CollectionAttempt(
+        stage="VALIDATE",
+        operation="GET /cgi-bin/getinfo",
+        outcome="SKIPPED",
+        error_category="ENDPOINT_UNSUPPORTED",
+    ))
 
 
 def _vendor_auth_family(manufacturer: str | None) -> str | None:

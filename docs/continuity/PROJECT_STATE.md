@@ -1,4 +1,234 @@
-# PROJECT_STATE — adendo de implementação offline vigente (2026-10-27)
+# PROJECT_STATE — adendo vigente (2026-10-29)
+
+## Checkpoint corrente - CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
+
+ACTIVITY_ID = CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
+COMPUTER_SOURCE = ROMA_CASA
+COMPUTER_DESTINATION = RG1NOT0421
+BRANCH = feature/pre-p12-unified-remediation
+PARENT_HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2
+CHECKPOINT_HEAD = identificar pelo git log/ls-remote no commit que contem a ficha
+AC_LAST_ADJUDICATED = 47 PASS_OFFLINE / 9 PARTIAL / 0 UNVERIFIED (05B)
+ACTIVITY_06 = TEST_FILE_PRESENT_NOT_FORMALLY_ADJUDICATED
+TESTS_06_FOCAL = 10 passed / 0 failed (ROMA_CASA, presente checkpoint)
+LAST_FULL_REGRESSION = 575 passed (05B, antes do fix B023; nao repetida no checkpoint)
+G_PN_JOINT_PREVIOUS = 31 passed (05B)
+RUFF_GLOBAL_CHECKPOINT = PASS
+COMPILEALL_CHECKPOINT = PASS
+GIT_DIFF_CHECK = PASS
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+FORMAL_CLOSURE_STATUS = NOT_CLOSED
+P2_MEDIA = DEFERRED
+REAL_CAMERA_ACCESS = NONE
+OPERATIONAL_HTTP = NONE
+OPERATIONAL_RTSP = NONE
+ELEVATED_AUTH = NONE
+NEXT_ACTIVITY = continuar CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06 no trabalho com analise de cinco ACs tecnicos
+SAFE_RESUME_POINT = conferir hash remoto/branch/status e ler checkpoints/CAM_SCANNER_HOME_TO_WORK_CHECKPOINT_2026_10_29.md
+
+O checkpoint serve exclusivamente a transferencia de WIP tecnico, testes e documentos. A atividade 06 nao e declarada concluida por uma prova focal isolada. Secoes anteriores mantidas como historico.
+
+
+## Estado vigente - CAM_SCANNER_ASTRA_EVIDENCE_05B_VALIDATION_CLOSURE (2026-10-29)
+
+ACTIVITY_ID = CAM_SCANNER_ASTRA_EVIDENCE_05B_VALIDATION_CLOSURE
+COMPUTER = ROMA_CASA
+REPOSITORY = C:\Users\walac\desenvolvimento\projeto_cam_scanner
+BRANCH = feature/pre-p12-unified-remediation
+HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2
+EXECUTION_MODE = DIRECT
+ENVIRONMENT = .venv/Scripts/python.exe; Python 3.14.7, pytest 9.1.1, requests 2.34.2, zeep 4.3.3, Ruff 0.17.0
+RUNTIME_BLOCKER_05 = RESOLVED
+FULL_PYTEST = 575 passed / 0 failed / 0 skipped / 0 deselected, 129.17 s, before B023 test-only fix
+FOCAL_AFTER_FIX = 9 passed, 6.21 s
+AC_NOMINAL_AFTER_FIX = 3 passed, 1.23 s
+G_PN_JOINT = 31 passed, 30.27 s, before B023 test-only fix
+RUFF_GLOBAL = PASS
+COMPILEALL = PASS
+GIT_DIFF_CHECK = PASS
+AC_INITIAL = 44 PASS_OFFLINE / 12 PARTIAL / 0 UNVERIFIED
+AC_FINAL = 47 PASS_OFFLINE / 9 PARTIAL / 0 UNVERIFIED
+AC_PROMOTED = ASTRA-P0-03-AC04; ASTRA-P1-01-AC01; ASTRA-P1-02-AC04
+AC_REMAINING_TECHNICAL = ASTRA-P0-02-AC02; ASTRA-P0-02-AC06; ASTRA-P1-01-AC08; ASTRA-P1-G-AC01; ASTRA-TR-AC13
+AC_REMAINING_GATES = ASTRA-P0-01-AC04; ASTRA-P0-05-AC01/02; ASTRA-P0-G-AC01
+CANCELLED_EXPORT = NO_EXPORT_INCOMPLETE_MULTI_BATCH, PRE-P12 8.1
+SECURITY_REVIEW = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+P2_MEDIA = DEFERRED
+FORMAL_CLOSURE = NOT_CLOSED
+REAL_CAMERA_ACCESS = NONE
+OPERATIONAL_HTTP = NONE
+OPERATIONAL_RTSP = NONE
+ELEVATED_AUTH = NONE
+BUILD_DEPLOY = NONE
+GIT_COMMIT_PUSH = NONE
+PROJECT_STATE_UPDATE = PASS
+ACTIVITY_STATUS = COMPLETE_SCOPED
+ACTIVITY_COMPLETE = YES
+ACTIVITY_COMPLETION_PERCENT = 100 (marcos da 05B, nao aceite dos 56 ACs)
+WORKTREE_TRACKED_MODIFIED = 15
+WORKTREE_UNTRACKED_PRESERVED = 1419
+STAGED = 0
+NEXT_ACTIVITY = cinco criterios tecnicos pendentes; seguranca independente em runtime read-only real
+SAFE_RESUME_POINT = HEAD f314035; venv confirmado, 47/56 PASS_OFFLINE, preservar deltas locais
+
+O estado NOT_RUN no adendo anterior e historico, superado pela validacao local desta atividade. A regressao integral nao foi repetida depois do ajuste B023; o teste afetado foi reexecutado e Ruff global passou.
+
+## Estado atual — CAM_SCANNER_ASTRA_FINAL_EVIDENCE_05
+
+~~~text
+PROJECT_ID = projeto_cam_scanner
+ACTIVITY_ID = CAM_SCANNER_ASTRA_FINAL_EVIDENCE_05
+ACTIVITY_TYPE = CONTRACTUAL_DIAGNOSIS_AND_OFFLINE_EVIDENCE_CLOSURE
+COMPUTER = ROMA_CASA
+REPOSITORY = C:\Users\walac\desenvolvimento\projeto_cam_scanner
+BASELINE_HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2
+FINAL_HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2
+BRANCH = feature/pre-p12-unified-remediation
+EXPECTED_UPSTREAM = origin/feature/pre-p12-unified-remediation
+BASELINE_SYNC = HEAD/branch/upstream matched Card
+WORKTREE_STATUS = 15 preexisting tracked paths modified; 0 staged; 1418 untracked at entry, 1419 at final inventory; all preserved
+
+ROUTER_SKILL_STATUS = codex-task-router read and applied
+ROUTER_VERSION = local catalog R4.2; skill metadata has no version
+MULTIAGENT_GATE_RESULT = PASS_FOR_AUTHORIZED_OFFLINE_WORK; two concurrent agent slots verified
+EXECUTION_MODE_EFFECTIVE = MULTIAGENT, two sequential batches plus ROOT integration
+AGENTS_PLANNED = backend_engineer; python_cli_engineer; integration_engineer; test_engineer
+AGENTS_SELECTED = backend_engineer; python_cli_engineer; integration_engineer; test_engineer
+AGENTS_ACTUALLY_SPAWNED = astra_vendor; astra_cli; astra_workflow; astra_tests
+AGENTS_COMPLETED = astra_vendor; astra_cli; astra_workflow; astra_tests
+AGENT_OWNERSHIP = cameras/manufacturers and strategy; terminal/excel; application/transport/config; tests; ROOT owns domain/models and both authorized documents
+AGENT_DECLARED_MODELS = backend/integration/test: gpt-6.1-terra/high; python_cli: gpt-6-luna/high (local profile declarations)
+AGENT_REQUESTED_MODELS = agent_type only; no model or effort override
+AGENT_RUNTIME_VERIFIED_MODELS = backend/integration/test self-reported gpt-6.1-terra; python_cli UNVERIFIED
+AGENT_RUNTIME_VERIFIED_EFFORT = UNVERIFIED for every agent
+AGENT_PERMISSIONS = shared workspace-write checkout; file ownership is prompt-scoped, no per-file technical isolation verified
+AGENTS_NOT_USED_AND_REASON = security_reviewer not used because technical read-only protection is unavailable; principal_architect not authorized
+
+FILES_CHANGED_THIS_ACTIVITY = tests/test_astra_final_evidence_05.py (new); docs/audit/ASTRA_REMEDIATION_56_AC_MATRIX.md; docs/continuity/PROJECT_STATE.md
+FILES_CREATED = tests/test_astra_final_evidence_05.py
+PREEXISTING_TRACKED_DELTAS = 15 paths from activity 04, preserved; no production source changed by this activity
+TESTS_BEFORE = 566 passed / 0 failed / 0 skipped / 0 deselected (historical activity 04; not re-run)
+TESTS_AFTER = NOT_RUN; pytest and project runtime dependencies unavailable
+G_PN_JOINT_RESULT = NOT_RUN_THIS_ACTIVITY; historical activity 04 result was 31/31
+RUFF_RESULT = UNAVAILABLE; Ruff not installed
+COMPILEALL_RESULT = PASS for src/cam_scanner and tests
+DIFF_CHECK_RESULT = PASS
+
+AC_INITIAL = 44 PASS_OFFLINE / 12 PARTIAL / 0 UNVERIFIED (Card baseline)
+AC_FINAL = 44 PASS_OFFLINE / 12 PARTIAL / 0 UNVERIFIED
+AC_PROMOTED = NONE
+AC_REMAINING_TECHNICAL = ASTRA-P0-02-AC02; ASTRA-P0-02-AC06; ASTRA-P0-03-AC04; ASTRA-P1-01-AC01; ASTRA-P1-01-AC08; ASTRA-P1-02-AC04; ASTRA-P1-G-AC01; ASTRA-TR-AC13
+AC_REMAINING_GATES = ASTRA-P0-01-AC04; ASTRA-P0-05-AC01; ASTRA-P0-05-AC02; ASTRA-P0-G-AC01
+CANCELLED_EXPORT_CONTRACT_DECISION = NO_EXPORT_INCOMPLETE_MULTI_BATCH; PRE-P12 §8.1
+
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+CONTINUITY_STATUS = PROJECT_STATE_UPDATE_PASS
+FORMAL_CLOSURE_STATUS = NOT_CLOSED; ACs and runtime validation remain pending
+P2_MEDIA = DEFERRED
+REAL_CAMERA_ACCESS = NONE
+CORPORATE_NETWORK_SCAN = NONE
+OPERATIONAL_HTTP = NONE
+OPERATIONAL_RTSP = NONE
+ELEVATED_AUTH = NONE
+DEPLOYMENT = NONE
+DISTRIBUTION_BUILD = NONE
+GIT_COMMIT_PUSH = NONE
+GIT_DESTRUCTIVE_OPERATIONS = NONE
+DELIVERY_STATUS = SENT (chat existente Projeto Scanner 2.0; threadId 6ad2b0c4-24a4-83e9-b87b-043194e0ff57; confirmação da ferramenta recebida)
+ACTIVITY_STATUS = PARTIAL
+ACTIVITY_COMPLETE = NO
+ACTIVITY_COMPLETION_PERCENT = 85 (execution milestones; not technical acceptance)
+NEXT_RECOMMENDED_ACTIVITY = Execute the new focal evidence and G-PN-JOINT/full regression in an approved local Python 3.14 environment with pytest, requests, zeep and Ruff available; adjudicate the eight technical ACs after review
+SAFE_RESUME_POINT = Current working tree, HEAD f314035c4f7a8b4fdcb2122523649672b0bf12d2; preserve all modified/untracked files; begin with tests/test_astra_final_evidence_05.py
+~~~
+
+### Resultado e limites
+
+- As oito fichas foram concluídas antes de qualquer edição de produção. Nenhum defeito produtivo foi confirmado; as frentes backend, CLI e integração não alteraram código.
+- O novo arquivo de testes acrescenta conflito forte em duas ordens, comparação de entradas SINGLE e Digest Panasonic sintético com validação criptográfica. A análise sintática e compileall passaram; a suíte não pôde ser executada.
+- O ambiente disponível é Python 3.15 sem pytest/requests/openpyxl/zeep/Ruff; o Python 3.14 e o runtime bundled verificados não têm pytest/requests/zeep/Ruff. Nenhuma dependência foi instalada e nenhuma rede foi usada.
+- A matriz ASTRA conserva 44 PASS_OFFLINE / 12 PARTIAL; nenhum dos oito critérios foi promovido. P1-02-AC04 foi adjudicado sem exigir planilha CANCELLED de lote interrompido: o contrato atual requer visibilidade do cancelamento e proíbe exportar o lote incompleto.
+- A diferença entre 968 não rastreados registrada antes e a listagem de entrada de 1418 foi analisada; a listagem final registrou 1419 após um novo teste. Nenhum arquivo preexistente foi apagado ou descartado.
+
+## CAM_SCANNER_ASTRA_FINAL_OFFLINE_EVIDENCE_04 — preservado
+
+## Estado atual — CAM_SCANNER_ASTRA_FINAL_OFFLINE_EVIDENCE_04
+
+```text
+PROJECT_ID = projeto_cam_scanner
+ACTIVITY_ID = CAM_SCANNER_ASTRA_FINAL_OFFLINE_EVIDENCE_04
+ACTIVITY_TYPE = OFFLINE_EVIDENCE_COMPLETION
+COMPUTER = ROMA_CASA
+REPOSITORY = C:\Users\walac\desenvolvimento\projeto_cam_scanner
+BASELINE_HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2
+FINAL_HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2
+BRANCH = feature/pre-p12-unified-remediation
+REMOTE_BASELINE = origin/feature/pre-p12-unified-remediation; synchronized at preflight
+WORKTREE_STATUS = 15 tracked files modified and 4 new test files untracked; 0 staged; 968 preexisting untracked files preserved; generated pytest basetemp directories preserved
+
+ROUTER_SKILL_STATUS = codex-task-router loaded and applied
+ROUTER_VERSION = skill metadata has no version; local catalog R4.2
+MULTIAGENT_GATE_RESULT = PASS_FOR_AUTHORIZED_OFFLINE_WORK; two-agent concurrency; exclusive file ownership in shared checkout
+EXECUTION_MODE_EFFECTIVE = MULTIAGENT_NATIVE
+AGENTS_PLANNED = backend_engineer; integration_engineer; python_cli_engineer; test_engineer
+AGENTS_SELECTED = backend_engineer; integration_engineer; python_cli_engineer; test_engineer
+AGENTS_ACTUALLY_SPAWNED = vendor_evidence (backend_engineer); workflow_transport (integration_engineer); input_output (python_cli_engineer); offline_tests (test_engineer)
+AGENT_DECLARED_MODELS = backend/integration/test: gpt-6.1-terra/high; python_cli: gpt-6-luna/high (local profile declarations)
+AGENT_REQUESTED_MODELS = selected agent_type; no explicit model or effort override
+AGENT_RUNTIME_VERIFIED_MODELS = UNVERIFIED; no correlated child-turn runtime metadata
+AGENT_OWNERSHIP = vendor_evidence: cameras/manufacturers, ONVIF adapter/strategy; workflow_transport: application, transport/config; input_output: terminal/excel; offline_tests: tests; ROOT: domain models, integration, audit matrix and this file
+AGENT_PERMISSIONS = prompts scoped by ownership; shared workspace-write checkout; filesystem isolation not verified or claimed
+AGENTS_NOT_USED_AND_REASON = security_reviewer not used because runtime lacks technically enforced read-only protection; principal_architect not authorized; no separate scribe needed
+
+FILES_CHANGED = src/cam_scanner/application/collection_context.py; src/cam_scanner/application/multi_workflow.py; src/cam_scanner/cameras/manufacturers/axis.py; src/cam_scanner/cameras/strategy.py; src/cam_scanner/domain/models.py; src/cam_scanner/logging/sanitize.py; src/cam_scanner/terminal/ui.py; tests/test_logging_setup.py; tests/test_p1_cli_flow.py; tests/test_p1_domain.py; tests/test_p1_inventory_service.py; tests/test_pre_p12_entrypoint_matrix.py; tests/test_vendor_first_runtime_correction_r2.py; tests/test_astra_final_offline_axis_boundaries.py (new); tests/test_astra_final_offline_integration.py (new); tests/test_astra_final_offline_secrets.py (new); tests/test_astra_final_offline_terminal.py (new); docs/audit/ASTRA_REMEDIATION_56_AC_MATRIX.md; docs/continuity/PROJECT_STATE.md
+TESTS_BEFORE = 536 passed / 0 failed / 0 skipped / 0 deselected
+TESTS_AFTER = 566 passed / 0 failed / 0 skipped / 0 deselected; 123.04 s; 30 additional collected tests
+G_PN_JOINT_RESULT = 31 passed / 0 failed
+RUFF_RESULT = PASS (global src/tests and focused changed paths)
+COMPILEALL_RESULT = PASS (src/cam_scanner)
+DIFF_CHECK_RESULT = PASS after final documentation update
+
+AC_INITIAL = 38 PASS_OFFLINE / 18 PARTIAL / 0 UNVERIFIED
+AC_FINAL = 44 PASS_OFFLINE / 12 PARTIAL / 0 UNVERIFIED
+AC_PROMOTED = ASTRA-P0-01-AC05; ASTRA-P0-02-AC03; ASTRA-P1-02-AC03; ASTRA-P1-02-AC05; ASTRA-TR-AC04; ASTRA-TR-AC11
+AC_REMAINING_TECHNICAL = ASTRA-P0-02-AC02; ASTRA-P0-02-AC06; ASTRA-P0-03-AC04; ASTRA-P1-01-AC01; ASTRA-P1-01-AC08; ASTRA-P1-02-AC04; ASTRA-P1-G-AC01; ASTRA-TR-AC13
+AC_REMAINING_GATES = ASTRA-P0-01-AC04; ASTRA-P0-05-AC01; ASTRA-P0-05-AC02; ASTRA-P0-G-AC01
+
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+CONTINUITY_STATUS = PROJECT_STATE_UPDATE_PASS
+FORMAL_CLOSURE_STATUS = NOT_CLOSED; PM-01 §12.3 continuity and security gates remain open
+P2_MEDIA = DEFERRED
+REAL_CAMERA_ACCESS = NONE
+OPERATIONAL_HTTP = NONE
+OPERATIONAL_RTSP = NONE
+ELEVATED_AUTH = NONE
+GIT_COMMIT_PUSH = NONE
+DELIVERY_STATUS = SENT (chat existente “Projeto Scanner 2.0”; threadId 6ad2b0c4-24a4-83e9-b87b-043194e0ff57; confirmação recebida após autorização explícita do usuário)
+DELIVERY_REVIEW_NOTE = tentativa inicial rejeitada pelo auto-review; usuário autorizou o envio e a chamada direta foi concluída com sucesso
+ACTIVITY_STATUS = PARTIAL; all authorized offline work and evidence adjudication complete
+ACTIVITY_COMPLETE = YES
+ACTIVITY_COMPLETION_PERCENT = 100
+NEXT_RECOMMENDED_ACTIVITY = avaliar os oito ACs técnicos remanescentes com matriz D03/Digest completa; tratar segurança somente em sessão tecnicamente read-only
+SAFE_RESUME_POINT = diff atual, 566/566 testes, G-PN-JOINT 31/31; nenhum artefato temporário deve ser removido sem autorização
+```
+
+### Resultado e limites
+
+- A correção Axis agora fecha recursos e encerra sem segundo POST/autenticação em body inseguro, deadline, cancelamento e TLS; erro Axis 2001 fecha o AuthLedger sem fingir HTTP 403. `CameraTarget` repr oculta também o username e traceback inesperado omite detalhes arbitrários.
+- O prompt SINGLE separa `ModelHint` numérico da navegação. MULTI agora sai do laço de cancelamento, drena/cancela o trabalho pendente e não exporta lote cancelado.
+- Panasonic parcial seguida de recusa 401/403 ou falha TLS foi integrada em seis combinações SINGLE/MULTI; AuthLedger, identidade parcial e guard de imagem foram observados no mesmo contexto.
+- Os canários sintéticos foram verificados em logs, terminal, repr, todas as abas/bytes XLSX e perfis inválidos. As planilhas continuam com nove colunas de diagnóstico; `CameraResult` permanece com 14 campos.
+- O teste de estados apresenta quatro estados no terminal e três estados exportáveis em MULTI. CANCELLED encerra o lote sem workbook; não se promoveu a projeção CANCELLED para XLSX.
+- Nenhuma câmera, rede externa, operação HTTP/RTSP operacional, autenticação elevada, alteração de firmware/configuração, build, deploy, commit ou push foi realizada.
+- A suíte completa anterior 536/0/0/0 foi reexecutada no início da atividade. A final teve 566/0/0/0; não se inferiu equivalência de contagem.
+
+O agente de testes da tela “Offline tests” corresponde ao perfil do catálogo `test_engineer`; “Vendor evidence” corresponde a `backend_engineer`. Os nomes exibidos na UI identificam as tarefas, não os perfis.
+
+## Registro anterior — CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02
 
 ## Estado atual - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
 

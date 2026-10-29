@@ -60,7 +60,7 @@ def test_cli_entrypoint_runs_single_flow_without_printing_password(monkeypatch, 
     _install_controlled_client(monkeypatch, FakeClient)
     _install_unsupported_snapshots(monkeypatch, main_module)
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli"))
-    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 
@@ -104,7 +104,7 @@ def test_cli_handles_authentication_failure_without_a_traceback(monkeypatch, cap
     _install_controlled_client(monkeypatch, FakeClient)
     _install_unsupported_snapshots(monkeypatch, main_module)
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-auth"))
-    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 
@@ -207,7 +207,7 @@ def test_cli_preserves_preauth_evidence_as_partial_success_after_onvif_auth_fail
     _install_controlled_client(monkeypatch, FakeClient)
     _install_unsupported_snapshots(monkeypatch, main_module)
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-partial"))
-    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 
@@ -266,9 +266,11 @@ def test_post_query_menu_repeats_single_and_routes_multi_to_controller(monkeypat
             "192.0.2.10",
             "operator",
             "",
+            "",
             "1",
             "192.0.2.11",
             "operator",
+            "",
             "",
             "2",
             "2",
@@ -342,7 +344,7 @@ def test_cli_single_success_includes_offline_snapshot_without_printing_password(
         ),
     )
     monkeypatch.setattr(main_module, "configure_logging", lambda **_kwargs: logging.getLogger("test-cli-snapshot"))
-    answers = iter(["1", "192.0.2.10", "operator", "", "3"])
+    answers = iter(["1", "192.0.2.10", "operator", "", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: "private-password")
 

@@ -155,6 +155,12 @@ class AuthenticationLedger:
             if authenticated:
                 self._soap_access_blocked = True
 
+    def observe_authorization_denied(self) -> None:
+        """Close this target's authentication scope after a documented denial."""
+        with self._lock:
+            if self._state not in {self.AUTH_REJECTED_FINAL, self.AUTHORIZATION_DENIED}:
+                self._state = self.AUTHORIZATION_DENIED
+
     def record_physical_exchange(self, count: int = 1) -> None:
         if type(count) is not int or count < 0:
             raise ValueError("physical exchange count must be a non-negative integer")

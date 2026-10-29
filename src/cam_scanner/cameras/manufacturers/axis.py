@@ -107,6 +107,8 @@ class AxisAdapter:
                 try:
                     versions = _parse_supported_versions(body)
                 except PermissionError:
+                    if context is not None:
+                        context.auth.observe_authorization_denied()
                     return self._failure(report, started, "AUTHORIZATION_DENIED", "HTTP", status,
                                          operation=operation, protocol=protocol, metadata=metadata)
                 except LookupError:
@@ -187,6 +189,8 @@ class AxisAdapter:
             remaining_budget(started, self._budget)
             values = _parse_properties(body)
         except PermissionError:
+            if context is not None:
+                context.auth.observe_authorization_denied()
             return self._failure(report, started, "AUTHORIZATION_DENIED", "HTTP", status,
                                  operation=_PROPERTIES_OPERATION,
                                   protocol=locals().get("protocol"), metadata=locals().get("metadata", {}))

@@ -1,5 +1,14 @@
 # Handoff record
 
+## Handoff vigente - CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
+
+Transferencia do ROMA_CASA para RG1NOT0421 no branch feature/pre-p12-unified-remediation. Parent HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2. Confirmar commit publicado pelo git log e ls-remote; nao usar o HEAD antigo apos sincronizacao.
+
+Checkpoint completo: [CAM_SCANNER_HOME_TO_WORK_CHECKPOINT_2026_10_29.md](../checkpoints/CAM_SCANNER_HOME_TO_WORK_CHECKPOINT_2026_10_29.md). Estado vigente = 47/56 PASS_OFFLINE, 9 PARTIAL; cinco tecnicos ainda pendentes e quatro condicionados. O teste novo technical_closure_06.py passou 10/10 de forma focal, mas ainda nao houve adjudicacao nem regressao completa adicional. Seguranca independente bloqueada por falta de sandbox read-only comprovado, findings NOT_ASSESSED. Sem câmara real, HTTP/RTSP operacional ou auth elevada.
+
+Retomada: conferir worktree/branch/status e fazer somente fast-forward seguro, preservar WIP/untracked e usar venv adequado. Handoffs anteriores abaixo sao historicos.
+
+
 ## Handoff atual - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
 
 Origem: RG1NOT0421; repo C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_pre_p12_remediation; branch feature/pre-p12-unified-remediation; HEAD anterior ao checkpoint 0c936d443e4865e0f9c9d2dba5fb8927bb6f5431. O commit publicado deve ser confirmado pelo git log e pelo remote após sincronização.

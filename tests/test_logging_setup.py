@@ -6,7 +6,8 @@ import os
 import stat
 import time
 from ctypes import wintypes
-from datetime import UTC, datetime as real_datetime, timedelta
+from datetime import UTC, timedelta
+from datetime import datetime as real_datetime
 from logging.handlers import RotatingFileHandler
 from types import SimpleNamespace
 
@@ -208,7 +209,7 @@ def test_windows_filesystem_locked_log_does_not_block_logging(tmp_path) -> None:
             and b"PREP12_SENTINEL_USER_54ac" not in path.read_bytes()
             for path in tmp_path.glob("cam_scanner_*.log*")
         )
-        assert b"[REDACTED]" in active_log.read_bytes()
+        assert b"RuntimeError: [details omitted]" in active_log.read_bytes()
     finally:
         if logger is not None:
             close_logging()

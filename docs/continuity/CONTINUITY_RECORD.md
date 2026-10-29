@@ -1,5 +1,12 @@
 # Registro de continuidade
 
+## Registro vigente - CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
+
+Checkout domiciliar ROMA_CASA com 16 caminhos tracked modificados e seis arquivos novos de testes Astra antes da reconciliacao do checkpoint, todos preservados no commit seletivo. Entre os novos testes, technical_closure_06.py teve 10 PASS focais no ROMA_CASA. A atividade 06 permanece em andamento, sem prova de encerramento ou promocao de ACs: ultimo aceite formal mantido em 47 PASS_OFFLINE / 9 PARTIAL. Ruff global, compileall e diff-check da origem passaram; regressao integral nao foi repetida no checkpoint.
+
+Dados para transferencia, limite de autoridade e checklist para RG1NOT0421: checkpoints/CAM_SCANNER_HOME_TO_WORK_CHECKPOINT_2026_10_29.md. Publicacao Git deve ser comprovada por verificacao remota, nao pela declaracao textual. Seguranca = BLOCKED_RUNTIME_PROTECTION / NOT_ASSESSED. Sem permissao operacional adicional.
+
+
 ## Registro vigente - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
 
 As atividades CAM_SCANNER_ASTRA_AC_CLOSURE_02 e CAM_SCANNER_ASTRA_EVIDENCE_COMPLETION_03 elevaram a matriz de 22/56 para 30/56 e depois 38/56 PASS_OFFLINE. Última regressão reportada: 536 testes sem falhas; G-PN 31/31. Quatro subagentes concluíram as frentes no ciclo R4.2; ROOT integrou; modelos efetivos dos turnos filhos não verificados.

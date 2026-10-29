@@ -54,12 +54,8 @@ class TerminalUI:
         return value or None
 
     def prompt_model_hint(self) -> ModelHint | None:
-        """Ask for an optional declared model; invalid text is silently discarded."""
+        """Ask for an optional declared model; empty input keeps automatic discovery."""
         value = self._input("Modelo (opcional; vazio para identificação automática): ")
-        if value.strip() in {item.value for item in MainMenuChoice}:
-            self._pending_post_query_choice = MainMenuChoice(value.strip())
-            self._model_hint_invalid = False
-            return None
         self._model_hint_invalid = bool(value.strip(" ")) and parse_model_hint(value) is None
         return parse_model_hint(value)
 
@@ -184,8 +180,23 @@ class TerminalUI:
         self._output("Diagnósticos da coleta")
         for attempt in report.attempts:
             protocol = attempt.protocol or "local"
-            outcome = attempt.error_category or attempt.outcome
+            applicability_skip = (
+                attempt.operation == "GET /cgi-bin/getinfo"
+                and attempt.stage == "VALIDATE"
+                and attempt.outcome == "SKIPPED"
+                and attempt.error_category == "ENDPOINT_UNSUPPORTED"
+                and attempt.protocol is None
+                and attempt.http_status is None
+            )
+            outcome = attempt.outcome if applicability_skip else (
+                attempt.error_category or attempt.outcome
+            )
             details = [f"{protocol}.{attempt.operation}", attempt.stage, outcome]
+            if applicability_skip:
+                details.extend((
+                    "ENDPOINT_UNSUPPORTED",
+                    "Compatibilidade Panasonic não comprovada; fonte ignorada (CGI não consultada).",
+                ))
             if attempt.http_status is not None:
                 details.append(f"HTTP {attempt.http_status}")
             if attempt.protocol_code is not None:

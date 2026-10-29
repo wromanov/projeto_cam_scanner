@@ -78,7 +78,7 @@ def test_r2_single_hint_uses_eligible_vendor_before_any_onvif_discovery() -> Non
         discoverer=ForbiddenDiscoverer(),
     )
     service = InventoryService(collector)
-    answers = iter([target.ip, target.username, "Hikvision", "3"])
+    answers = iter([target.ip, target.username, "Hikvision", "", "3"])
     ui = TerminalUI(
         input_fn=lambda _prompt: next(answers),
         password_fn=lambda _prompt: target.password,

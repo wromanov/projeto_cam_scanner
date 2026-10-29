@@ -182,6 +182,9 @@ class MultiWorkflow:
                         current_position, input_row.row_id, input_row.ip, context
                     )
 
+                if cancel_event.is_set():
+                    raise ExcelInputError("O lote foi cancelado antes da exportação.")
+
                 if pending:
                     completed, _ = wait(pending, return_when=FIRST_COMPLETED)
                     for future in completed:

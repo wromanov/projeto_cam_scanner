@@ -1,5 +1,12 @@
 # CAM SCANNER — continuidade do projeto
 
+## Retomada vigente - CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
+
+Este e o checkpoint de transferencia ROMA_CASA -> RG1NOT0421: [ficha completa](checkpoints/CAM_SCANNER_HOME_TO_WORK_CHECKPOINT_2026_10_29.md). Branch feature/pre-p12-unified-remediation; parent f314035c4f7a8b4fdcb2122523649672b0bf12d2. O commit novo deve ser verificado via Git apos fetch/fast-forward.
+
+Ultimo aceite formal = 47 PASS_OFFLINE / 9 PARTIAL. A atividade 06 tem um novo teste (10 PASS focal no ROMA_CASA), mas nao tem adjudicacao final registrada. Nenhuma homologacao com camera real. Ler PROJECT_STATE.md e ../audit/ASTRA_REMEDIATION_56_AC_MATRIX.md antes de continuar. Todos os trechos abaixo sobre transferencias anteriores sao historicos.
+
+
 ## Retomada vigente - CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_GIT_02 (2026-10-28)
 
 LEITURA PRIORITÁRIA: checkpoints/CAM_SCANNER_ASTRA_CROSS_MACHINE_CHECKPOINT_2026_10_28.md, PROJECT_STATE.md, ../audit/ASTRA_REMEDIATION_56_AC_MATRIX.md e handoff/LAST_HANDOFF.md.

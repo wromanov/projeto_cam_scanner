@@ -30,6 +30,11 @@ def sanitized_traceback(
     trace: TracebackType | None,
     sensitive_values: tuple[str, ...] = (),
 ) -> str:
-    """Format an exception for diagnostic logging after redacting credentials."""
-    formatted = "".join(traceback.format_exception(type(exception), exception, trace))
+    """Format safe frame names without including arbitrary exception details."""
+    frame_names = (
+        [frame.name for frame in traceback.extract_tb(trace, limit=12)] if trace else []
+    )
+    stack = " -> ".join(frame_names)
+    formatted = f"Traceback frames: {stack}\n" if stack else ""
+    formatted += f"{type(exception).__name__}: [details omitted]"
     return sanitize_text(formatted, sensitive_values)

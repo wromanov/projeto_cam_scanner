@@ -201,7 +201,7 @@ def _error_code_for_category(category: str | None) -> ErrorCode:
 @dataclass(frozen=True, slots=True)
 class CameraTarget:
     ip: str
-    username: str
+    username: str = field(repr=False)
     password: str = field(repr=False)
 
 

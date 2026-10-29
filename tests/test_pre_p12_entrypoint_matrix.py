@@ -148,7 +148,7 @@ def test_single_entrypoint_discovers_routes_falls_back_and_renders_identity(
     index = next(i for i, item in enumerate(_FAMILIES) if item[0] == family)
     ip = f"192.0.2.{10 + index}"
     password = f"synthetic-secret-{index}-do-not-print"
-    answers = iter(["1", ip, "synthetic-user", "", "3"])
+    answers = iter(["1", ip, "synthetic-user", "", "", "3"])
     monkeypatch.setattr("builtins.input", lambda _prompt: next(answers))
     monkeypatch.setattr("getpass.getpass", lambda _prompt: password)
 
