@@ -1,5 +1,12 @@
 # CAM SCANNER — continuidade do projeto
 
+## Checkpoint vigente de transferencia para ROMA_CASA (2026-10-29)
+
+Consultar [CAM_SCANNER_WORK_TO_HOME_AST07_SECURITY_DIRECTION_2026_10_29.md](checkpoints/CAM_SCANNER_WORK_TO_HOME_AST07_SECURITY_DIRECTION_2026_10_29.md) e [ASTRA_CONDITIONAL_GATES_DECISION_DOSSIER_07.md](../audit/ASTRA_CONDITIONAL_GATES_DECISION_DOSSIER_07.md).
+
+Atividade 07 concluida documentalmente; 52 PASS_OFFLINE / 4 PARTIAL. A direcao 08 foi alterada por decisao do usuario: nao criar VM/sandbox dedicado como padrao, mas preparar revisao proporcional e proposta de adequacao contratual. Atividade 08 nao executada, contrato nao alterado, revisao independente NOT_ASSESSED e projeto NOT_CLOSED.
+
+
 ## Retomada vigente — ASTRA TECHNICAL CLOSURE 06 (2026-10-29)
 
 Checkpoint atualizado para transferência ROMA_CASA -> RG1NOT0421: [CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06_HOME_TO_WORK_2026_10_29.md](checkpoints/CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06_HOME_TO_WORK_2026_10_29.md). Branch feature/pre-p12-unified-remediation, parent 809da2046841b2f84f372602979162084656b9f8; obter o commit publicado via Git.

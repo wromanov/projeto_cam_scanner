@@ -1,3 +1,20 @@
+# Handoff — diagnóstico documental ASTRA 07 (2026-10-29)
+
+## Handoff atualizado — CAM_SCANNER_WORK_TO_HOME_AST07_SECURITY_DIRECTION_2026_10_29
+
+Destino ROMA_CASA; branch feature/pre-p12-unified-remediation, parent 9b5cf5c0eb0b8b9ecb821fe929fa4f16e5c5b402. Confirmar o commit remoto e fazer somente fast-forward apos verificar worktree/untracked. Ficha: [checkpoint trabalho-casa](../checkpoints/CAM_SCANNER_WORK_TO_HOME_AST07_SECURITY_DIRECTION_2026_10_29.md); [dossie 07](../../audit/ASTRA_CONDITIONAL_GATES_DECISION_DOSSIER_07.md).
+
+Estado 52 PASS_OFFLINE / 4 PARTIAL. Proxima atividade 08 e RESCOPING de revisao de seguranca, NAO provisionamento de VM; mudanca contratual e revisao independente continuam pendentes. Nao declarar PASS adicional ou fechamento.
+
+
+Retomar no checkout `projeto_cam_scanner_pre_p12_remediation`, branch `feature/pre-p12-unified-remediation`, HEAD de baseline `9b5cf5c0eb0b8b9ecb821fe929fa4f16e5c5b402`, conferindo novamente Git e preservando untracked. Ler o [dossiê de decisão 07](../../audit/ASTRA_CONDITIONAL_GATES_DECISION_DOSSIER_07.md), a [matriz](../../audit/ASTRA_REMEDIATION_56_AC_MATRIX.md) e o [PROJECT_STATE](../PROJECT_STATE.md). Handoffs abaixo são históricos.
+
+Os quatro ACs permanecem PARTIAL; estado total 52 PASS_OFFLINE / 4 PARTIAL / 0 UNVERIFIED. O manifesto R2 foi encontrado e seu hash conferido, mas não comprova o delta sujo anterior nem a comparação pré/pós. Axis elevado não está implementado/exercitado; segurança independente segue `BLOCKED_RUNTIME_PROTECTION`, com findings `NOT_ASSESSED`. As regressões 587 e 31 são históricas da atividade 06. P2 mídia permanece DEFERRED e fechamento formal NOT_CLOSED.
+
+Recomendação submetida ao responsável: manter a fase aberta e decidir os gates individualmente. Próxima atividade não está automaticamente autorizada. Revisão de segurança requer proteção read-only técnica comprovada; operação física ou auth elevada requer autorização própria.
+
+---
+
 # Handoff record
 
 ## Handoff vigente — CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06_HOME_TO_WORK_2026_10_29

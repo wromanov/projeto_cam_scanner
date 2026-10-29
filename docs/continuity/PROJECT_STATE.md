@@ -1,3 +1,40 @@
+# PROJECT_STATE — diagnóstico documental ASTRA 07 (2026-10-29)
+
+## Transferencia — CAM_SCANNER_WORK_TO_HOME_AST07_SECURITY_DIRECTION_2026_10_29
+
+Checkpoint Git documental RG1NOT0421 para ROMA_CASA da atividade 07; estado 52 PASS_OFFLINE / 4 PARTIAL / 0 UNVERIFIED. O usuario rejeitou a direcao de VM/sandbox dedicado como desproporcional, aprovando uma proposta futura de revisao de seguranca proporcional e adequacao contratual. CAM_SCANNER_ASTRA_SECURITY_RESCOPING_08 ainda NAO executada; nao houve alteracao contratual. Preservar BLOCKED_RUNTIME_PROTECTION, NOT_ASSESSED e NOT_CLOSED ate evidencias/autorizacoes. Ver docs/continuity/checkpoints/CAM_SCANNER_WORK_TO_HOME_AST07_SECURITY_DIRECTION_2026_10_29.md.
+
+
+Atividade `CAM_SCANNER_ASTRA_CONDITIONAL_GATES_07`: análise dos quatro gates e opções para decisão humana no [dossiê 07](../audit/ASTRA_CONDITIONAL_GATES_DECISION_DOSSIER_07.md). Registros abaixo deste adendo são históricos quando divergirem deste estado.
+
+```text
+REPOSITORY = C:\Users\walacedelgado\PycharmProjects\projeto_cam_scanner_pre_p12_remediation
+BRANCH = feature/pre-p12-unified-remediation
+BASELINE_HEAD = 9b5cf5c0eb0b8b9ecb821fe929fa4f16e5c5b402
+AC_CURRENT = 52 PASS_OFFLINE / 4 PARTIAL / 0 UNVERIFIED
+AC_REMAINING = ASTRA-P0-01-AC04; ASTRA-P0-05-AC01; ASTRA-P0-05-AC02; ASTRA-P0-G-AC01
+AC_PROMOTED_07 = NONE
+HISTORICAL_EVIDENCE = R2 distribution manifest and executable hashes matched; prior dirty-state inventory and divergence proof remain incomplete
+FULL_REGRESSION_HISTORICAL_06 = 587 PASS (not rerun in activity 07)
+G_PN_JOINT_HISTORICAL_06 = 31 PASS (not rerun in activity 07)
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+P2_MEDIA = DEFERRED
+FORMAL_CLOSURE_STATUS = NOT_CLOSED
+RECOMMENDED_CLOSURE = C, phase remains open; human decision pending
+NEXT_ACTIVITY = Human decisions on gates; future evidence recovery and sandbox preparation require their own authorization
+EXECUTION_MODE = DIRECT; AGENTS_SPAWNED = NONE
+PROJECT_STATE_UPDATE = PASS
+ACTIVITY_STATUS = COMPLETED_DOCUMENTARY
+ACTIVITY_COMPLETE = YES (documentary activity; project closure remains open)
+ACTIVITY_COMPLETION_PERCENT = 100 (documentary activity)
+DELIVERY_STATUS = SENT (chat Projeto Scanner 2.0; tool confirmed after user renewed authorization)
+```
+
+O manifesto da distribuição R2 e o inventário do estado sujo pré-remediação são objetos diferentes. A proposta de sandbox é futura e não representa revisão de segurança executada. Preservar os registros anteriores e os untracked; inventário completo destes foi limitado por acesso negado.
+
+---
+
 # PROJECT_STATE — adendo vigente (2026-10-29)
 
 ## Estado vigente — CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06 (2026-10-29)
