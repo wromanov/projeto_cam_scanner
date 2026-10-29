@@ -1,5 +1,60 @@
 # PROJECT_STATE — adendo vigente (2026-10-29)
 
+## Estado vigente — CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06 (2026-10-29)
+
+```text
+ACTIVITY_ID = CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06
+REPOSITORY = C:\Users\walac\desenvolvimento\projeto_cam_scanner
+BRANCH = feature/pre-p12-unified-remediation
+BASELINE_HEAD = 809da2046841b2f84f372602979162084656b9f8
+CURRENT_HEAD = 809da2046841b2f84f372602979162084656b9f8
+EXECUTION_MODE = DIRECT (continuação integrada; router reavaliado)
+ROOT_MODEL_RUNTIME_OBSERVED = gpt-6-luna (metadado do runtime desta retomada)
+ROOT_MODEL_REQUESTED = gpt-6-luna
+ROOT_EFFORT_REQUESTED = xhigh
+ROOT_EFFORT_RUNTIME = UNVERIFIED (não exposto por metadado correlacionável)
+PRIOR_AGENT_PROFILES_DECLARED = backend_engineer Terra/Medium; integration_engineer Terra/Medium; python_cli_engineer Luna/High; test_engineer Terra/Medium (registro local da rodada anterior)
+PRIOR_AGENTS_RUNTIME_MODEL_EFFORT = UNVERIFIED (agent_type foi solicitado; sem correlação verificável de turn_context nesta retomada)
+AGENTS_FROM_THIS_CONTINUATION = NONE
+TEST_ENVIRONMENT = .venv/Scripts/python.exe; Python 3.14.7; pytest 9.1.1; requests 2.34.2; zeep 4.3.3; Ruff 0.17.0; sem instalação
+FOCAL_PYTEST = 79 passed / 0 failed / 0 skipped / 0 deselected
+TECHNICAL_CLOSURE_06 = 10 passed / 0 failed
+G_PN_JOINT = 31 passed / 0 failed
+FULL_PYTEST = 587 passed / 0 failed / 0 skipped / 0 deselected, 133.17 s
+RUFF_SRC_TESTS = PASS
+RUFF_GLOBAL = PASS (o scanner informou acesso negado ao percorrer diretórios históricos protegidos)
+COMPILEALL_SRC_TESTS = PASS
+GIT_DIFF_CHECK = PASS
+AC_PREVIOUS = 47 PASS_OFFLINE / 9 PARTIAL / 0 UNVERIFIED
+AC_CURRENT = 52 PASS_OFFLINE / 4 PARTIAL / 0 UNVERIFIED
+AC_PROMOTED = ASTRA-P0-02-AC02; ASTRA-P0-02-AC06; ASTRA-P1-01-AC08; ASTRA-P1-G-AC01; ASTRA-TR-AC13
+AC_REMAINING_GATES = ASTRA-P0-01-AC04; ASTRA-P0-05-AC01/02; ASTRA-P0-G-AC01
+SECURITY_REVIEW_STATUS = BLOCKED_RUNTIME_PROTECTION
+SECURITY_FINDINGS = NOT_ASSESSED
+P2_MEDIA = DEFERRED
+FORMAL_CLOSURE_STATUS = NOT_CLOSED
+REAL_CAMERA_ACCESS = NONE
+CORPORATE_NETWORK_SCAN = NONE
+OPERATIONAL_HTTP = NONE
+OPERATIONAL_RTSP = NONE
+ELEVATED_AUTH = NONE
+CAMERA_CHANGES = NONE
+BUILD_DEPLOY = NONE
+GIT_COMMIT_PUSH = NONE
+CHECKPOINT_UNTRACKED_BASELINE = 1416 preserved; inventory count could not be revalidated because OS access to historical .pytest-run directories was denied
+STAGED = 0
+PROJECT_STATE_UPDATE = PASS
+ACTIVITY_STATUS = COMPLETE_SCOPED
+ACTIVITY_COMPLETE = YES
+ACTIVITY_COMPLETION_PERCENT = 100
+DELIVERY_TO_CHAT_PROJETO_SCANNER_2_0 = UNAVAILABLE (list_threads/send_message_to_thread not exposed by runtime)
+NEXT_STEP = manter os quatro gates condicionados; revisão de segurança somente em runtime com proteção tecnicamente read-only comprovada
+```
+
+Adjudicação por critério e comandos nominais está em `docs/audit/ASTRA_REMEDIATION_56_AC_MATRIX.md`, na seção desta atividade. Esta conclusão fecha apenas as cinco lacunas técnicas cobertas por fixtures offline; não declara encerramento formal do projeto nem remove gates de autoridade, baseline histórico ou segurança. Nenhum teste acessou câmera física ou serviço externo. O cancelamento MULTI preserva `NO_EXPORT_INCOMPLETE_MULTI_BATCH`.
+
+O router foi reaplicado à etapa remanescente. Delegação não agregaria benefício material porque a validação e a adjudicação final dependiam da integração de evidências já produzidas pelos agentes da rodada anterior; esta retomada foi executada diretamente. Os perfis de modelo/esforço dos agentes anteriores são declarações locais, não evidência de execução efetiva.
+
 ## Checkpoint corrente - CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
 
 ACTIVITY_ID = CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29

@@ -1,5 +1,14 @@
 # Handoff record
 
+## Handoff vigente — CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06_HOME_TO_WORK_2026_10_29
+
+Transferência ROMA_CASA -> RG1NOT0421. Branch feature/pre-p12-unified-remediation, parent 809da2046841b2f84f372602979162084656b9f8. Confirmar HEAD remoto no checkout de destino após git fetch e fast-forward seguro.
+
+Fonte canônica: [ficha do checkpoint 06](../checkpoints/CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06_HOME_TO_WORK_2026_10_29.md). Estado aprovado de 52/56 PASS_OFFLINE, quatro AC condicionados PARTIAL. Regressão 587/587 PASS, G-PN-JOINT 31/31 PASS. Manter SECURITY_REVIEW_STATUS=BLOCKED_RUNTIME_PROTECTION, FINDINGS=NOT_ASSESSED, P2_MEDIA=DEFERRED e FORMAL_CLOSURE=NOT_CLOSED. Não houve homologação em câmera real.
+
+No destino, preservar untracked, não usar ações destrutivas de Git, verificar hashes e retomar exclusivamente os quatro gates condicionados conforme sua autoridade. Handoffs mais antigos abaixo são históricos.
+
+
 ## Handoff vigente - CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
 
 Transferencia do ROMA_CASA para RG1NOT0421 no branch feature/pre-p12-unified-remediation. Parent HEAD = f314035c4f7a8b4fdcb2122523649672b0bf12d2. Confirmar commit publicado pelo git log e ls-remote; nao usar o HEAD antigo apos sincronizacao.

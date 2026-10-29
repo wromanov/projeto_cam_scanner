@@ -25,6 +25,9 @@ from cam_scanner.domain.models import (
     CollectionReport,
     parse_model_hint,
 )
+from cam_scanner.snapshot import rtsp as rtsp_module
+from cam_scanner.snapshot.rtsp import RtspFrameProvider
+from cam_scanner.snapshot.service import SnapshotCaptureError, SnapshotFailure, SnapshotService
 from cam_scanner.terminal.ui import TerminalUI
 from tests import test_astra_acl_operation_matrix as acl_fixture
 from tests.test_astra_gpn_joint_integration import (
@@ -148,7 +151,7 @@ def test_multi_ineligible_models_project_skip_and_never_send(monkeypatch, tmp_pa
 def test_multi_complete_identity_does_not_authenticate_for_optional_fields(
     monkeypatch, tmp_path: Path,
 ):
-    """Two independent Viewer fixture accounts use only the identity operation."""
+    """One chain covers profile, Digest, complete identity, XLSX and closed RTSP."""
     monkeypatch.setitem(acl_fixture._ACCOUNTS, "closure-a", ("fixture-pass-a", "Viewer"))
     monkeypatch.setitem(acl_fixture._ACCOUNTS, "closure-b", ("fixture-pass-b", "Viewer"))
     monkeypatch.setattr(acl_fixture, "_ALLOWED_ROLES", frozenset({"Viewer"}))
@@ -169,8 +172,41 @@ def test_multi_complete_identity_does_not_authenticate_for_optional_fields(
         inventory = _CapturingInventory(InventoryService(
             VendorFirstCollector(registry=build_default_registry()), config=config,
         ))
+        media_calls = []
+
+        class UnsupportedSnapshotProvider:
+            def capture(self, *_args, **_kwargs):
+                raise SnapshotCaptureError(SnapshotFailure.UNSUPPORTED)
+
+        class ForbiddenLock:
+            def acquire(self, *_args, **_kwargs):
+                media_calls.append("lock")
+                raise AssertionError("Disabled RTSP must stop before the media lock")
+
+            def release(self):
+                media_calls.append("release")
+
+        class ForbiddenAv:
+            def open(self, *_args, **_kwargs):
+                media_calls.append("pyav.open")
+                raise AssertionError("Disabled RTSP must stop before PyAV")
+
+        def forbidden_onvif_client(**_kwargs):
+            media_calls.append("onvif.media_client")
+            raise AssertionError("Disabled RTSP must stop before media ONVIF")
+
+        monkeypatch.setattr(rtsp_module, "_RTSP_CAPTURE_ENABLED", False)
+        monkeypatch.setattr(rtsp_module, "_RTSP_CAPTURE_LOCK", ForbiddenLock())
+        snapshots = SnapshotService(
+            UnsupportedSnapshotProvider(),
+            UnsupportedSnapshotProvider(),
+            RtspFrameProvider(
+                client_factory=forbidden_onvif_client,
+                av_module=ForbiddenAv(),
+            ),
+        )
         workflow = MultiWorkflow(
-            _MultiUI(source, destination, profile_id), inventory, _NoMedia(),
+            _MultiUI(source, destination, profile_id), inventory, snapshots,
             progress_reporter=_Progress(), max_workers=1,
         )
         workflow.run()
@@ -195,6 +231,12 @@ def test_multi_complete_identity_does_not_authenticate_for_optional_fields(
         assert not context.auth.begin(
             "VENDOR_AXIS", "missing_identity", missing_identity_fields=("serial",),
         )
+        assert row.snapshot is not None
+        assert row.snapshot.failure is SnapshotFailure.UNSUPPORTED
+        assert row.snapshot.attempts == ()
+        assert not context.snapshot_eligible("ONVIF")
+        assert context.snapshot_eligible("VENDOR_HIKVISION")
+    assert media_calls == []
     assert len(fields(CameraResult)) == 14
     workbook = openpyxl.load_workbook(destination, data_only=False)
     try:

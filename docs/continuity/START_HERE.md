@@ -1,5 +1,12 @@
 # CAM SCANNER — continuidade do projeto
 
+## Retomada vigente — ASTRA TECHNICAL CLOSURE 06 (2026-10-29)
+
+Checkpoint atualizado para transferência ROMA_CASA -> RG1NOT0421: [CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06_HOME_TO_WORK_2026_10_29.md](checkpoints/CAM_SCANNER_ASTRA_TECHNICAL_CLOSURE_06_HOME_TO_WORK_2026_10_29.md). Branch feature/pre-p12-unified-remediation, parent 809da2046841b2f84f372602979162084656b9f8; obter o commit publicado via Git.
+
+Estado vigente: **52 PASS_OFFLINE / 4 PARTIAL / 0 UNVERIFIED**, após os cinco AC técnicos da atividade 06. Regressão completa 587 PASS; G-PN-JOINT 31 PASS. Nenhum equipamento real acessado. Projeto NOT_CLOSED; segurança independente BLOCKED_RUNTIME_PROTECTION / NOT_ASSESSED. Consultar PROJECT_STATE.md e docs/audit/ASTRA_REMEDIATION_56_AC_MATRIX.md; os checkpoints anteriores são históricos.
+
+
 ## Retomada vigente - CAM_SCANNER_HOME_TO_WORK_GIT_CHECKPOINT_2026_10_29
 
 Este e o checkpoint de transferencia ROMA_CASA -> RG1NOT0421: [ficha completa](checkpoints/CAM_SCANNER_HOME_TO_WORK_CHECKPOINT_2026_10_29.md). Branch feature/pre-p12-unified-remediation; parent f314035c4f7a8b4fdcb2122523649672b0bf12d2. O commit novo deve ser verificado via Git apos fetch/fast-forward.
